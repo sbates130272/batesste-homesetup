@@ -15,7 +15,7 @@ here][ref-linux-install]. At some point I might add this to my
 Add the [Eufy Plugin][ref-eufy-plugin] to Homebridge and then use
 [these instructions][ref-eufy-instruct] to set up the Eufy security
 cameras. My account details for both the main Eufy account and the
-admin one I use for HomeBridge are in my Keeper Vault.
+admin one I use for Homebridge are in my Keeper Vault.
 
 # Samsung Smart TV
 
