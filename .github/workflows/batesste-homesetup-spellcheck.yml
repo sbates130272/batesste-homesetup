@@ -1,0 +1,11 @@
+name: batesste-homesetup
+on: [pull_request]
+
+jobs:
+  spellcheck-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+      - name: GitHub spellcheck action
+        uses: rojopolis/spellcheck-github-actions@0.45.0
