@@ -1,0 +1,10 @@
+[Unit]
+Description=My AWS S3-based dynamic DNS resolver
+
+[Timer]
+OnCalendar=*:0/15
+Persistent=true
+Unit=batesste-s3-dyndns.service
+
+[Install]
+WantedBy=multi-user.target

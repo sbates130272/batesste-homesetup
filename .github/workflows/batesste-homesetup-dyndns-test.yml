@@ -1,0 +1,36 @@
+name: batesste-homesetup
+on: [pull_request]
+
+jobs:
+  dyndns-test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./dyndns
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+      - name: Create batesste-s3-dyndns.secrets file
+        run: |
+          echo "UPDATE=yes" > batesste-s3-dyndns.secrets
+          echo "AWS_KEY=${{ secrets.AWS_KEY }} >> batesste-s3-dyndns.secrets
+          echo "AWS_SECRET=${{ secrets.AWS_SECRET }} >> batesste-s3-dyndns.secrets
+      - name: Install batesste-s3-dyndns systemd service and timer
+        run: |
+          sudo cp batesste-s3-dyndns /usr/local/bin/
+          sudo cp batesste-s3-dyndns.service /etc/systemd/system/
+          sudo cp batesste-s3-dyndns.timer /etc/systemd/system/
+          sudo mkdir -p /usr/local/share/batesste-s3-dyndns
+          sudo mv batesste-s3-dyndns.secrets /usr/local/share/batesste-s3-dyndns/
+      - name: Start up the batesste-s3-dyndns systemd service and timer
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl enable batesste-s3-dyndns.timer
+          sudo systemctl start batesste-s3-dyndns.timer
+      - name: Run a local test as a sanity-check
+        run: ./batesste-s3-dyndns
+        env:
+          UPDATE: no
+          AWS_KEY: ${{ secrets.AWS_KEY }}
+          AWS_SECRET: ${{ secrets.AWS_SECRET }}
