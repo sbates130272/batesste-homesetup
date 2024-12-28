@@ -6,10 +6,11 @@ infrastructure.
 # dyndns
 
 The [dyndns](./dyndns) folder contains a simple bash script that I use
-in combination with a tiny [Amazon Wed Services][ref-aws] EC2 instance
-to track the IP address of my home router. I can use this to connect
-to my main home server while I am travelling. From there I can jump to
-any other machine in the system.
+in combination with an [AWS S3][ref-aws-s3] object to track the IP
+address of my home router. I can use this to connect to my main home
+server while I am travelling. From there I can jump to any other
+machine in the system. See [the README.md](./dyndns/README.md) for
+more information.
 
 # Homebridge
 
@@ -19,5 +20,5 @@ for [Homebridge][ref-homebridge] for my house. This allows me to use
 automation devices. See [the README.md](./homebridge/README.md) for
 more information.
 
-[ref-aws]: https://aws.amazon.com/
+[ref-aws-s3]: https://aws.amazon.com/s3/
 [ref-homebridge]: https://homebridge.io/

@@ -1,0 +1,60 @@
+#!/bin/bash
+#
+# batesste-s3-dyndns
+# ------------------
+#
+# A simple script that will run as a systemd timer service on my home
+# server and detect the current WAN IP address and update this to an
+# AWS S3 bucket so I can access my home network when I am travelling
+# by viewing the contents of said bucket. We use ipify to obtain our
+# current WAN IP address.
+
+AWS_KEY=${AWS_KEY:-none}
+AWS_SECRET=${AWS_SECRET:-none}
+OBJECT=${OBJECT:-batesste-homesetup-wan-ipv4}
+UPDATE=${UPDATE:-no}
+
+if [ $AWS_KEY == "none" ]; then
+    echo "ERROR: You must specify an AWS_KEY."
+    exit -1
+fi
+if [ $AWS_SECRET == "none" ]; then
+    echo "ERROR: You must specify an AWS_SECRET."
+    exit -1
+fi
+
+CURRENT_WAN_IP=$(curl -s "https://api.ipify.org")
+BUCKET_NAME=batesste-homesetup
+OBJECT_PATH="/${OBJECT}"
+CURRENT_DATE=$(date +'%a, %d %b %Y %H:%M:%S %z')
+
+STRING_TO_SIGN="GET\n\n\n${CURRENT_DATE}\n/${BUCKET_NAME}${OBJECT_PATH}"
+S3_SIGNATURE=$(echo -en "${STRING_TO_SIGN}" | openssl sha1 -hmac "${AWS_SECRET}" -binary | base64)
+
+AWS_S3_WAN_IP=$(curl -s -H "Host: ${BUCKET_NAME}.s3.amazonaws.com" \
+     -H "Authorization: AWS ${AWS_KEY}:${S3_SIGNATURE}" \
+     -H "Date: ${CURRENT_DATE}" \
+     "https://${BUCKET_NAME}.s3-us-west-2.amazonaws.com${OBJECT_PATH}")
+
+echo "CURRENT_WAN_IP = ${CURRENT_WAN_IP}."
+echo "AWS_S3_WAN_IP  = ${AWS_S3_WAN_IP}."
+
+if [ "${CURRENT_WAN_IP}" != "${AWS_S3_WAN_IP}" ]; then
+    if [ $UPDATE == "no" ]; then
+	echo "No update requested. Exiting without updating AWS S3 object."
+    else
+	echo "Updating AWS S3 object to ${CURRENT_WAN_IP}."
+
+	TMP_FILE=$(mktemp /tmp/batesste-s3-dyndns.XXXXXXXX)
+	echo ${CURRENT_WAN_IP} > ${TMP_FILE}
+	STRING_TO_SIGN="PUT\n\n\n${CURRENT_DATE}\n/${BUCKET_NAME}${OBJECT_PATH}"
+	S3_SIGNATURE=$(echo -en "${STRING_TO_SIGN}" | openssl sha1 -hmac "${AWS_SECRET}" -binary | base64)
+	curl -X PUT -T "${TMP_FILE}" \
+	     -H "Date: ${CURRENT_DATE}" \
+	     -H "Authorization: AWS ${AWS_KEY}:${S3_SIGNATURE}" \
+	     "https://${BUCKET_NAME}.s3-us-west-2.amazonaws.com${OBJECT_PATH}"
+	rm -rf ${TMP_FILE}
+    fi
+else
+    echo "No change in WAN IP. Exiting."
+fi
