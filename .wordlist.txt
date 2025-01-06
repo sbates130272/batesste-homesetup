@@ -16,6 +16,7 @@ http
 IPv
 md
 README
+repo
 SSL
 systemd
 Tizen
