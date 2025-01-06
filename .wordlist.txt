@@ -5,6 +5,7 @@ DNS
 dyndns
 Eufy
 GoDaddy
+Grafana
 homebridge
 Homebridge
 homekit

@@ -37,6 +37,13 @@ $ sudo certbot certonly --manual --preferred-challenges dns -d "*.homelab.raithl
 Note that we do need to create a TXT based DNS record on my domain
 manager who is currently [GoDaddy][ref-godaddy].
 
+# Grafana and Prometheus
+
+These are used for monitoring my home network and, in time, other
+things. Grafana is installed from their apt repository and Prometheus
+is installed from the Ubuntu repository. Setup is pretty
+straight-forward so I do not go into details here.
+
 [ref-aws-s3]: https://aws.amazon.com/s3/
 [ref-homebridge]: https://homebridge.io/
 [ref-ssl-certs]: https://www.kaspersky.com/resource-center/definitions/what-is-a-ssl-certificate
