@@ -44,9 +44,17 @@ things. Grafana is installed from their apt repository and Prometheus
 is installed from the Ubuntu repository. Setup is pretty
 straight-forward so I do not go into details here.
 
+# Firefly III
+
+I use [Firefly III][ref-firefly] for personal finance tracking. I have
+a [GitHub repo][ref-batesste-ff] dedicated to this. Best refer to that
+repo for more information.
+
 [ref-aws-s3]: https://aws.amazon.com/s3/
 [ref-homebridge]: https://homebridge.io/
 [ref-ssl-certs]: https://www.kaspersky.com/resource-center/definitions/what-is-a-ssl-certificate
 [ref-ssl-tutorial]: https://ongkhaiwei.medium.com/generate-lets-encrypt-certificate-with-dns-challenge-and-namecheap-e5999a040708
 [ref-certbot]: https://eff-certbot.readthedocs.io/en/latest/index.html
 [ref-godaddy]: https://godaddy.com/
+[ref-firefly]: https://docs.firefly-iii.org/
+[ref-batesste-ff]:https://github.com/sbates130272/batesste-firefly-iii
