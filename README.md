@@ -50,6 +50,19 @@ I use [Firefly III][ref-firefly] for personal finance tracking. I have
 a [GitHub repo][ref-batesste-ff] dedicated to this. Best refer to that
 repo for more information.
 
+# Home Internet Speedtest
+
+In order to ensure my WAN connection is stable I run a speedtest using
+[this container][ref-speedtest] and then integrate the metrics into my
+Prometheus and Grafana servers. Using something like this:
+```
+docker run -d --restart=always \
+  -p 9469:9469 \
+  billimek/prometheus-speedtest-exporter:latest
+```
+See the referenced project for an example of the Prometheus scrape
+config and the Grafana dashboard.
+
 [ref-aws-s3]: https://aws.amazon.com/s3/
 [ref-homebridge]: https://homebridge.io/
 [ref-ssl-certs]: https://www.kaspersky.com/resource-center/definitions/what-is-a-ssl-certificate
@@ -58,3 +71,4 @@ repo for more information.
 [ref-godaddy]: https://godaddy.com/
 [ref-firefly]: https://docs.firefly-iii.org/
 [ref-batesste-ff]:https://github.com/sbates130272/batesste-firefly-iii
+[ref-speedtest]:https://github.com/billimek/prometheus-speedtest-exporter
