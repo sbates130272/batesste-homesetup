@@ -1,6 +1,7 @@
 ansible
 batesste
 certbot
+config
 DNS
 dyndns
 Eufy
@@ -17,6 +18,8 @@ IPv
 md
 README
 repo
+Speedtest
+speedtest
 SSL
 systemd
 Tizen
