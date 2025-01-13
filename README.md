@@ -63,6 +63,12 @@ docker run -d --restart=always \
 See the referenced project for an example of the Prometheus scrape
 config and the Grafana dashboard.
 
+# Backups
+
+We enable a full disk backup of servers to AWS S3 buckets using
+[mountpoint][ref-mountpoint] and a systemd service. See the
+[backup README.md](./backup/README.md) for more information.
+
 [ref-aws-s3]: https://aws.amazon.com/s3/
 [ref-homebridge]: https://homebridge.io/
 [ref-ssl-certs]: https://www.kaspersky.com/resource-center/definitions/what-is-a-ssl-certificate
@@ -72,3 +78,4 @@ config and the Grafana dashboard.
 [ref-firefly]: https://docs.firefly-iii.org/
 [ref-batesste-ff]:https://github.com/sbates130272/batesste-firefly-iii
 [ref-speedtest]:https://github.com/billimek/prometheus-speedtest-exporter
+[ref-mountpoint]: https://github.com/awslabs/mountpoint-s3

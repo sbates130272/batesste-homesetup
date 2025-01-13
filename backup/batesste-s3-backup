@@ -1,0 +1,64 @@
+#!/bin/bash
+#
+# batesste-s3-backup
+# ------------------
+#
+# A simple script that will run as a systemd timer service on my home
+# server and backup any provided block devices to an AWS S3 object
+# using the mountpoint-s3 FUSE. There is also a FILE_MODE for backing
+# up arbitry files.
+
+AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-none}
+AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-none}
+AWS_REGION=${AWS_REGION:-us-west-2}
+AWS_BUCKET=${AWS_BUCKET:-batesste-homelab-backups}
+BLK_DEVICE=${BLK_DEVICE:-none}
+MOUNT_POINT=${MOUNT_POINT:-none}
+FILE_MODE=${FILE_MODE:-false}
+
+if [ $AWS_ACCESS_KEY_ID == "none" ]; then
+    echo "ERROR: You must specify an AWS_ACCESS_KEY_ID."
+    exit -1
+fi
+if [ $AWS_SECRET_ACCESS_KEY == "none" ]; then
+    echo "ERROR: You must specify an AWS_SECRET_ACCESS_KEY."
+    exit -1
+fi
+if [ $BLK_DEVICE == "none" ]; then
+    echo "ERROR: You must specify a block device."
+    exit -1
+fi
+if [ $FILE_MODE = "false" ] && [ ! -b $BLK_DEVICE ]; then
+    echo "ERROR: BLK_DEVICE (${BLK_DEVICE}) is not a block device."
+    exit -1
+fi
+if [ $MOUNT_POINT == "none" ]; then
+    echo "ERROR: You must specify a mount point."
+    exit -1
+fi
+if [ -e $MOUNT_POINT ]; then
+    echo "ERROR: MOUNT_POINT (${MOUNT_POINT}) already exists."
+    exit -1
+fi
+
+set -e
+
+function cleanup() {
+    umount ${MOUNT_POINT}
+    rm -rf ${MOUNT_POINT}
+}
+
+trap cleanup EXIT
+
+mkdir -p ${MOUNT_POINT}
+mount-s3 --region ${AWS_REGION} ${AWS_BUCKET} ${MOUNT_POINT}
+
+  # The backup name is the hostname-blk-device-datestamp.gz. Note that
+  # we replace backslashes in the block device name.
+
+FILENAME=$(uname -n)${BLK_DEVICE//"/"/"-"}-$(date +%F-%H-%M).gz
+
+echo "INFO: Performing backup to ${MOUNT_POINT}/${FILENAME}."
+
+dd if=${BLK_DEVICE} bs=1M |
+    pigz > ${MOUNT_POINT}/${FILENAME}

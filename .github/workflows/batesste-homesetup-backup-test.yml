@@ -1,0 +1,49 @@
+name: batesste-homesetup
+on:
+  pull_request:
+    paths:
+      - 'backup/**'
+      - '!backup/README.md'
+
+jobs:
+  backup-test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./backup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+      - name: Install mount-s3
+        run: |
+          wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.deb
+          sudo apt-get install -y ./mount-s3.deb
+      - name: Create batesste-s3-backup.secrets file
+        run: |
+          echo "BLK_DEVICE=/dev/sda" > batesste-s3-backup.secrets
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_KEY }} >> batesste-s3-backup.secrets
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET }} >> batesste-s3-backup.secrets
+      - name: Install batesste-s3-backup systemd service and timer
+        run: |
+          sudo cp batesste-s3-backup /usr/local/bin/
+          sudo cp batesste-s3-backup.service /etc/systemd/system/
+          sudo cp batesste-s3-backup.timer /etc/systemd/system/
+          sudo mkdir -p /usr/local/share/batesste-s3-backup
+          sudo mv batesste-s3-backup.secrets /usr/local/share/batesste-s3-backup/
+      - name: Start up the batesste-s3-backup systemd service and timer
+        run: |
+          sudo systemctl daemon-reload
+          sudo systemctl enable batesste-s3-backup.timer
+          sudo systemctl start batesste-s3-backup.timer
+      - name: Run a local test as a sanity-check
+        run: |
+          dd if=/dev/urandom of=./test.data bs=1M count=10
+          sudo -E ./batesste-s3-backup
+        env:
+          FILE_MODE: true
+          BLK_DEVICE: test.data
+          MOUNT_POINT: /mnt/batesste-s3-backup
+          AWS_BUCKET: batesste-homelab-backups-ci
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET }}

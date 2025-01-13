@@ -15,7 +15,9 @@ homelab
 homesetup
 http
 IPv
+pigz
 md
+mountpoint
 README
 repo
 Speedtest
