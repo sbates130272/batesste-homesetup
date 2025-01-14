@@ -69,6 +69,29 @@ We enable a full disk backup of servers to AWS S3 buckets using
 [mountpoint][ref-mountpoint] and a systemd service. See the
 [backup README.md](./backup/README.md) for more information.
 
+# Time Machine
+
+In order to backup my MacBook we use [this timemachine
+repo][ref-time-machine] on the home server. In order to get this
+started and in order to provide AWS S3 backup of the volume that
+contains the time machine data use the [docker
+compose](./time-machine/batesste-time-machine.yml) file.
+
+Place a ```.aws.creds.env``` file in the ```time-machine``` folder of
+the form:
+```bash
+AWS_ACCESS_KEY_ID="<my AWS id>"
+AWS_SECRET_ACCESS_KEY="<my AWS secret>
+```
+Then install using something like (only once ever):
+```bash
+cd time-machine
+docker volume create batesste-time-machine
+docker compose -f batesste-time-machine.dc.yml -d up
+```
+Note that since we are not broadcasting you will need to establish a
+link to the server via the instructions in main repo.
+
 [ref-aws-s3]: https://aws.amazon.com/s3/
 [ref-homebridge]: https://homebridge.io/
 [ref-ssl-certs]: https://www.kaspersky.com/resource-center/definitions/what-is-a-ssl-certificate
@@ -79,3 +102,4 @@ We enable a full disk backup of servers to AWS S3 buckets using
 [ref-batesste-ff]:https://github.com/sbates130272/batesste-firefly-iii
 [ref-speedtest]:https://github.com/billimek/prometheus-speedtest-exporter
 [ref-mountpoint]: https://github.com/awslabs/mountpoint-s3
+[ref-time-machine]: https://github.com/mbentley/docker-timemachine
