@@ -1,5 +1,9 @@
 name: batesste-homesetup
-on: [pull_request]
+on:
+  pull_request:
+    paths:
+      - 'dyndns/**'
+      - '!dyndns/README.md'
 
 jobs:
   dyndns-test:
