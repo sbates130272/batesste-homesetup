@@ -1,0 +1,8 @@
+[Unit]
+Description=My AWS S3-based backup system
+
+[Service]
+Type=simple
+Restart=no
+ExecStart=/usr/local/bin/batesste-s3-backup
+EnvironmentFile=/usr/local/share/batesste-s3-backup/batesste-s3-backup.secrets
