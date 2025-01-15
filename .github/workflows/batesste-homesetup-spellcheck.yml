@@ -10,6 +10,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
+      - name: Perform hack to get Linkspector to work on Ubuntu 24.04
+        run: |
+          echo 0 | sudo tee /proc/sys/kernel/apparmor_restrict_unprivileged_userns
       - name: GitHub spellcheck action
         uses: rojopolis/spellcheck-github-actions@0.45.0
       - name: Run Linkspector with reviewdog

@@ -16,6 +16,7 @@ homesetup
 http
 IPv
 pigz
+MacBook
 md
 mountpoint
 README
@@ -24,5 +25,6 @@ Speedtest
 speedtest
 SSL
 systemd
+timemachine
 Tizen
 TXT
