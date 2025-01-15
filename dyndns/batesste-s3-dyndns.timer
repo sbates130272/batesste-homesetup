@@ -2,8 +2,8 @@
 Description=My AWS S3-based dynamic DNS resolver
 
 [Timer]
+OnBootSec=5min
 OnCalendar=*:0/15
-Persistent=true
 Unit=batesste-s3-dyndns.service
 
 [Install]
