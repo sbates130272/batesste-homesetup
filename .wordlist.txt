@@ -16,6 +16,7 @@ homesetup
 http
 IPv
 pigz
+macOS
 MacBook
 md
 mountpoint

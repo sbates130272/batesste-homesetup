@@ -44,6 +44,17 @@ things. Grafana is installed from their apt repository and Prometheus
 is installed from the Ubuntu repository. Setup is pretty
 straight-forward so I do not go into details here.
 
+However it is worth noting that on systems with WiFi we do want to
+enable the WiFi collector. We can do this by adding the following to
+an override file.
+```
+[Service]
+ExecStart=
+ExecStart=/usr/bin/prometheus-node-exporter $ARGS --collector.wifi
+```
+Note that unfortunately this collector is not available for macOS and
+so this won't work on Mac-based systems.
+
 # Firefly III
 
 I use [Firefly III][ref-firefly] for personal finance tracking. I have
