@@ -55,6 +55,18 @@ ExecStart=/usr/bin/prometheus-node-exporter $ARGS --collector.wifi
 Note that unfortunately this collector is not available for macOS and
 so this won't work on Mac-based systems.
 
+Note that in order to gather more data we alter the retention default
+policy in Prometheus. In Ubuntu we do this via adding the following to
+the ```/etc/default/prometheus``` file and then restart the Prometheus
+systemd service.
+```
+# Set the command-line arguments to pass to the server.
+# Due to shell escaping, to pass backslashes for regexes, you need to double
+# them (\\d for \d). If running under systemd, you need to double them again
+# (\\\\d to mean \d), and escape newlines too.
+ARGS="--storage.tsdb.retention.size=10GB"
+```
+
 # Firefly III
 
 I use [Firefly III][ref-firefly] for personal finance tracking. I have
