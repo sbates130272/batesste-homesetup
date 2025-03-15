@@ -20,6 +20,8 @@ Copy my AWS credentials into a file in this folder called
 ```
 BLK_DEVICE=<the block device you want to backup>
 MOUNT_POINT=<the location for the mountpoint-s3 mount>
+PRUNE_DAYS=<prune backups older than this number of days> (optional)
+EXCEPT_DAY=<keep backups created on this day of the month> (optional)
 AWS_ACCESS_KEY_ID=<my AWS key>
 AWS_SECRET_ACCESS_KEY=<my AWS secret>
 ```
