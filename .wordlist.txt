@@ -1,4 +1,5 @@
 ansible
+ARGS
 batesste
 certbot
 config
@@ -21,6 +22,7 @@ MacBook
 md
 mountpoint
 README
+regexes
 repo
 Speedtest
 speedtest
@@ -28,4 +30,5 @@ SSL
 systemd
 timemachine
 Tizen
+tsdb
 TXT
