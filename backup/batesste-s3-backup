@@ -7,6 +7,10 @@
 # server and backup any provided block devices to an AWS S3 object
 # using the mountpoint-s3 FUSE. There is also a FILE_MODE for backing
 # up arbitry files.
+#
+# PRUNE_DAYS can be set to an integer to delete any backup files that
+# are older than this value (in days). EXCEPT_DAY can be used to keep
+# backups from one day of the month permemantly.
 
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-none}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-none}
@@ -15,6 +19,8 @@ AWS_BUCKET=${AWS_BUCKET:-batesste-homelab-backups}
 BLK_DEVICE=${BLK_DEVICE:-none}
 MOUNT_POINT=${MOUNT_POINT:-none}
 FILE_MODE=${FILE_MODE:-false}
+PRUNE_DAYS=${PRUNE_DAYS:-none}
+EXCEPT_DAY=${EXCEPT_DAY:-none}
 
 if [ $AWS_ACCESS_KEY_ID == "none" ]; then
     echo "ERROR: You must specify an AWS_ACCESS_KEY_ID."
@@ -47,16 +53,35 @@ function cleanup() {
     umount ${MOUNT_POINT}
     rm -rf ${MOUNT_POINT}
 }
-
 trap cleanup EXIT
 
 mkdir -p ${MOUNT_POINT}
-mount-s3 --region ${AWS_REGION} ${AWS_BUCKET} ${MOUNT_POINT}
+mount-s3 --allow-delete --region ${AWS_REGION} ${AWS_BUCKET} ${MOUNT_POINT}
 
   # The backup name is the hostname-blk-device-datestamp.gz. Note that
   # we replace backslashes in the block device name.
 
-FILENAME=$(uname -n)${BLK_DEVICE//"/"/"-"}-$(date +%F-%H-%M).gz
+FILENAME_PREFIX=$(uname -n)${BLK_DEVICE//"/"/"-"}
+FILENAME=${FILENAME_PREFIX}-$(date +%F-%H-%M).gz
+
+  # Do any pruning of old backup files if requested from the command
+  # line.
+
+if [ $PRUNE_DAYS != "none" ]; then
+    echo "PRUNING: Will prune files older than ${PRUNE_DAYS} days old."
+    PRUNE_CANDIDATES=($(find ${MOUNT_POINT} -name "${FILENAME_PREFIX}*.*" -type f -mtime +${PRUNE_DAYS} -print))
+    for CANDIDATE in ${PRUNE_CANDIDATES[@]}; do
+        DAY=$(date +%-d -r ${CANDIDATE})
+        if [ $DAY == "$EXCEPT_DAY" ]; then
+            echo "  Skipping EXCEPT_DAY file: ${CANDIDATE}."
+        else
+            echo "  Pruning file: ${CANDIDATE}."
+            rm ${CANDIDATE}
+        fi
+    done
+fi
+
+  # Perform today's backup.
 
 echo "INFO: Performing backup to ${MOUNT_POINT}/${FILENAME}."
 
