@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone='no'?>
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  Avahi service definition for prometheus-node-exporter.
+  Copy to /etc/avahi/services/ on each target machine.
+  The %h token is replaced with the local hostname.
+-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h node-exporter</name>
+  <service>
+    <type>_node-exporter._tcp</type>
+    <port>9100</port>
+  </service>
+</service-group>

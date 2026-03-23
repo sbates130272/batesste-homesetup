@@ -67,6 +67,78 @@ systemd service.
 ARGS="--storage.tsdb.retention.size=10GB"
 ```
 
+## Prometheus Configuration
+
+The Prometheus configuration is version-controlled in the
+[prometheus](./prometheus) folder. Scrape targets are managed via
+[file_sd_configs][ref-file-sd] so that adding or removing a target
+does not require editing the main `prometheus.yml` file. Prometheus
+watches the target JSON files and picks up changes automatically.
+
+### Adding a new target
+
+Use the helper script to add a target to an existing job:
+```bash
+cd prometheus
+./add-target.sh node 10.0.0.50:9100 server_name=snoc-newbox
+```
+This appends to the appropriate `targets/<job>.json` file. To also
+deploy the updated file to the live Prometheus instance add the
+`--deploy` flag:
+```bash
+./add-target.sh --deploy node 10.0.0.50:9100 \
+    server_name=snoc-newbox
+```
+
+### Deploying configuration changes
+
+To deploy both `prometheus.yml` and all target files:
+```bash
+cd prometheus
+./deploy.sh
+```
+The script validates the config with `promtool` before copying
+anything. Use `--targets-only` to deploy only target files (no
+Prometheus reload needed). Use `--dry-run` to preview without
+making changes.
+
+### Target files
+
+Each scrape job has a corresponding JSON file in `targets/`:
+
+| File                             | Job                       |
+| -------------------------------- | ------------------------- |
+| `prometheus.json`                | prometheus                |
+| `node.json`                      | node                      |
+| `emporia.json`                   | emporia                   |
+| `speedtest_probe.json`           | speedtest_probe           |
+| `speedtest_exporter.json`        | speedtest_exporter        |
+| `icloud.json`                    | icloud                    |
+| `amd-gpu-metrics-exporter.json`  | amd-gpu-metrics-exporter  |
+| `ais-exporter.json`              | ais-exporter              |
+| `rdma-exporter.json`             | rdma-exporter             |
+| `nvme-exporter.json`             | nvme-exporter             |
+| `openai_exporter.json`           | openai_exporter           |
+| `cursor-exporter.json`           | cursor-exporter           |
+| `lemonade-exporter.json`         | lemonade-exporter         |
+
+### Avahi auto-discovery
+
+Targets can also be discovered automatically via
+[Avahi][ref-avahi] mDNS. On each target machine, drop the
+matching service XML from `prometheus/avahi-services/` into
+`/etc/avahi/services/`. Each exporter type uses its own
+DNS-SD service type (e.g. `_node-exporter._tcp`). On the
+Prometheus server, run:
+```bash
+cd prometheus
+./discover-targets.sh --deploy
+```
+Or install the systemd timer for continuous discovery
+every five minutes. See the
+[prometheus README.md](./prometheus/README.md) for full
+details.
+
 # Firefly III
 
 I use [Firefly III][ref-firefly] for personal finance tracking. I have
@@ -126,3 +198,6 @@ link to the server via the instructions in main repo.
 [ref-speedtest]:https://github.com/billimek/prometheus-speedtest-exporter
 [ref-mountpoint]: https://github.com/awslabs/mountpoint-s3
 [ref-time-machine]: https://github.com/mbentley/docker-timemachine
+[ref-file-sd]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config
+[ref-homekit]: https://www.apple.com/home-app/
+[ref-avahi]: https://avahi.org/

@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone='no'?>
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  Avahi service definition for the RDMA exporter.
+  Copy to /etc/avahi/services/ on any machine running
+  the exporter.
+-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h rdma-exporter</name>
+  <service>
+    <type>_rdma-exporter._tcp</type>
+    <port>9879</port>
+  </service>
+</service-group>

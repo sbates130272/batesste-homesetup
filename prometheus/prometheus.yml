@@ -1,0 +1,128 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# batesste-homelab Prometheus Config
+#
+# Targets are managed via file_sd_configs. Each job watches
+# two locations:
+#   targets/<job>.json            Manual/static targets
+#   targets/discovered/<job>.json Auto-discovered via Avahi
+# Prometheus watches these files and picks up changes
+# automatically without a restart or reload.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+  external_labels:
+    monitor: 'example'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['localhost:9093']
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  - job_name: prometheus
+    scrape_interval: 5s
+    scrape_timeout: 5s
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/prometheus.json
+        refresh_interval: 30s
+
+  - job_name: node
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/node.json
+          - /etc/prometheus/targets/discovered/node.json
+        refresh_interval: 30s
+
+  - job_name: emporia
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/emporia.json
+          - /etc/prometheus/targets/discovered/emporia.json
+        refresh_interval: 30s
+
+  - job_name: speedtest_probe
+    metrics_path: /probe
+    params:
+      script: [speedtest]
+    scrape_interval: 15m
+    scrape_timeout: 90s
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/speedtest_probe.json
+          - /etc/prometheus/targets/discovered/speedtest_probe.json
+        refresh_interval: 30s
+
+  - job_name: speedtest_exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/speedtest_exporter.json
+          - /etc/prometheus/targets/discovered/speedtest_exporter.json
+        refresh_interval: 30s
+
+  - job_name: icloud
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/icloud.json
+          - /etc/prometheus/targets/discovered/icloud.json
+        refresh_interval: 30s
+
+  - job_name: amd-gpu-metrics-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/amd-gpu-metrics-exporter.json
+          - /etc/prometheus/targets/discovered/amd-gpu-metrics-exporter.json
+        refresh_interval: 30s
+
+  - job_name: ais-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/ais-exporter.json
+          - /etc/prometheus/targets/discovered/ais-exporter.json
+        refresh_interval: 30s
+
+  - job_name: rdma-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/rdma-exporter.json
+          - /etc/prometheus/targets/discovered/rdma-exporter.json
+        refresh_interval: 30s
+
+  - job_name: nvme-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/nvme-exporter.json
+          - /etc/prometheus/targets/discovered/nvme-exporter.json
+        refresh_interval: 30s
+
+  - job_name: openai_exporter
+    scrape_interval: 60s
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/openai_exporter.json
+          - /etc/prometheus/targets/discovered/openai_exporter.json
+        refresh_interval: 30s
+
+  - job_name: cursor-exporter
+    scrape_interval: 60s
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/cursor-exporter.json
+          - /etc/prometheus/targets/discovered/cursor-exporter.json
+        refresh_interval: 30s
+
+  - job_name: lemonade-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/lemonade-exporter.json
+          - /etc/prometheus/targets/discovered/lemonade-exporter.json
+        refresh_interval: 30s
