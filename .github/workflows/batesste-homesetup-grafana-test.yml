@@ -1,0 +1,49 @@
+name: batesste-homesetup
+on:
+  pull_request:
+    paths:
+      - 'grafana/**'
+      - '!grafana/README.md'
+
+jobs:
+  grafana-test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./grafana
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Validate all dashboard JSON files
+        run: |
+          found=0
+          for f in dashboards/*/*.json; do
+            [ -f "$f" ] || continue
+            echo "Checking ${f}..."
+            jq empty "${f}"
+            found=$((found + 1))
+          done
+          echo "Validated ${found} dashboard(s)."
+          if [ "${found}" -eq 0 ]; then
+            echo "Error: no dashboard JSON files found."
+            exit 1
+          fi
+
+      - name: Validate provisioning YAML files
+        run: |
+          pip install pyyaml --quiet
+          for f in provisioning/*/*.yaml; do
+            [ -f "$f" ] || continue
+            echo "Checking ${f}..."
+            python3 -c "
+          import yaml, sys
+          with open('${f}') as fh:
+              yaml.safe_load(fh)
+          "
+          done
+
+      - name: Validate deploy.sh dry-run
+        run: |
+          ./deploy.sh --dry-run

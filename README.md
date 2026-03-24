@@ -41,8 +41,17 @@ manager who is currently [GoDaddy][ref-godaddy].
 
 These are used for monitoring my home network and, in time, other
 things. Grafana is installed from their apt repository and Prometheus
-is installed from the Ubuntu repository. Setup is pretty
-straight-forward so I do not go into details here.
+is installed from the Ubuntu repository.
+
+## Grafana Configuration
+
+The Grafana configuration is version-controlled in the
+[grafana](./grafana) folder. Dashboard JSON files and
+provisioning YAML are deployed to the live Grafana instance
+via a deploy script. Dashboards can also be exported back
+from the Grafana UI into the repo for round-trip editing.
+See [the README.md](./grafana/README.md) for more
+information.
 
 However it is worth noting that on systems with WiFi we do want to
 enable the WiFi collector. We can do this by adding the following to
