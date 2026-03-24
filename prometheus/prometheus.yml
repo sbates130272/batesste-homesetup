@@ -82,6 +82,22 @@ scrape_configs:
           - /etc/prometheus/targets/amd-gpu-metrics-exporter.json
           - /etc/prometheus/targets/discovered/amd-gpu-metrics-exporter.json
         refresh_interval: 30s
+    # Strix Halo APUs: amdsmi cannot read card_model
+    # (ROCm/ROCm#6035). Hardcode it until the library
+    # adds gfx1151 support.
+    metric_relabel_configs:
+      - source_labels: [hostname, card_model]
+        separator: ;
+        regex: 'snoc-strix;'
+        target_label: card_model
+        replacement: 'Radeon 8060S (Strix Halo)'
+
+  - job_name: amd-sysfs-gpu-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/amd-sysfs-gpu-exporter.json
+          - /etc/prometheus/targets/discovered/amd-sysfs-gpu-exporter.json
+        refresh_interval: 30s
 
   - job_name: ais-exporter
     file_sd_configs:

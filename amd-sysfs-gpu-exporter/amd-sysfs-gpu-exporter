@@ -1,0 +1,399 @@
+#!/usr/bin/env python3
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+"""
+Lightweight Prometheus exporter for AMD GPUs that reads
+metrics directly from sysfs/hwmon. Works around the
+amdsmi library limitation on Strix Halo (gfx1151) APUs
+where the official amd-gpu-metrics-exporter reports zeros
+for temperature, power, clocks, and utilization.
+
+See: https://github.com/ROCm/ROCm/issues/6035
+
+Usage:
+    ./amd-sysfs-gpu-exporter [--port PORT]
+
+Metrics are served at http://localhost:<PORT>/metrics in
+Prometheus text exposition format. No dependencies beyond
+Python 3 stdlib.
+"""
+
+import argparse
+import glob
+import os
+import re
+import socket
+import time
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+DEFAULT_PORT = 9402
+AMD_VENDOR = "0x1002"
+
+DEVICE_ID_TO_MODEL = {
+    "0x1586": "Radeon 8060S (Strix Halo)",
+    "0x1587": "Radeon 8050S (Strix Halo)",
+}
+
+
+def find_amd_gpus():
+    """Auto-discover AMD GPU cards via DRM subsystem."""
+    gpus = []
+    for card_dir in sorted(glob.glob("/sys/class/drm/card[0-9]*")):
+        dev_dir = os.path.join(card_dir, "device")
+        vendor_path = os.path.join(dev_dir, "vendor")
+        if not os.path.isfile(vendor_path):
+            continue
+        vendor = _read(vendor_path).strip()
+        if vendor != AMD_VENDOR:
+            continue
+
+        hwmon_dirs = glob.glob(
+            os.path.join(dev_dir, "hwmon", "hwmon*")
+        )
+        hwmon = hwmon_dirs[0] if hwmon_dirs else None
+
+        card_name = os.path.basename(card_dir)
+        gpus.append({
+            "card": card_name,
+            "dev": dev_dir,
+            "hwmon": hwmon,
+        })
+    return gpus
+
+
+def _read(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except (OSError, IOError):
+        return ""
+
+
+def _read_int(path):
+    val = _read(path)
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _read_float(path):
+    val = _read(path)
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_active_clock(pp_dpm_text):
+    """Parse pp_dpm_sclk/mclk for the active level."""
+    for line in pp_dpm_text.splitlines():
+        if "*" in line:
+            m = re.search(r"(\d+)\s*Mhz", line, re.I)
+            if m:
+                return int(m.group(1))
+    return None
+
+
+def collect_gpu_metrics(gpu, hostname):
+    """Collect all available metrics for one GPU."""
+    dev = gpu["dev"]
+    hwmon = gpu["hwmon"]
+    card = gpu["card"]
+    gpu_id = card.replace("card", "")
+    lines = []
+
+    device_id = _read(os.path.join(dev, "device"))
+    vbios = _read(os.path.join(dev, "vbios_version"))
+    card_model = DEVICE_ID_TO_MODEL.get(device_id, "")
+
+    base_labels = (
+        f'hostname="{hostname}",'
+        f'gpu_id="{gpu_id}",'
+        f'card="{card}",'
+        f'card_model="{card_model}"'
+    )
+
+    info_labels = (
+        f'{base_labels},'
+        f'device_id="{device_id}",'
+        f'vbios="{vbios}"'
+    )
+    lines.append(
+        "# HELP amd_sysfs_gpu_info "
+        "AMD GPU information from sysfs"
+    )
+    lines.append(
+        "# TYPE amd_sysfs_gpu_info gauge"
+    )
+    lines.append(
+        f"amd_sysfs_gpu_info{{{info_labels}}} 1"
+    )
+
+    if hwmon:
+        temp = _read_int(
+            os.path.join(hwmon, "temp1_input")
+        )
+        if temp is not None:
+            lines.append(
+                "# HELP amd_sysfs_gpu_temperature_celsius "
+                "GPU temperature in degrees Celsius"
+            )
+            lines.append(
+                "# TYPE amd_sysfs_gpu_temperature_celsius "
+                "gauge"
+            )
+            label = _read(
+                os.path.join(hwmon, "temp1_label")
+            ) or "edge"
+            lines.append(
+                f"amd_sysfs_gpu_temperature_celsius"
+                f'{{{base_labels},sensor="{label}"}}'
+                f" {temp / 1000.0}"
+            )
+
+        for pfx, desc in [
+            ("power1_average", "average"),
+            ("power1_input", "instant"),
+        ]:
+            val = _read_int(
+                os.path.join(hwmon, pfx)
+            )
+            if val is not None:
+                lines.append(
+                    "# HELP amd_sysfs_gpu_power_watts "
+                    "GPU power consumption in watts"
+                )
+                lines.append(
+                    "# TYPE amd_sysfs_gpu_power_watts "
+                    "gauge"
+                )
+                lines.append(
+                    f"amd_sysfs_gpu_power_watts"
+                    f'{{{base_labels},type="{desc}"}}'
+                    f" {val / 1e6}"
+                )
+
+        freq = _read_int(
+            os.path.join(hwmon, "freq1_input")
+        )
+        if freq is not None:
+            lines.append(
+                "# HELP amd_sysfs_gpu_clock_hz "
+                "GPU clock frequency in hertz"
+            )
+            lines.append(
+                "# TYPE amd_sysfs_gpu_clock_hz gauge"
+            )
+            label = _read(
+                os.path.join(hwmon, "freq1_label")
+            ) or "sclk"
+            lines.append(
+                f"amd_sysfs_gpu_clock_hz"
+                f'{{{base_labels},clock="{label}"}}'
+                f" {freq}"
+            )
+
+        for idx, name in [("0", "vddgfx"), ("1", "vddnb")]:
+            val = _read_int(
+                os.path.join(hwmon, f"in{idx}_input")
+            )
+            label = _read(
+                os.path.join(hwmon, f"in{idx}_label")
+            ) or name
+            if val is not None:
+                lines.append(
+                    "# HELP amd_sysfs_gpu_voltage_mv "
+                    "GPU voltage in millivolts"
+                )
+                lines.append(
+                    "# TYPE amd_sysfs_gpu_voltage_mv "
+                    "gauge"
+                )
+                lines.append(
+                    f"amd_sysfs_gpu_voltage_mv"
+                    f'{{{base_labels},rail="{label}"}}'
+                    f" {val}"
+                )
+
+    busy = _read_int(
+        os.path.join(dev, "gpu_busy_percent")
+    )
+    if busy is not None:
+        lines.append(
+            "# HELP amd_sysfs_gpu_busy_percent "
+            "GPU utilization percentage"
+        )
+        lines.append(
+            "# TYPE amd_sysfs_gpu_busy_percent gauge"
+        )
+        lines.append(
+            f"amd_sysfs_gpu_busy_percent"
+            f"{{{base_labels}}} {busy}"
+        )
+
+    pp_sclk = _read(os.path.join(dev, "pp_dpm_sclk"))
+    if pp_sclk:
+        mhz = _parse_active_clock(pp_sclk)
+        if mhz is not None:
+            lines.append(
+                "# HELP amd_sysfs_gpu_sclk_mhz "
+                "Active shader clock in MHz"
+            )
+            lines.append(
+                "# TYPE amd_sysfs_gpu_sclk_mhz gauge"
+            )
+            lines.append(
+                f"amd_sysfs_gpu_sclk_mhz"
+                f"{{{base_labels}}} {mhz}"
+            )
+
+    pp_mclk = _read(os.path.join(dev, "pp_dpm_mclk"))
+    if pp_mclk:
+        mhz = _parse_active_clock(pp_mclk)
+        if mhz is not None:
+            lines.append(
+                "# HELP amd_sysfs_gpu_mclk_mhz "
+                "Active memory clock in MHz"
+            )
+            lines.append(
+                "# TYPE amd_sysfs_gpu_mclk_mhz gauge"
+            )
+            lines.append(
+                f"amd_sysfs_gpu_mclk_mhz"
+                f"{{{base_labels}}} {mhz}"
+            )
+
+    for mem_type in [
+        "vram_total", "vram_used",
+        "gtt_total", "gtt_used",
+        "vis_vram_total", "vis_vram_used",
+    ]:
+        val = _read_int(
+            os.path.join(dev, f"mem_info_{mem_type}")
+        )
+        if val is not None:
+            lines.append(
+                "# HELP amd_sysfs_gpu_memory_bytes "
+                "GPU memory in bytes"
+            )
+            lines.append(
+                "# TYPE amd_sysfs_gpu_memory_bytes gauge"
+            )
+            lines.append(
+                f"amd_sysfs_gpu_memory_bytes"
+                f'{{{base_labels},type="{mem_type}"}}'
+                f" {val}"
+            )
+
+    link_speed = _read(
+        os.path.join(dev, "current_link_speed")
+    )
+    if link_speed:
+        m = re.match(r"([\d.]+)", link_speed)
+        if m:
+            lines.append(
+                "# HELP amd_sysfs_gpu_pcie_speed_gts "
+                "PCIe link speed in GT/s"
+            )
+            lines.append(
+                "# TYPE amd_sysfs_gpu_pcie_speed_gts "
+                "gauge"
+            )
+            lines.append(
+                f"amd_sysfs_gpu_pcie_speed_gts"
+                f"{{{base_labels}}} {m.group(1)}"
+            )
+
+    link_width = _read_int(
+        os.path.join(dev, "current_link_width")
+    )
+    if link_width is not None:
+        lines.append(
+            "# HELP amd_sysfs_gpu_pcie_width "
+            "PCIe link width (lanes)"
+        )
+        lines.append(
+            "# TYPE amd_sysfs_gpu_pcie_width gauge"
+        )
+        lines.append(
+            f"amd_sysfs_gpu_pcie_width"
+            f"{{{base_labels}}} {link_width}"
+        )
+
+    return lines
+
+
+def collect_all():
+    hostname = socket.gethostname()
+    gpus = find_amd_gpus()
+    lines = []
+    for gpu in gpus:
+        lines.extend(collect_gpu_metrics(gpu, hostname))
+    return "\n".join(lines) + "\n"
+
+
+class MetricsHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/metrics":
+            body = collect_all().encode("utf-8")
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "text/plain; version=0.0.4; charset=utf-8"
+            )
+            self.send_header(
+                "Content-Length", str(len(body))
+            )
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/":
+            body = (
+                "<html><body>"
+                "<a href='/metrics'>Metrics</a>"
+                "</body></html>"
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, fmt, *args):
+        pass
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="AMD GPU sysfs Prometheus exporter"
+    )
+    parser.add_argument(
+        "--port", type=int, default=DEFAULT_PORT,
+        help=f"Port to listen on (default: {DEFAULT_PORT})"
+    )
+    args = parser.parse_args()
+
+    gpus = find_amd_gpus()
+    if not gpus:
+        print("No AMD GPUs found in /sys/class/drm/")
+        raise SystemExit(1)
+
+    for gpu in gpus:
+        print(f"Found AMD GPU: {gpu['card']} "
+              f"(hwmon: {gpu['hwmon']})")
+
+    server = HTTPServer(("", args.port), MetricsHandler)
+    print(f"Serving metrics on :{args.port}/metrics")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    server.server_close()
+
+
+if __name__ == "__main__":
+    main()

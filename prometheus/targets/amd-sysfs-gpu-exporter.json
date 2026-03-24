@@ -1,0 +1,10 @@
+[
+  {
+    "targets": [
+      "10.0.0.70:9402"
+    ],
+    "labels": {
+      "server_name": "snoc-strix"
+    }
+  }
+]

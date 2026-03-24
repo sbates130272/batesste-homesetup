@@ -106,79 +106,6 @@
       }
     },
     {
-      "id": 3,
-      "title": "GPU Health",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
-      },
-      "targets": [
-        {
-          "expr": "gpu_health{hostname=\"$node\"}",
-          "refId": "A",
-          "legendFormat": ""
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "UNHEALTHY",
-                  "color": "red",
-                  "index": 0
-                },
-                "1": {
-                  "text": "HEALTHY",
-                  "color": "green",
-                  "index": 1
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "gridPos": {
-        "x": 4,
-        "y": 1,
-        "w": 4,
-        "h": 4
-      }
-    },
-    {
       "id": 4,
       "title": "Models Loaded",
       "type": "stat",
@@ -225,7 +152,7 @@
         "graphMode": "none"
       },
       "gridPos": {
-        "x": 8,
+        "x": 4,
         "y": 1,
         "w": 4,
         "h": 4
@@ -278,7 +205,7 @@
         "graphMode": "none"
       },
       "gridPos": {
-        "x": 12,
+        "x": 8,
         "y": 1,
         "w": 4,
         "h": 4
@@ -331,7 +258,7 @@
         "graphMode": "none"
       },
       "gridPos": {
-        "x": 16,
+        "x": 12,
         "y": 1,
         "w": 4,
         "h": 4
@@ -393,7 +320,7 @@
         "graphMode": "none"
       },
       "gridPos": {
-        "x": 20,
+        "x": 16,
         "y": 1,
         "w": 4,
         "h": 4
@@ -1018,8 +945,294 @@
       }
     },
     {
+      "id": 32,
+      "title": "GPU Model",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ae8pyuqoyonpca"
+      },
+      "targets": [
+        {
+          "expr": "amd_sysfs_gpu_info{hostname=\"$node\"}",
+          "refId": "A",
+          "legendFormat": "{{card_model}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "name",
+        "colorMode": "background_solid",
+        "graphMode": "none"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 8,
+        "h": 3
+      }
+    },
+    {
+      "id": 33,
+      "title": "GPU ID",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ae8pyuqoyonpca"
+      },
+      "targets": [
+        {
+          "expr": "amd_sysfs_gpu_info{hostname=\"$node\"}",
+          "refId": "A",
+          "legendFormat": "gpu_id={{gpu_id}} ({{device_id}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "name",
+        "colorMode": "background_solid",
+        "graphMode": "none"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 24,
+        "w": 4,
+        "h": 3
+      }
+    },
+    {
+      "id": 34,
+      "title": "GPU Count",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ae8pyuqoyonpca"
+      },
+      "targets": [
+        {
+          "expr": "count(amd_sysfs_gpu_info{hostname=\"$node\"})",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 4,
+        "h": 3
+      }
+    },
+    {
+      "id": 35,
+      "title": "Total VRAM",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ae8pyuqoyonpca"
+      },
+      "targets": [
+        {
+          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$node\",type=\"vram_total\"}",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 24,
+        "w": 4,
+        "h": 3
+      }
+    },
+    {
+      "id": 36,
+      "title": "GPU Health",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "ae8pyuqoyonpca"
+      },
+      "targets": [
+        {
+          "expr": "amd_sysfs_gpu_info{hostname=\"$node\"}",
+          "refId": "A",
+          "legendFormat": ""
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "DOWN",
+                  "color": "red",
+                  "index": 0
+                },
+                "1": {
+                  "text": "UP",
+                  "color": "green",
+                  "index": 1
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 24,
+        "w": 4,
+        "h": 3
+      }
+    },
+    {
       "id": 21,
-      "title": "VRAM Usage (MB)",
+      "title": "VRAM Usage",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1027,19 +1240,14 @@
       },
       "targets": [
         {
-          "expr": "gpu_used_vram{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$node\",type=\"vram_used\"}",
           "refId": "A",
           "legendFormat": "Used"
         },
         {
-          "expr": "gpu_total_vram{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$node\",type=\"vram_total\"}",
           "refId": "B",
           "legendFormat": "Total"
-        },
-        {
-          "expr": "gpu_free_vram{hostname=\"$node\"}",
-          "refId": "C",
-          "legendFormat": "Free"
         }
       ],
       "fieldConfig": {
@@ -1065,7 +1273,7 @@
               }
             ]
           },
-          "unit": "decmbytes"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -1082,7 +1290,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 24,
+        "y": 27,
         "w": 8,
         "h": 8
       }
@@ -1097,14 +1305,9 @@
       },
       "targets": [
         {
-          "expr": "gpu_gfx_activity{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_busy_percent{hostname=\"$node\"}",
           "refId": "A",
-          "legendFormat": "GFX Activity"
-        },
-        {
-          "expr": "gpu_umc_activity{hostname=\"$node\"}",
-          "refId": "B",
-          "legendFormat": "Memory Activity"
+          "legendFormat": "GPU Busy %"
         }
       ],
       "fieldConfig": {
@@ -1147,7 +1350,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 24,
+        "y": 27,
         "w": 8,
         "h": 8
       }
@@ -1162,19 +1365,9 @@
       },
       "targets": [
         {
-          "expr": "gpu_edge_temperature{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_temperature_celsius{hostname=\"$node\"}",
           "refId": "A",
-          "legendFormat": "Edge"
-        },
-        {
-          "expr": "gpu_junction_temperature{hostname=\"$node\"}",
-          "refId": "B",
-          "legendFormat": "Junction"
-        },
-        {
-          "expr": "gpu_memory_temperature{hostname=\"$node\"}",
-          "refId": "C",
-          "legendFormat": "Memory"
+          "legendFormat": "{{sensor}}"
         }
       ],
       "fieldConfig": {
@@ -1217,7 +1410,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 24,
+        "y": 27,
         "w": 8,
         "h": 8
       }
@@ -1232,14 +1425,14 @@
       },
       "targets": [
         {
-          "expr": "gpu_average_package_power{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_power_watts{hostname=\"$node\",type=\"average\"}",
           "refId": "A",
-          "legendFormat": "Avg Package Power"
+          "legendFormat": "Average"
         },
         {
-          "expr": "gpu_power_usage{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_power_watts{hostname=\"$node\",type=\"instant\"}",
           "refId": "B",
-          "legendFormat": "Power Usage"
+          "legendFormat": "Instant"
         }
       ],
       "fieldConfig": {
@@ -1282,7 +1475,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 32,
+        "y": 35,
         "w": 8,
         "h": 8
       }
@@ -1297,19 +1490,9 @@
       },
       "targets": [
         {
-          "expr": "gpu_gfx_voltage{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_voltage_mv{hostname=\"$node\"}",
           "refId": "A",
-          "legendFormat": "GFX"
-        },
-        {
-          "expr": "gpu_voltage{hostname=\"$node\"}",
-          "refId": "B",
-          "legendFormat": "Core"
-        },
-        {
-          "expr": "gpu_memory_voltage{hostname=\"$node\"}",
-          "refId": "C",
-          "legendFormat": "Memory"
+          "legendFormat": "{{rail}}"
         }
       ],
       "fieldConfig": {
@@ -1352,14 +1535,14 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 32,
+        "y": 35,
         "w": 8,
         "h": 8
       }
     },
     {
       "id": 26,
-      "title": "ECC Errors",
+      "title": "Clocks (MHz)",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -1367,14 +1550,14 @@
       },
       "targets": [
         {
-          "expr": "gpu_ecc_correct_total{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_sclk_mhz{hostname=\"$node\"}",
           "refId": "A",
-          "legendFormat": "Correctable"
+          "legendFormat": "Shader Clock"
         },
         {
-          "expr": "gpu_ecc_uncorrect_total{hostname=\"$node\"}",
+          "expr": "amd_sysfs_gpu_mclk_mhz{hostname=\"$node\"}",
           "refId": "B",
-          "legendFormat": "Uncorrectable"
+          "legendFormat": "Memory Clock"
         }
       ],
       "fieldConfig": {
@@ -1416,7 +1599,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 32,
+        "y": 35,
         "w": 8,
         "h": 8
       }
@@ -1429,7 +1612,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 40,
+        "y": 43,
         "w": 24,
         "h": 1
       }
@@ -1494,7 +1677,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 41,
+        "y": 44,
         "w": 24,
         "h": 8
       }
@@ -1507,7 +1690,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 49,
+        "y": 52,
         "w": 24,
         "h": 1
       }
@@ -1571,7 +1754,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 50,
+        "y": 53,
         "w": 12,
         "h": 8
       }
@@ -1635,7 +1818,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 50,
+        "y": 53,
         "w": 12,
         "h": 8
       }
