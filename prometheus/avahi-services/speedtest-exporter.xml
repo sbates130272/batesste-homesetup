@@ -1,0 +1,20 @@
+<?xml version="1.0" standalone='no'?>
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  Avahi service definition for the speedtest exporter.
+  Covers both speedtest_probe and speedtest_exporter
+  Prometheus jobs (same port, different metrics_path).
+  Copy to /etc/avahi/services/ on the machine running
+  the exporter.
+-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h speedtest-exporter</name>
+  <service>
+    <type>_speedtest-exporter._tcp</type>
+    <port>9469</port>
+  </service>
+</service-group>

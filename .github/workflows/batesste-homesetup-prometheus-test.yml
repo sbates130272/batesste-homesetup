@@ -1,0 +1,45 @@
+name: batesste-homesetup
+on:
+  pull_request:
+    paths:
+      - 'prometheus/**'
+      - '!prometheus/README.md'
+
+jobs:
+  prometheus-test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./prometheus
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+      - name: Install Prometheus for promtool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y prometheus
+      - name: Create targets directory for validation
+        run: |
+          sudo mkdir -p /etc/prometheus/targets
+          sudo cp targets/*.json /etc/prometheus/targets/
+      - name: Validate prometheus.yml
+        run: |
+          promtool check config prometheus.yml
+      - name: Validate all target JSON files
+        run: |
+          for f in targets/*.json; do
+            echo "Checking ${f}..."
+            jq empty "${f}"
+          done
+      - name: Validate add-target.sh runs
+        run: |
+          ./add-target.sh node 10.0.0.99:9100 \
+              server_name=snoc-ci-test
+          jq -e \
+            '.[] | select(.targets[] == "10.0.0.99:9100")' \
+            targets/node.json
+          git checkout targets/node.json
+      - name: Validate deploy.sh dry-run
+        run: |
+          ./deploy.sh --dry-run

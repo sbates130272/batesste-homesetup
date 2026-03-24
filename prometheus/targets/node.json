@@ -1,0 +1,39 @@
+[
+  {
+    "targets": ["localhost:9100"],
+    "labels": {
+      "server_name": "snoc-beelink"
+    }
+  },
+  {
+    "targets": [
+      "10.0.0.80:9100",
+      "10.0.0.88:9100",
+      "10.0.0.128:9100"
+    ],
+    "labels": {
+      "server_name": "snoc-shannon"
+    }
+  },
+  {
+    "targets": [
+      "10.0.0.2:9100",
+      "10.0.0.108:9100"
+    ],
+    "labels": {
+      "server_name": "snoc-gamingpc"
+    }
+  },
+  {
+    "targets": ["10.0.0.131:9100"],
+    "labels": {
+      "server_name": "snoc-thinkstation"
+    }
+  },
+  {
+    "targets": ["10.0.0.70:9100"],
+    "labels": {
+      "server_name": "snoc-strix"
+    }
+  }
+]

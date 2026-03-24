@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone='no'?>
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  Avahi service definition for the AIS (GPU Direct
+  Storage) exporter. Copy to /etc/avahi/services/ on any
+  machine running the exporter.
+-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h ais-exporter</name>
+  <service>
+    <type>_ais-exporter._tcp</type>
+    <port>9092</port>
+  </service>
+</service-group>
