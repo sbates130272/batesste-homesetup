@@ -1,0 +1,16 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=AMD GPU sysfs Prometheus exporter
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/amd-sysfs-gpu-exporter
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -66,13 +66,13 @@ run sudo chmod 640 \
     "${GF_PROV}/dashboards/dashboards.yaml"
 
 echo "==> Ensuring dashboard directories exist..."
-for folder in home-network-related general; do
+for folder in home-network-related general amd-related; do
     run sudo mkdir -p "${GF_DASH}/${folder}"
     run sudo chown grafana:grafana "${GF_DASH}/${folder}"
 done
 
 echo "==> Deploying dashboard JSON files..."
-for folder in home-network-related general; do
+for folder in home-network-related general amd-related; do
     src_dir="${SCRIPT_DIR}/dashboards/${folder}"
     [[ -d "${src_dir}" ]] || continue
     for f in "${src_dir}"/*.json; do
