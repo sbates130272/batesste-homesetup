@@ -1,0 +1,28 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+apiVersion: 1
+
+providers:
+  - name: home-network-related
+    orgId: 1
+    folder: Home Network Related
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/home-network-related
+      foldersFromFilesStructure: false
+
+  - name: general
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/general
+      foldersFromFilesStructure: false
