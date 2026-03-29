@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -85,7 +85,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -108,7 +108,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -160,7 +160,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "expr": "node_wifi_station_info",
@@ -177,7 +177,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -238,7 +238,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -261,7 +261,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -344,7 +344,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_wifi_station_signal_dbm{instance=~\"$node:$port\"}",
           "format": "time_series",
@@ -360,7 +360,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -442,7 +442,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_wifi_interface_frequency_hertz{instance=~\"$node:$port\"}",
           "format": "time_series",
@@ -458,7 +458,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -542,7 +542,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_wifi_station_connected_seconds_total{instance=~\"$node:$port\"}",
           "format": "time_series",
@@ -557,7 +557,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -640,10 +640,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "node_wifi_station_beacon_loss_total",
+          "expr": "node_wifi_station_beacon_loss_total{instance=~\"$node:$port\"}",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -654,7 +654,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "expr": "node_wifi_station_transmit_failed_total{instance=~\"$node:$port\"}",
@@ -668,7 +668,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "rate(node_wifi_station_transmit_retries_total{instance=~\"$node:$port\"}[1m])",
           "format": "time_series",
@@ -684,7 +684,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -766,10 +766,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "irate(node_network_receive_bytes_total{instance=~\"$node:$port\",device=\"wlp2s0\"}[$__rate_interval])",
+          "expr": "irate(node_network_receive_bytes_total{instance=~\"$node:$port\",device=~\"wl.*\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -780,10 +780,10 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "irate(node_network_transmit_bytes_total{instance=~\"$node:$port\",device=\"wlp2s0\"}[$__rate_interval])",
+          "expr": "irate(node_network_transmit_bytes_total{instance=~\"$node:$port\",device=~\"wl.*\"}[$__rate_interval])",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "tx",
@@ -797,7 +797,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -880,7 +880,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "editorMode": "code",
           "expr": "node_wifi_station_transmit_bits_per_second{instance=~\"$node:$port\"}",
@@ -894,7 +894,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_wifi_station_receive_bits_per_second{instance=~\"$node:$port\"}",
           "format": "time_series",
@@ -917,10 +917,32 @@
     "list": [
       {
         "current": {
+          "selected": false,
+          "text": "snoc-beelink-prometheus",
+          "value": "ae8pyuqoyonpca"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
           "text": "localhost",
           "value": "localhost"
         },
-        "datasource": "ae8pyuqoyonpca",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
         "definition": "label_values(node_wifi_station_signal_dbm{job=\"node\"}, instance)",
         "includeAll": false,
         "label": "Host:",
@@ -936,7 +958,10 @@
           "text": "9100",
           "value": "9100"
         },
-        "datasource": "ae8pyuqoyonpca",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
         "definition": "label_values(node_wifi_station_signal_dbm, instance)",
         "hide": 2,
         "includeAll": false,

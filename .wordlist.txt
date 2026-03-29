@@ -31,8 +31,11 @@ hostname
 http
 icloud
 IPv
+jitter
 JSON
 JSONs
+latency
+Lemonade
 jq
 macOS
 MacBook
@@ -51,6 +54,8 @@ regexes
 repo
 scrape
 sd
+smartplugs
+SmartPlugs
 snoc
 Speedtest
 speedtest
@@ -62,7 +67,10 @@ timemachine
 Tizen
 tsdb
 TXT
+throughput
 UI
+WAN
+WiFi
 xml
 XML
 YAML

@@ -17,21 +17,26 @@ grafana/
     datasources/
       datasources.yaml        # Prometheus datasource
   dashboards/
+    amd-related/              # folder: AMD-Related
+      cpu-gpu-monitoring.json
     home-network-related/     # folder: Home Network Related
-      node-exporter-full.json
-      ...
-    general/                  # folder: General (root)
       emporia-smartplugs-dashboard.json
-      ...
+      icloud-dashboard.json
+      node-exporter-full.json
+      node-exporter-overview.json
+      node-exporter-wifi.json
+      speedtest-wan-testing.json
 ```
 
 ## Datasource
 
 A single Prometheus datasource is configured pointing at
 `http://localhost:9090`. This is deployed via the
-provisioning YAML under `provisioning/datasources/`.
+provisioning YAML under `provisioning/datasources/`. All
+dashboards use a `${datasource}` template variable so
+they are portable across Grafana instances.
 
-## Dashboards
+## Dashboards (7 total)
 
 Dashboard JSON files are organized by Grafana folder. The
 `provisioning/dashboards/dashboards.yaml` file tells
@@ -39,6 +44,16 @@ Grafana to watch `/var/lib/grafana/dashboards/<folder>/`
 for JSON files. `allowUiUpdates` is set to `true` so
 dashboards can still be edited in the Grafana UI and then
 re-exported.
+
+| Folder | Dashboard | Description |
+|--------|-----------|-------------|
+| AMD-Related | CPU & GPU Monitoring | GPU/CPU/Lemonade AI server metrics |
+| Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs |
+| Home Network | iCloud | Device location tracking, photos, contacts |
+| Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860) |
+| Home Network | Node Exporter Overview | Fleet summary table |
+| Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
+| Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
 
 ## Workflow
 

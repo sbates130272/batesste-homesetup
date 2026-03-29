@@ -24,7 +24,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -113,7 +113,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "speedtest_download_bytes*8",
           "interval": "",
@@ -128,7 +128,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -217,7 +217,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "speedtest_upload_bytes*8",
           "legendFormat": "Upload Speed",
@@ -230,7 +230,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "description": "",
       "fieldConfig": {
@@ -286,7 +286,7 @@
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -320,9 +320,9 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
-          "expr": "speedtest_jittter_seconds",
+          "expr": "speedtest_jitter_seconds",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -336,7 +336,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -391,7 +391,7 @@
               }
             ]
           },
-          "unit": "ms"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -425,7 +425,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "speedtest_latency_seconds",
           "legendFormat": "Latency",
@@ -445,7 +445,50 @@
     "wan"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "snoc-beelink-prometheus",
+          "value": "ae8pyuqoyonpca"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(speedtest_download_bytes, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": false,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(speedtest_download_bytes, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-7d",
