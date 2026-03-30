@@ -30,6 +30,7 @@ homesetup
 hostname
 http
 icloud
+iCloud
 IPv
 jitter
 JSON

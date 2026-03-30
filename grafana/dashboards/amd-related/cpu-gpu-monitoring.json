@@ -165,28 +165,18 @@
         "y": 0
       },
       "id": 101,
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "/^driver_version$/",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
       "title": "ROCm Version",
       "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "targets": [
         {
           "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
           "format": "table",
           "instant": true,
           "refId": "A",
-          "legendFormat": "{{driver_version}}",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
@@ -210,37 +200,16 @@
         },
         "overrides": []
       },
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value": true,
-              "__name__": true,
-              "card_vendor": true,
-              "card_model": true,
-              "cluster_name": true,
-              "gpu_compute_partition_type": true,
-              "gpu_id": true,
-              "gpu_memory_partition_type": true,
-              "gpu_partition_id": true,
-              "gpu_uuid": true,
-              "hostname": true,
-              "instance": true,
-              "job": true,
-              "vbios_version": true,
-              "device_id": true
-            },
-            "indexByName": {
-              "driver_version": 0
-            }
-          }
-        }
-      ],
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "/^driver_version$/",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none"
       }
     },
     {
@@ -424,7 +393,7 @@
       },
       "targets": [
         {
-          "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
+          "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / ignoring(type) amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
           "refId": "A",
           "legendFormat": "VRAM %",
           "datasource": {
@@ -1047,7 +1016,7 @@
       },
       "targets": [
         {
-          "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
+          "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / ignoring(type) amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
           "legendFormat": "VRAM %",
           "refId": "A",
           "datasource": {

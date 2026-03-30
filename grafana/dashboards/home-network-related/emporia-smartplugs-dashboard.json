@@ -565,7 +565,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Emporia smartplug connected to my Beelink home server.",
+      "description": "Emporia smartplug connected to snoc-strix.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -634,7 +634,7 @@
           }
         }
       ],
-      "title": "snoc-beelink",
+      "title": "snoc-strix",
       "type": "gauge"
     },
     {
@@ -793,7 +793,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "snoc-beelink"
+                "value": "snoc-strix"
               }
             ]
           }
@@ -1112,7 +1112,7 @@
             "properties": [
               {
                 "id": "displayName",
-                "value": "snoc-beelink"
+                "value": "snoc-strix"
               }
             ]
           }
