@@ -23,7 +23,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "description": "A indicator the inform us if the 2FA needs to be renewed.",
       "fieldConfig": {
@@ -93,13 +93,17 @@
         {
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "icloud_auth_2fa_update_needed{server_name=\"snoc-beelink\"}",
+          "expr": "icloud_auth_2fa_update_needed{server_name=\"$server_name\"}",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false
+          "useBackend": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
         }
       ],
       "title": "2FA Status",
@@ -108,7 +112,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "description": "The total number of photos stored on iCloud",
       "fieldConfig": {
@@ -158,13 +162,17 @@
         {
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "icloud_photos_total_photos{server_name=\"snoc-beelink\"}",
+          "expr": "icloud_photos_total_photos{server_name=\"$server_name\"}",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false
+          "useBackend": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
         }
       ],
       "title": "iCloud Photos",
@@ -173,7 +181,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "description": "The total number of contacts stored on iCloud",
       "fieldConfig": {
@@ -223,13 +231,17 @@
         {
           "disableTextWrap": false,
           "editorMode": "builder",
-          "expr": "icloud_contacts_total_contacts{server_name=\"snoc-beelink\"}",
+          "expr": "icloud_contacts_total_contacts{server_name=\"$server_name\"}",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false
+          "useBackend": false,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
         }
       ],
       "title": "iCloud Contacts",
@@ -238,7 +250,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "description": "This panel shows the location of certain devices we can track via iCloud.",
       "fieldConfig": {
@@ -455,11 +467,11 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "icloud_location_latitude{server_name=\"snoc-beelink\", device=~\"iphone.*|ipad.*\"}",
+          "expr": "icloud_location_latitude{server_name=\"$server_name\", device=~\"iphone.*|ipad.*\"}",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -472,11 +484,11 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "icloud_location_longtitude{server_name=\"snoc-beelink\", device=~\"iphone.*|ipad.*\"}",
+          "expr": "icloud_location_longtitude{server_name=\"$server_name\", device=~\"iphone.*|ipad.*\"}",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -502,7 +514,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -582,10 +594,14 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "icloud_location_latitude{server_name=\"snoc-beelink\",device=~\"ip.*\"}",
+          "expr": "icloud_location_latitude{server_name=\"$server_name\",device=~\"ip.*\"}",
           "legendFormat": "{{device}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
         }
       ],
       "title": "Device Latitude",
@@ -594,7 +610,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "fieldConfig": {
         "defaults": {
@@ -674,22 +690,69 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "icloud_location_longtitude{server_name=\"snoc-beelink\",device=~\"ip.*\"}",
+          "expr": "icloud_location_longtitude{server_name=\"$server_name\",device=~\"ip.*\"}",
           "legendFormat": "{{device}}",
           "range": true,
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          }
         }
       ],
-      "title": "Device Longtitude",
+      "title": "Device Longitude",
       "type": "timeseries"
     }
   ],
   "preload": false,
-  "refresh": "",
+  "refresh": "30s",
   "schemaVersion": 41,
-  "tags": [],
+  "tags": ["icloud", "location"],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "snoc-beelink-prometheus",
+          "value": "ae8pyuqoyonpca"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(icloud_auth_2fa_update_needed, server_name)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Server",
+        "multi": false,
+        "name": "server_name",
+        "options": [],
+        "query": {
+          "query": "label_values(icloud_auth_2fa_update_needed, server_name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-7d",
@@ -697,6 +760,6 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "iCloud Dashboard",
+  "title": "iCloud",
   "uid": "febsqrm0j5v5sa"
 }

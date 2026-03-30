@@ -34,6 +34,7 @@ AMD_VENDOR = "0x1002"
 DEVICE_ID_TO_MODEL = {
     "0x1586": "Radeon 8060S (Strix Halo)",
     "0x1587": "Radeon 8050S (Strix Halo)",
+    "0x7550": "Radeon RX 9070 XT (Navi 48)",
 }
 
 
@@ -108,6 +109,7 @@ def collect_gpu_metrics(gpu, hostname):
     device_id = _read(os.path.join(dev, "device"))
     vbios = _read(os.path.join(dev, "vbios_version"))
     card_model = DEVICE_ID_TO_MODEL.get(device_id, "")
+    driver_version = _read("/opt/rocm/.info/version")
 
     base_labels = (
         f'hostname="{hostname}",'
@@ -119,7 +121,8 @@ def collect_gpu_metrics(gpu, hostname):
     info_labels = (
         f'{base_labels},'
         f'device_id="{device_id}",'
-        f'vbios="{vbios}"'
+        f'vbios="{vbios}",'
+        f'driver_version="{driver_version}"'
     )
     lines.append(
         "# HELP amd_sysfs_gpu_info "

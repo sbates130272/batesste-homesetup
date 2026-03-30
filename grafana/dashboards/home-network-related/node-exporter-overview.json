@@ -30,7 +30,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "ae8pyuqoyonpca"
+        "uid": "${datasource}"
       },
       "description": "",
       "fieldConfig": {
@@ -192,7 +192,7 @@
                   {
                     "targetBlank": true,
                     "title": "Details",
-                    "url": "https://grafana.rcrtv.net/d/2UgUicaGk/node-exporter-full?viewPanel=280&orgId=1&from=now-7d&to=now&var-job=${job}&var-hostname=${__data.fields.Hostname}"
+                    "url": "https://grafana.rcrtv.net/d/rYdddlPWk/node-exporter-full?viewPanel=280&orgId=1&from=now-7d&to=now&var-job=${job}&var-hostname=${__data.fields.Hostname}"
                   }
                 ]
               },
@@ -376,7 +376,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "node_uname_info{job=~\"$job\"}",
@@ -389,7 +389,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "(1 - avg(rate(node_cpu_seconds_total{job=~\"$job\",mode=\"idle\"}[$__rate_interval])) by (instance)) * 100",
@@ -402,7 +402,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "(1 - (node_memory_MemAvailable_bytes{job=~\"$job\"} / (node_memory_MemTotal_bytes{job=~\"$job\"}))) * 100",
           "format": "table",
@@ -414,7 +414,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "max((1 - (node_filesystem_free_bytes{job=~\"$job\"} / node_filesystem_size_bytes{job=~\"$job\"})) * 100) by (instance)",
           "format": "table",
@@ -426,7 +426,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "max(rate(node_disk_read_bytes_total{job=~\"$job\"}[$__rate_interval])) by (instance)",
@@ -439,7 +439,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "max(rate(node_disk_written_bytes_total{job=~\"$job\"}[$__rate_interval])) by (instance)",
@@ -452,7 +452,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_netstat_Tcp_CurrEstab{job=~\"$job\"} - 0",
           "format": "table",
@@ -464,7 +464,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_sockstat_TCP_tw{job=~\"$job\"} - 0",
           "format": "table",
@@ -476,7 +476,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "max(rate(node_network_receive_bytes_total{job=~\"$job\"}[$__rate_interval])*8) by (instance)",
@@ -489,7 +489,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "max(rate(node_network_transmit_bytes_total{job=~\"$job\"}[$__rate_interval])*8) by (instance)",
@@ -502,7 +502,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "exemplar": true,
           "expr": "avg(node_load1{job=~\"$job\"} * 100) by (instance) / count (node_cpu_seconds_total{job=~\"$job\", mode=\"system\"}) by (instance)",
@@ -515,7 +515,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "ae8pyuqoyonpca"
+            "uid": "${datasource}"
           },
           "expr": "node_sockstat_sockets_used{job=~\"$job\"}",
           "format": "table",
@@ -678,6 +678,25 @@
     "list": [
       {
         "current": {
+          "selected": false,
+          "text": "snoc-beelink-prometheus",
+          "value": "ae8pyuqoyonpca"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "queryValue": "",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
           "text": [
             "All"
           ],
@@ -685,7 +704,10 @@
             "$__all"
           ]
         },
-        "datasource": "ae8pyuqoyonpca",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
         "definition": "label_values(node_uname_info, job)",
         "hide": 2,
         "includeAll": true,

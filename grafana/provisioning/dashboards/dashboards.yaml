@@ -29,7 +29,7 @@ providers:
 
   - name: amd-related
     orgId: 1
-    folder: AMD-Related
+    folder: AMD Related
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
