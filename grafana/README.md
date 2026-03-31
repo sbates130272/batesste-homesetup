@@ -17,8 +17,12 @@ grafana/
     datasources/
       datasources.yaml        # Prometheus datasource
   dashboards/
-    amd-related/              # folder: AMD-Related
+    amd-related/              # folder: AMD Related
       cpu-gpu-monitoring.json
+      cursor-usage.json
+      rocm-xio-dashboard.json
+    general/                  # folder: (root)
+      lan-overview.json
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
       icloud-dashboard.json
@@ -36,18 +40,21 @@ provisioning YAML under `provisioning/datasources/`. All
 dashboards use a `${datasource}` template variable so
 they are portable across Grafana instances.
 
-## Dashboards (7 total)
+## Dashboards (10 total)
 
-Dashboard JSON files are organized by Grafana folder. The
-`provisioning/dashboards/dashboards.yaml` file tells
+Dashboard JSON files are organized by Grafana folder.
+The `provisioning/dashboards/dashboards.yaml` file tells
 Grafana to watch `/var/lib/grafana/dashboards/<folder>/`
 for JSON files. `allowUiUpdates` is set to `true` so
-dashboards can still be edited in the Grafana UI and then
-re-exported.
+dashboards can still be edited in the Grafana UI and
+then re-exported.
 
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
-| AMD-Related | CPU & GPU Monitoring | GPU/CPU/Lemonade AI server metrics |
+| AMD Related | CPU & GPU Monitoring | GPU/CPU/Lemonade AI server metrics |
+| AMD Related | Cursor IDE Usage | Cursor API cost, tokens, quotas, and usage |
+| AMD Related | rocm-xio dashboard | NVMe/RDMA xio benchmark results |
+| General | Home LAN Overview | Fleet, services, power, AI, storage summary |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs |
 | Home Network | iCloud | Device location tracking, photos, contacts |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860) |
