@@ -47,6 +47,13 @@ run() {
     fi
 }
 
+echo "==> Deploying grafana-server defaults..."
+run sudo cp \
+    "${SCRIPT_DIR}/grafana-server.defaults" \
+    /etc/default/grafana-server
+run sudo chown root:root /etc/default/grafana-server
+run sudo chmod 644 /etc/default/grafana-server
+
 echo "==> Deploying datasource provisioning..."
 run sudo cp \
     "${SCRIPT_DIR}/provisioning/datasources/datasources.yaml" \

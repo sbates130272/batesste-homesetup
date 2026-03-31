@@ -1,0 +1,31 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# /etc/default/grafana-server
+#
+# Consumed by the grafana-server systemd unit via EnvironmentFile=.
+# Stock paths are kept here so they stay version-controlled; any
+# Grafana .ini overrides use the GF_<SECTION>_<KEY> convention.
+
+GRAFANA_USER=grafana
+GRAFANA_GROUP=grafana
+GRAFANA_HOME=/usr/share/grafana
+
+LOG_DIR=/var/log/grafana
+DATA_DIR=/var/lib/grafana
+MAX_OPEN_FILES=10000
+
+CONF_DIR=/etc/grafana
+CONF_FILE=/etc/grafana/grafana.ini
+RESTART_ON_UPGRADE=true
+PLUGINS_DIR=/var/lib/grafana/plugins
+PROVISIONING_CFG_DIR=/etc/grafana/provisioning
+
+# Only used on systemd systems
+PID_FILE_DIR=/run/grafana
+
+# ── Grafana .ini overrides ──────────────────────────────────────
+# Bind to all interfaces so the UI is reachable on every address
+# (LAN, Tailscale, Docker bridge, etc.).
+GF_SERVER_HTTP_ADDR=0.0.0.0
