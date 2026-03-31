@@ -51,6 +51,7 @@ prometheus
 promtool
 rdma
 README
+rocm
 regexes
 repo
 scrape
@@ -72,6 +73,7 @@ throughput
 UI
 WAN
 WiFi
+xio
 xml
 XML
 YAML
