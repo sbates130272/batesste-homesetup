@@ -699,7 +699,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(nvme_data_units_read{device=~\"/dev/(${nvme})\",server_name=\"${hostname}\"}[$__rate_interval])*512",
+          "expr": "rate(nvme_data_units_read{device=~\"/dev/(${nvme})\",server_name=\"${hostname}\"}[$__rate_interval])*512*1000",
           "format": "time_series",
           "legendFormat": "{{device}} read",
           "range": true,
@@ -711,7 +711,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(nvme_data_units_written{device=~\"/dev/(${nvme})\",server_name=\"${hostname}\"}[$__rate_interval])*512",
+          "expr": "rate(nvme_data_units_written{device=~\"/dev/(${nvme})\",server_name=\"${hostname}\"}[$__rate_interval])*512*1000",
           "format": "time_series",
           "legendFormat": "{{device}} write",
           "range": true,
