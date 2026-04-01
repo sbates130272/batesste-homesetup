@@ -11,11 +11,12 @@ and dashboard provider configuration.
 grafana/
   deploy.sh                   # deploy to system paths
   export-dashboards.sh        # pull dashboards from API
+  firefly-db-init.sql         # Firefly III DB user + views
   provisioning/
     dashboards/
       dashboards.yaml         # dashboard provider config
     datasources/
-      datasources.yaml        # Prometheus datasource
+      datasources.yaml        # Prometheus + MySQL datasources
   dashboards/
     amd-related/              # folder: AMD Related
       cpu-gpu-monitoring.json
@@ -30,17 +31,30 @@ grafana/
       node-exporter-overview.json
       node-exporter-wifi.json
       speedtest-wan-testing.json
+    personal-finance/         # folder: Personal Finance
+      firefly-overview.json
 ```
 
-## Datasource
+## Datasources
 
-A single Prometheus datasource is configured pointing at
-`http://localhost:9090`. This is deployed via the
-provisioning YAML under `provisioning/datasources/`. All
-dashboards use a `${datasource}` template variable so
-they are portable across Grafana instances.
+Two datasources are configured via the provisioning YAML
+under `provisioning/datasources/`:
 
-## Dashboards (10 total)
+| Name | Type | URL | Purpose |
+|------|------|-----|---------|
+| `snoc-beelink-prometheus` | Prometheus | `http://localhost:9090` | System/network metrics |
+| `firefly-mysql` | MySQL | `127.0.0.1:3306` | Firefly III personal finance |
+
+The Firefly III MySQL datasource connects to the
+MariaDB container on the Docker bridge network
+(`172.20.0.2:3306`) using the `firefly` database
+user. The password is stored in the
+`FIREFLY_DB_PASSWORD` environment variable in
+`grafana-server.defaults` (deployed to
+`/etc/default/grafana-server`). See
+`firefly-db-init.sql` for the one-time view setup.
+
+## Dashboards (11 total)
 
 Dashboard JSON files are organized by Grafana folder.
 The `provisioning/dashboards/dashboards.yaml` file tells
@@ -61,6 +75,34 @@ then re-exported.
 | Home Network | Node Exporter Overview | Fleet summary table |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
+| Personal Finance | Firefly III Overview | Income, spending, investments, category breakdown |
+
+## Investment Accounts
+
+The Firefly III Overview dashboard includes an
+Investments section that tracks CIBC investment
+account balances via SimpleFIN. These accounts use
+`sync_mode: "balance_only"` in the SimpleFIN sync
+script (`~/.openclaw/workspace/simplefin/scripts/`),
+which compares the SimpleFIN-reported balance to
+Firefly III and creates adjustment transactions
+categorised as "Investment - Valuation". The
+`analysis_txs` SQL view tags this category as
+`Transfer` so investment valuation changes do not
+inflate income or expense totals in the cash flow
+panels.
+
+| Firefly Name              | Account | Type |
+|---------------------------|---------|------|
+| CIBC - Kids' RESP         | 2422    | RESP |
+| CIBC - Stephen's LIRA     | 2397    | LIRA |
+| CIBC - Stephen's TFSA     | 4254    | TFSA |
+| CIBC - Stephen's RRSP     | 8774    | RRSP |
+| CIBC - Stephen's FHSA     | 9439    | FHSA |
+
+The dashboard panels query the Firefly database
+directly using a `REGEXP` filter on account names
+matching `RESP|LIRA|TFSA|RRSP|FHSA`.
 
 ## Workflow
 

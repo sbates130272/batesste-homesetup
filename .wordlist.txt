@@ -6,6 +6,7 @@ Avahi
 avahi
 batesste
 certbot
+CIBC
 config
 configs
 datasource
@@ -16,6 +17,7 @@ emporia
 Eufy
 exporter
 exporters
+FHSA
 gitignored
 GoDaddy
 gpu
@@ -55,8 +57,10 @@ README
 rocm
 regexes
 repo
+RRSP
 scrape
 sd
+SimpleFIN
 smartplugs
 SmartPlugs
 snoc
@@ -66,6 +70,7 @@ SSL
 subdirectory
 systemd
 tcp
+TFSA
 timemachine
 Tizen
 tsdb

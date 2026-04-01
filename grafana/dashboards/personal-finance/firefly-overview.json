@@ -1,0 +1,1402 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Summary",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Total income received in the selected period",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT SUM(amount) AS income\nFROM analysis_cash_flow\nWHERE meta_category = 'Income'\n  AND email = '$email'\n  AND $__timeFilter(`date`)",
+          "refId": "A"
+        }
+      ],
+      "title": "Income",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Total expenses in the selected period",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": -5000 },
+              { "color": "red", "value": -10000 }
+            ]
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ABS(SUM(amount)) AS expenses\nFROM analysis_cash_flow\nWHERE meta_category = 'Expense'\n  AND email = '$email'\n  AND $__timeFilter(`date`)",
+          "refId": "A"
+        }
+      ],
+      "title": "Expenses",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Income minus expenses in the selected period",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0 },
+              { "color": "green", "value": 5000 }
+            ]
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+      "id": 13,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT SUM(amount) AS net_cash\nFROM analysis_cash_flow\nWHERE meta_category IN ('Income', 'Expense')\n  AND email = '$email'\n  AND $__timeFilter(`date`)",
+          "refId": "A"
+        }
+      ],
+      "title": "Net",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Most recent transaction date in the database",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null }
+            ]
+          },
+          "unit": "dateTimeFromNow"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+      "id": 11,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT UNIX_TIMESTAMP(MAX(updated_at)) * 1000 AS last_import\nFROM transaction_journals",
+          "refId": "A"
+        }
+      ],
+      "title": "Last Import",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 },
+      "id": 101,
+      "title": "Trends",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Cumulative income and expenses over the selected period, both starting from zero",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": true,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Income" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Expenses" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Net" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 6 },
+      "id": 5,
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  w.week_start AS time,\n  ROUND(SUM(t.amount), 2) AS `Income`\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN analysis_cash_flow t\n  ON t.`date` >= $__timeFrom()\n  AND t.`date` <= w.week_start\n  AND t.email = '$email'\n  AND t.meta_category = 'Income'\nWHERE w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start\nORDER BY w.week_start",
+          "refId": "A"
+        },
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  w.week_start AS time,\n  ROUND(SUM(t.amount), 2) AS `Expenses`\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN analysis_cash_flow t\n  ON t.`date` >= $__timeFrom()\n  AND t.`date` <= w.week_start\n  AND t.email = '$email'\n  AND t.meta_category = 'Expense'\nWHERE w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start\nORDER BY w.week_start",
+          "refId": "B"
+        },
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  w.week_start AS time,\n  ROUND(SUM(t.amount), 2) AS `Net`\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN analysis_cash_flow t\n  ON t.`date` >= $__timeFrom()\n  AND t.`date` <= w.week_start\n  AND t.email = '$email'\n  AND t.meta_category IN ('Income', 'Expense')\nWHERE w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start\nORDER BY w.week_start",
+          "refId": "C"
+        }
+      ],
+      "title": "Income and Expenses Over Time",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Monthly income vs expenses",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 1
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Expenses" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Income" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 6 },
+      "id": 6,
+      "options": {
+        "barWidth": 0.8,
+        "groupWidth": 0.7,
+        "legend": { "calcs": ["min", "mean", "max"], "displayMode": "table", "placement": "bottom" },
+        "orientation": "vertical",
+        "showValue": "never",
+        "stacking": "none",
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "xTickLabelRotation": -45
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  DATE_FORMAT(`date`, '%Y-%m') AS month,\n  ROUND(SUM(CASE WHEN meta_category = 'Income' THEN amount ELSE 0 END), 2) AS `Income`,\n  ROUND(ABS(SUM(CASE WHEN meta_category = 'Expense' THEN amount ELSE 0 END)), 2) AS `Expenses`\nFROM analysis_cash_flow\nWHERE email = '$email'\n  AND $__timeFilter(`date`)\nGROUP BY DATE_FORMAT(`date`, '%Y-%m')\nORDER BY month",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Cash Flow",
+      "transparent": true,
+      "type": "barchart"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 },
+      "id": 102,
+      "title": "Breakdowns",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Expense breakdown by Firefly III category",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 14, "w": 12, "x": 0, "y": 17 },
+      "id": 8,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": true
+        },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  category,\n  ROUND(ABS(SUM(amount)), 2) AS amount\nFROM analysis_txs\nWHERE email = '$email'\n  AND meta_category = 'Expense'\n  AND category IS NOT NULL\n  AND $__timeFilter(`date`)\nGROUP BY category\nORDER BY amount DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Spending by Category",
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Balance of each asset account at end of selected period",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "balance" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Balance" },
+              { "id": "custom.align", "value": "auto" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "account" },
+            "properties": [
+              { "id": "displayName", "value": "Account" },
+              { "id": "custom.align", "value": "auto" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "account_type" },
+            "properties": [
+              { "id": "displayName", "value": "Type" },
+              { "id": "custom.width", "value": 100 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "last_activity" },
+            "properties": [
+              { "id": "displayName", "value": "Last Activity" },
+              { "id": "custom.width", "value": 100 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "status" },
+            "properties": [
+              { "id": "displayName", "value": "Status" },
+              { "id": "custom.width", "value": 80 },
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "Active": { "text": "Active", "color": "green" }, "Inactive": { "text": "Inactive", "color": "red" } } }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 14, "w": 12, "x": 12, "y": 17 },
+      "id": 9,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": ["balance"],
+          "reducer": ["sum"],
+          "show": true
+        },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Balance" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  a.name AS account,\n  REPLACE(at2.type COLLATE utf8mb4_unicode_ci, ' account', '') AS account_type,\n  CASE WHEN a.active = 1 THEN 'Active' ELSE 'Inactive' END AS status,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%d/%m/%Y') AS last_activity,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci IN ('Asset account', 'Loan', 'Mortgage')\n  AND u.email = '$email'\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()\n  AND ('$acct_status' = 'All' OR CASE WHEN a.active = 1 THEN 'Active' ELSE 'Inactive' END = '$acct_status')\nGROUP BY a.name, at2.type, a.active\nORDER BY a.active DESC, at2.type, balance DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Account Balances",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
+      "id": 105,
+      "title": "Investments",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Total value of all investment accounts",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 51 },
+      "id": 200,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT ROUND(SUM(t.amount), 2) AS portfolio_value\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Portfolio Value",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Balance of each investment account",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "balance" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Balance" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "account" },
+            "properties": [
+              { "id": "displayName", "value": "Account" },
+              { "id": "custom.width", "value": 320 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "last_update" },
+            "properties": [
+              { "id": "displayName", "value": "Last Update" },
+              { "id": "custom.width", "value": 110 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 55 },
+      "id": 201,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": false,
+          "fields": ["balance"],
+          "reducer": ["sum"],
+          "show": true
+        },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Balance" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  a.name AS account,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%m/%d/%Y') AS last_update,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()\nGROUP BY a.name\nORDER BY balance DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Investment Account Balances",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Weekly running balance per investment account over time",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 55 },
+      "id": 202,
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(w.week_start) AS time,\n  a.name AS metric,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN transactions t ON t.deleted_at IS NULL\nJOIN transaction_journals tj\n  ON t.transaction_journal_id = tj.id\n  AND CAST(tj.date AS DATE) <= w.week_start\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start, a.name\nORDER BY w.week_start, a.name",
+          "refId": "A"
+        }
+      ],
+      "title": "Portfolio Value Over Time",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 },
+      "id": 103,
+      "title": "Detail",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Spending by category over time (monthly totals)",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barMaxWidth": 30,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 66 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": ["sum"], "displayMode": "table", "placement": "right" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(DATE_ADD(DATE_FORMAT(`date`, '%Y-%m-01'), INTERVAL 14 DAY)) AS time,\n  ROUND(ABS(SUM(amount)), 2) AS amount,\n  category AS metric\nFROM analysis_txs\nWHERE email = '$email'\n  AND meta_category = 'Expense'\n  AND category IS NOT NULL\n  AND $__timeFilter(`date`)\nGROUP BY DATE_FORMAT(`date`, '%Y-%m-01'), category\nORDER BY time, category",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Spending by Category",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 76 },
+      "id": 300,
+      "title": "Insights",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Percentage of income retained as savings in the selected period",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 10 },
+              { "color": "yellow", "value": 20 },
+              { "color": "green", "value": 30 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 77 },
+      "id": 301,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  ROUND(\n    100.0 * (SUM(CASE WHEN meta_category = 'Income'\n                      THEN amount ELSE 0 END)\n           + SUM(CASE WHEN meta_category = 'Expense'\n                      THEN amount ELSE 0 END))\n    / NULLIF(SUM(CASE WHEN meta_category = 'Income'\n                      THEN amount ELSE 0 END), 0), 1\n  ) AS savings_rate\nFROM analysis_cash_flow\nWHERE email = '$email'\n  AND $__timeFilter(`date`)",
+          "refId": "A"
+        }
+      ],
+      "title": "Savings Rate",
+      "transparent": true,
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Ratio of dining out (restaurants, delivery, coffee, snacks) to total food spending",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 40 },
+              { "color": "orange", "value": 60 },
+              { "color": "red", "value": 80 }
+            ]
+          },
+          "unit": "percent",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 77 },
+      "id": 302,
+      "options": {
+        "minVizHeight": 75,
+        "minVizWidth": 75,
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "showThresholdLabels": true,
+        "showThresholdMarkers": true,
+        "sizing": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  ROUND(\n    100.0 * ABS(SUM(CASE WHEN category COLLATE utf8mb4_unicode_ci IN (\n        'Food and Drink - Restaurants',\n        'Food and Drink - Delivery',\n        'Food and Drink - Coffee Shops',\n        'Food and Drink - Snack Food',\n        'Food and Drink - Alcohol')\n      THEN amount ELSE 0 END))\n    / NULLIF(ABS(SUM(CASE WHEN category COLLATE utf8mb4_unicode_ci\n        LIKE 'Food and Drink%' THEN amount ELSE 0 END)), 0), 1\n  ) AS dining_out_pct\nFROM analysis_txs\nWHERE email = '$email'\n  AND meta_category = 'Expense'\n  AND $__timeFilter(`date`)",
+          "refId": "A"
+        }
+      ],
+      "title": "Dining Out Ratio",
+      "transparent": true,
+      "type": "gauge"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Breakdown of spending into essential needs vs discretionary wants",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 77 },
+      "id": 303,
+      "options": {
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": true
+        },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  CASE\n    WHEN category COLLATE utf8mb4_unicode_ci IN (\n      'Food and Drink - Groceries',\n      'Household - Utilities',\n      'Household - Rent',\n      'Household - Home Insurance',\n      'Household - Rental Insurance',\n      'Household - Repairs',\n      'Financial - Mortgage Payment',\n      'Financial - Child Support',\n      'Financial - Life Insurance',\n      'Vehicles - Gasoline',\n      'Vehicles - Insurance',\n      'Vehicles - Servicing',\n      'Vehicles - Parts',\n      'Household - Clothing')\n      OR category COLLATE utf8mb4_unicode_ci LIKE 'Health%'\n    THEN 'Needs'\n    WHEN category COLLATE utf8mb4_unicode_ci LIKE 'Financial - Interest'\n      OR category COLLATE utf8mb4_unicode_ci LIKE 'Financial - Credit Card Interest'\n      OR category COLLATE utf8mb4_unicode_ci LIKE 'Financial - Mortgage Payment'\n      OR category COLLATE utf8mb4_unicode_ci LIKE 'Financial - Service Charges'\n      OR category COLLATE utf8mb4_unicode_ci LIKE 'Financial - Credit Card Annual Fees'\n    THEN 'Debt and Fees'\n    ELSE 'Wants'\n  END AS bucket,\n  ROUND(ABS(SUM(amount)), 2) AS amount\nFROM analysis_txs\nWHERE email = '$email'\n  AND meta_category = 'Expense'\n  AND category IS NOT NULL\n  AND $__timeFilter(`date`)\nGROUP BY bucket\nORDER BY amount DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Needs vs Wants vs Debt",
+      "transparent": true,
+      "type": "piechart"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Interest earned (income) vs interest paid (debt) in the selected period",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "prefix:$ "
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Earned" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Paid" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 83 },
+      "id": 304,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  ROUND(SUM(CASE WHEN meta_category = 'Income'\n    AND category COLLATE utf8mb4_unicode_ci IN (\n      'Financial - Interest',\n      'Financial - Savings Interest')\n    THEN amount ELSE 0 END), 2) AS `Earned`,\n  ROUND(ABS(SUM(CASE WHEN meta_category = 'Expense'\n    AND category COLLATE utf8mb4_unicode_ci IN (\n      'Financial - Interest',\n      'Financial - Credit Card Interest')\n    THEN amount ELSE 0 END)), 2) AS `Paid`\nFROM analysis_txs\nWHERE email = '$email'\n  AND $__timeFilter(`date`)",
+          "refId": "A"
+        }
+      ],
+      "title": "Interest",
+      "transparent": true,
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Monthly interest earned vs paid over time",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never"
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Earned" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Paid" },
+            "properties": [
+              { "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 83 },
+      "id": 305,
+      "options": {
+        "legend": { "calcs": ["sum", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(DATE_ADD(DATE_FORMAT(`date`, '%Y-%m-01'), INTERVAL 14 DAY)) AS time,\n  ROUND(SUM(CASE WHEN meta_category = 'Income'\n    AND category COLLATE utf8mb4_unicode_ci IN (\n      'Financial - Interest',\n      'Financial - Savings Interest')\n    THEN amount ELSE 0 END), 2) AS `Earned`,\n  ROUND(ABS(SUM(CASE WHEN meta_category = 'Expense'\n    AND category COLLATE utf8mb4_unicode_ci IN (\n      'Financial - Interest',\n      'Financial - Credit Card Interest')\n    THEN amount ELSE 0 END)), 2) AS `Paid`\nFROM analysis_txs\nWHERE email = '$email'\n  AND category COLLATE utf8mb4_unicode_ci IN (\n    'Financial - Interest',\n    'Financial - Credit Card Interest',\n    'Financial - Savings Interest')\n  AND $__timeFilter(`date`)\nGROUP BY DATE_FORMAT(`date`, '%Y-%m-01')\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "Monthly Interest",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "All active subscriptions with monthly and annualized cost",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "monthly_avg" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Monthly Avg" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "annual_cost" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Annual Cost" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "subscription" },
+            "properties": [
+              { "id": "displayName", "value": "Subscription" },
+              { "id": "custom.width", "value": 280 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "last_charge" },
+            "properties": [
+              { "id": "displayName", "value": "Last Charge" },
+              { "id": "custom.width", "value": 100 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "charges" },
+            "properties": [
+              { "id": "displayName", "value": "Charges" },
+              { "id": "custom.width", "value": 80 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 87 },
+      "id": 306,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": false,
+          "fields": ["annual_cost"],
+          "reducer": ["sum"],
+          "show": true
+        },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Annual Cost" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  REPLACE(category COLLATE utf8mb4_unicode_ci, 'Subscriptions - ', '') AS subscription,\n  COUNT(*) AS charges,\n  DATE_FORMAT(MAX(`date`), '%Y-%m-%d') AS last_charge,\n  ROUND(ABS(SUM(amount)) / GREATEST(TIMESTAMPDIFF(MONTH, $__timeFrom(), $__timeTo()), 1), 2) AS monthly_avg,\n  ROUND(ABS(SUM(amount)) / GREATEST(TIMESTAMPDIFF(MONTH, $__timeFrom(), $__timeTo()), 1) * 12, 2) AS annual_cost\nFROM analysis_txs\nWHERE email = '$email'\n  AND meta_category = 'Expense'\n  AND category COLLATE utf8mb4_unicode_ci LIKE 'Subscriptions%'\n  AND $__timeFilter(`date`)\nGROUP BY category\nORDER BY annual_cost DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Subscription Tracker",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Spending change per category: current month vs previous month",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "_dummy_m1" },
+            "properties": [
+              { "id": "custom.hidden", "value": true }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "recent_month" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Recent Month" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "prior_month" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Prior Month" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "delta" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Delta" },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "red", "value": 0.01 }
+                  ]
+                }
+              },
+              { "id": "color", "value": { "mode": "thresholds" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "category" },
+            "properties": [
+              { "id": "displayName", "value": "Category" },
+              { "id": "custom.width", "value": 300 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 91 },
+      "id": 307,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": ["recent_month", "prior_month", "delta"],
+          "reducer": ["sum"],
+          "show": true
+        },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Delta" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  COALESCE(m1.category, m2.category) AS category,\n  CONCAT(DATE_FORMAT(@m1_start := DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 0 MONTH), '%Y-%m-01'), '%b %Y')) AS `_dummy_m1`,\n  COALESCE(m1.amt, 0) AS recent_month,\n  COALESCE(m2.amt, 0) AS prior_month,\n  ROUND(COALESCE(m1.amt, 0) - COALESCE(m2.amt, 0), 2) AS delta\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n  GROUP BY category\n) m1\nLEFT JOIN (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 2 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n) m2 ON m1.category = m2.category\nUNION\nSELECT\n  m2b.category,\n  NULL,\n  0 AS recent_month,\n  m2b.amt AS prior_month,\n  ROUND(0 - m2b.amt, 2) AS delta\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 2 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n) m2b\nWHERE m2b.category NOT IN (\n  SELECT category\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n)\nORDER BY delta DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Month-over-Month Spending Delta",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "HELOC, Loan, and Mortgage balance trajectory over time",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 99 },
+      "id": 308,
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(w.week_start) AS time,\n  a.name AS metric,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN transactions t ON t.deleted_at IS NULL\nJOIN transaction_journals tj\n  ON t.transaction_journal_id = tj.id\n  AND CAST(tj.date AS DATE) <= w.week_start\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci IN ('Loan', 'Mortgage')\n  AND a.active = 1\n  AND w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start, a.name\nORDER BY w.week_start, a.name",
+          "refId": "A"
+        }
+      ],
+      "title": "Debt Paydown Progress",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Categories where current month spend exceeds twice the rolling 6-month average",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "last_full_month" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Last Full Month" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "six_month_avg" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "6-Mo Avg" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "ratio" },
+            "properties": [
+              { "id": "decimals", "value": 1 },
+              { "id": "displayName", "value": "Ratio" },
+              { "id": "unit", "value": "suffix:x" },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "transparent", "value": null },
+                    { "color": "orange", "value": 2 },
+                    { "color": "red", "value": 3 }
+                  ]
+                }
+              },
+              { "id": "color", "value": { "mode": "thresholds" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "category" },
+            "properties": [
+              { "id": "displayName", "value": "Category" },
+              { "id": "custom.width", "value": 300 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 103 },
+      "id": 309,
+      "options": {
+        "cellHeight": "sm",
+        "footer": { "countRows": false, "enablePagination": false, "fields": "", "reducer": ["sum"], "show": false },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Ratio" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  cm.category,\n  cm.amt AS last_full_month,\n  ROUND(hist.avg_amt, 2) AS six_month_avg,\n  ROUND(cm.amt / hist.avg_amt, 1) AS ratio\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n  GROUP BY category\n) cm\nJOIN (\n  SELECT category,\n    ABS(SUM(amount)) / 6 AS avg_amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 7 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n  HAVING avg_amt > 10\n) hist ON cm.category = hist.category\nWHERE cm.amt > hist.avg_amt * 2\nORDER BY ratio DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Spending Anomalies",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Monthly cost breakdown by utility provider: Shaw (Internet), Telus (Cellphone), Electricity, Natural Gas, and Town of Canmore (Water/Recycling)",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": { "type": "auto" },
+            "inspect": false
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "provider" },
+            "properties": [
+              { "id": "displayName", "value": "Provider" },
+              { "id": "custom.width", "value": 200 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "charges" },
+            "properties": [
+              { "id": "displayName", "value": "Charges" },
+              { "id": "custom.width", "value": 80 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "total" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Total" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "monthly_avg" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Monthly Avg" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "max_charge" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Max" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "annual_cost" },
+            "properties": [
+              { "id": "unit", "value": "prefix:$ " },
+              { "id": "decimals", "value": 2 },
+              { "id": "displayName", "value": "Annual Cost" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "last_charge" },
+            "properties": [
+              { "id": "displayName", "value": "Last Charge" },
+              { "id": "custom.width", "value": 100 }
+            ]
+          }
+        ]
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 0, "y": 115 },
+      "id": 310,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": false,
+          "fields": ["total", "annual_cost"],
+          "reducer": ["sum"],
+          "show": true
+        },
+        "showHeader": true,
+        "sortBy": [{ "desc": true, "displayName": "Annual Cost" }]
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  CASE\n    WHEN tj.description LIKE '%SHAW%' THEN 'Shaw (Internet)'\n    WHEN tj.description LIKE '%TELUS%' THEN 'Telus (Cellphone)'\n    WHEN tj.description LIKE '%UTILNET-BVP-EL%' THEN 'Electricity'\n    WHEN tj.description LIKE '%UTILNET-BVP-NG%' THEN 'Natural Gas'\n    WHEN tj.description LIKE '%CANMORE%UTILITI%' THEN 'Town of Canmore (Water/Recycling)'\n  END AS provider,\n  COUNT(*) AS charges,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%Y-%m-%d') AS last_charge,\n  ROUND(ABS(SUM(t.amount)), 2) AS total,\n  ROUND(ABS(SUM(t.amount)) / GREATEST(TIMESTAMPDIFF(MONTH, $__timeFrom(), $__timeTo()), 1), 2) AS monthly_avg,\n  ROUND(ABS(MIN(t.amount)), 2) AS max_charge,\n  ROUND(ABS(SUM(t.amount)) / GREATEST(TIMESTAMPDIFF(MONTH, $__timeFrom(), $__timeTo()), 1) * 12, 2) AS annual_cost\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND t.amount < 0\n  AND t.deleted_at IS NULL\n  AND tj.deleted_at IS NULL\n  AND u.email = '$email'\n  AND $__timeFilter(tj.date)\n  AND (tj.description LIKE '%SHAW%'\n    OR tj.description LIKE '%TELUS%'\n    OR tj.description LIKE '%UTILNET-BVP-EL%'\n    OR tj.description LIKE '%UTILNET-BVP-NG%'\n    OR tj.description LIKE '%CANMORE%UTILITI%')\nGROUP BY provider\nHAVING provider IS NOT NULL\nORDER BY annual_cost DESC",
+          "refId": "A"
+        }
+      ],
+      "title": "Utilities Breakdown",
+      "transparent": true,
+      "type": "table"
+    },
+    {
+      "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+      "description": "Monthly utility costs by provider over time",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "showPoints": "never",
+            "stacking": { "group": "A", "mode": "normal" }
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 10, "w": 12, "x": 12, "y": 115 },
+      "id": 311,
+      "options": {
+        "legend": { "calcs": ["sum", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(DATE_ADD(DATE_FORMAT(CAST(tj.date AS DATE), '%Y-%m-01'), INTERVAL 14 DAY)) AS time,\n  ROUND(ABS(SUM(t.amount)), 2) AS amount,\n  CASE\n    WHEN tj.description LIKE '%SHAW%' THEN 'Shaw (Internet)'\n    WHEN tj.description LIKE '%TELUS%' THEN 'Telus (Cellphone)'\n    WHEN tj.description LIKE '%UTILNET-BVP-EL%' THEN 'Electricity'\n    WHEN tj.description LIKE '%UTILNET-BVP-NG%' THEN 'Natural Gas'\n    WHEN tj.description LIKE '%CANMORE%UTILITI%' THEN 'Town of Canmore (Water/Recycling)'\n  END AS metric\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND t.amount < 0\n  AND t.deleted_at IS NULL\n  AND tj.deleted_at IS NULL\n  AND u.email = '$email'\n  AND $__timeFilter(tj.date)\n  AND (tj.description LIKE '%SHAW%'\n    OR tj.description LIKE '%TELUS%'\n    OR tj.description LIKE '%UTILNET-BVP-EL%'\n    OR tj.description LIKE '%UTILNET-BVP-NG%'\n    OR tj.description LIKE '%CANMORE%UTILITI%')\nGROUP BY DATE_FORMAT(CAST(tj.date AS DATE), '%Y-%m-01'), metric\nHAVING metric IS NOT NULL\nORDER BY time, metric",
+          "refId": "A"
+        }
+      ],
+      "title": "Utility Costs Over Time",
+      "transparent": true,
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": ["firefly", "finance"],
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "datasource": { "type": "mysql", "uid": "P382BE89091B0B8E6" },
+        "definition": "SELECT email FROM users ORDER BY email",
+        "hide": 2,
+        "includeAll": false,
+        "label": "Account Email",
+        "multi": false,
+        "name": "email",
+        "options": [],
+        "query": "SELECT email FROM users ORDER BY email",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": { "selected": true, "text": "All", "value": "All" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Account Status",
+        "multi": false,
+        "name": "acct_status",
+        "options": [
+          { "selected": true, "text": "All", "value": "All" },
+          { "selected": false, "text": "Active", "value": "Active" },
+          { "selected": false, "text": "Inactive", "value": "Inactive" }
+        ],
+        "query": "All,Active,Inactive",
+        "skipUrlSync": false,
+        "type": "custom"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-1y",
+    "to": "now"
+  },
+  "timepicker": {
+    "hidden": false,
+    "refresh_intervals": ["1d"],
+    "quick_ranges": [
+      { "from": "now-7d", "to": "now", "display": "Last 7 days" },
+      { "from": "now-30d", "to": "now", "display": "Last 30 days" },
+      { "from": "now-90d", "to": "now", "display": "Last 90 days" },
+      { "from": "now-6M", "to": "now", "display": "Last 6 months" },
+      { "from": "now/y", "to": "now", "display": "Year to date" },
+      { "from": "now-1y", "to": "now", "display": "Last 1 year" },
+      { "from": "now-2y", "to": "now", "display": "Last 2 years" }
+    ]
+  },
+  "timezone": "browser",
+  "title": "Firefly III Overview",
+  "uid": "firefly-overview",
+  "version": 1
+}

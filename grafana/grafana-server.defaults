@@ -29,3 +29,8 @@ PID_FILE_DIR=/run/grafana
 # Bind to all interfaces so the UI is reachable on every address
 # (LAN, Tailscale, Docker bridge, etc.).
 GF_SERVER_HTTP_ADDR=0.0.0.0
+
+# ── Firefly III datasource ──────────────────────────────────
+# Password for the firefly MySQL user that the firefly-mysql
+# provisioned datasource connects with.
+FIREFLY_DB_PASSWORD=thishastochange
