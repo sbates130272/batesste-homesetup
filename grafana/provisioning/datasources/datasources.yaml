@@ -11,3 +11,15 @@ datasources:
     url: http://localhost:9090
     isDefault: true
     editable: true
+
+  - name: firefly-mysql
+    type: mysql
+    url: 172.20.0.2:3306
+    database: firefly
+    user: firefly
+    secureJsonData:
+      password: $FIREFLY_DB_PASSWORD
+    jsonData:
+      maxOpenConns: 2
+      connMaxLifetime: 14400
+    editable: true
