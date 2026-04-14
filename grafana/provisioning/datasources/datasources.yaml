@@ -14,7 +14,7 @@ datasources:
 
   - name: firefly-mysql
     type: mysql
-    url: 172.20.0.2:3306
+    url: 127.0.0.1:3306
     database: firefly
     user: firefly
     secureJsonData:
