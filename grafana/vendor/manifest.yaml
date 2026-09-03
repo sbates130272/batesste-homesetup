@@ -125,23 +125,35 @@ dashboards:
     file: dashboards/general/lemonade-built-in-metrics.json
     folder: General
     upstream: https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/
-    upstream_confidence: probable
+    upstream_ref: revision 1
     upstream_metrics: https://github.com/lemonade-sdk/lemonade
     retrieved: 2026-09-03
     created: 2026-06-05
     notes: >-
-      grafana.com 25422. Its slug is our uid verbatim, it carries the
-      `built-in-metrics` tag, and it has the DS_PROMETHEUS variable that
-      only the grafana.com publishing flow requires. Marked probable
-      rather than confirmed because this host cannot reach grafana.com to
-      diff the JSON, and because our title reads "Lemonade Metrics
-      Dashboard" against the listing's "Lemonade Built-in Metrics" --
-      either a local rename or a listing/JSON mismatch, unresolved.
+      grafana.com 25422, confirmed by diffing revision 1: same uid, same
+      19 panels, same panel titles, byte-identical queries, and the
+      download carries `gnetId: 25422`. Our copy dropped that field
+      because it was imported by pasting the JSON rather than by ID.
 
-      Note it is not in the lemonade-sdk/lemonade repo: that ships no
-      Grafana JSON at all. `upstream_metrics` records where the metric
-      *contract* lives instead (src/cpp/server/prometheus_metrics.cpp),
-      which is what a query has to stay valid against.
+      Not in the lemonade-sdk/lemonade repo -- that ships no Grafana JSON
+      at all, the dashboard is published only to grafana.com.
+      `upstream_metrics` records where the metric *contract* lives
+      (src/cpp/server/prometheus_metrics.cpp), which is what the queries
+      have to stay valid against.
+
+      We have diverged from revision 1 in three ways, all deliberate
+      looking: the title was changed from "Lemonade Built-In Metrics" to
+      "Lemonade Metrics Dashboard"; the layout was reworked, most visibly
+      the three External AMD GPU panels widened from w=8 to w=12 and
+      moved off their shared row, plus "Loaded Model Metadata" grown from
+      h=7 to h=11; and a `min: 0` axis floor was added to two panels.
+      Everything else in the 609-line raw diff is Grafana's schemaVersion
+      39 -> 42 migration (threshold `"value": null` becoming 0, dropped
+      empty `mappings`, materialised `annotations` and
+      `percentChangeColorMode`), not a change anyone made.
+
+      So a refresh is a merge, not an overwrite. Re-fetching would revert
+      the relayout and the title.
 
       ${DS_PROMETHEUS} is bound here to snoc-beelink-prometheus -- a real
       template variable, unlike the NVMe dashboard above where the same
@@ -151,8 +163,10 @@ dashboards:
       Prometheus: 22 of its 25 metric names resolve. Two panels are dead,
       both querying a lemonade_model_decode_token_time_* family that
       lemonade no longer exports -- "Streaming Decode Token Timing" and
-      "Streaming Decode Token Samples". Re-fetching 25422 may well fix
-      those, since upstream tracks lemonade's renames.
+      "Streaming Decode Token Samples". Upstream revision 1 queries those
+      same three metric names, so this is an upstream bug and refreshing
+      will not fix it. It needs either a newer revision of 25422 or a
+      local repoint.
 
       Checked 2026-09-03 against the 44 lemonade_* series live in
       Prometheus: 22 of its 25 metric names resolve. Two panels are dead,
