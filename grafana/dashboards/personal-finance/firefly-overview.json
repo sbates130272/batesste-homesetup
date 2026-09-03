@@ -37,6 +37,80 @@
         "type": "mysql",
         "uid": "P382BE89091B0B8E6"
       },
+      "description": "Days between today and the most recent transaction in the database. The SimpleFIN feed died on 2026-05-07 and went unnoticed for four months; this panel is here so that cannot happen silently again. Green under a week, red past a fortnight.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "#EAB839",
+                "value": 8
+              },
+              {
+                "color": "orange",
+                "value": 15
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          },
+          "unit": "d"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 1
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "13.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "P382BE89091B0B8E6"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT DATEDIFF(CURDATE(), MAX(tj.date)) AS `Days Since Last Transaction`\nFROM transaction_journals tj\nWHERE tj.deleted_at IS NULL",
+          "refId": "A"
+        }
+      ],
+      "title": "Days Since Last Transaction",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "mysql",
+        "uid": "P382BE89091B0B8E6"
+      },
       "description": "Total income received in the selected period",
       "fieldConfig": {
         "defaults": {
@@ -52,7 +126,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 1
+        "y": 4
       },
       "id": 3,
       "options": {
@@ -120,7 +194,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 1
+        "y": 4
       },
       "id": 4,
       "options": {
@@ -188,7 +262,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 1
+        "y": 4
       },
       "id": 13,
       "options": {
@@ -226,7 +300,7 @@
         "type": "mysql",
         "uid": "P382BE89091B0B8E6"
       },
-      "description": "Most recent transaction date in the database",
+      "description": "Date of the most recent transaction. This is the transaction date, not the row's updated_at: an edit or a rule re-run bumps updated_at without any new data arriving.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -248,7 +322,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 1
+        "y": 4
       },
       "id": 11,
       "options": {
@@ -273,11 +347,11 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT UNIX_TIMESTAMP(MAX(updated_at)) * 1000 AS last_import\nFROM transaction_journals",
+          "rawSql": "SELECT UNIX_TIMESTAMP(MAX(tj.date)) * 1000 AS last_transaction\nFROM transaction_journals tj\nWHERE tj.deleted_at IS NULL",
           "refId": "A"
         }
       ],
-      "title": "Last Import",
+      "title": "Last Transaction",
       "transparent": true,
       "type": "stat"
     },
@@ -287,7 +361,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 8
       },
       "id": 101,
       "title": "Trends",
@@ -371,7 +445,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 6
+        "y": 9
       },
       "id": 5,
       "options": {
@@ -478,7 +552,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 6
+        "y": 9
       },
       "id": 6,
       "options": {
@@ -524,7 +598,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 19
       },
       "id": 102,
       "title": "Breakdowns",
@@ -549,7 +623,7 @@
         "h": 14,
         "w": 12,
         "x": 0,
-        "y": 17
+        "y": 20
       },
       "id": 8,
       "options": {
@@ -723,7 +797,7 @@
         "h": 14,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 20
       },
       "id": 9,
       "options": {
@@ -755,7 +829,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  a.name AS account,\n  REPLACE(at2.type COLLATE utf8mb4_unicode_ci, ' account', '') AS account_type,\n  CASE WHEN a.active = 1 THEN 'Active' ELSE 'Inactive' END AS status,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%d/%m/%Y') AS last_activity,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci IN ('Asset account', 'Loan', 'Mortgage')\n  AND u.email = '$email'\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()\n  AND ('$acct_status' = 'All' OR CASE WHEN a.active = 1 THEN 'Active' ELSE 'Inactive' END = '$acct_status')\nGROUP BY a.name, at2.type, a.active\nORDER BY a.active DESC, at2.type, balance DESC",
+          "rawSql": "SELECT\n  a.name AS account,\n  REPLACE(at2.type COLLATE utf8mb4_unicode_ci, ' account', '') AS account_type,\n  CASE WHEN a.active = 1 THEN 'Active' ELSE 'Inactive' END AS status,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%Y-%m-%d') AS last_activity,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci IN ('Asset account', 'Loan', 'Mortgage')\n  AND u.email = '$email'\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()\n  AND ('$acct_status' = 'All' OR CASE WHEN a.active = 1 THEN 'Active' ELSE 'Inactive' END = '$acct_status')\nGROUP BY a.name, at2.type, a.active\nORDER BY a.active DESC, at2.type, balance DESC",
           "refId": "A"
         }
       ],
@@ -769,7 +843,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 34
       },
       "id": 105,
       "title": "Investments",
@@ -793,9 +867,9 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 24,
         "x": 0,
-        "y": 51
+        "y": 35
       },
       "id": 200,
       "options": {
@@ -820,7 +894,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT ROUND(SUM(t.amount), 2) AS portfolio_value\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()",
+          "rawSql": "SELECT ROUND(SUM(t.amount), 2) AS portfolio_value\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND u.email = '$email'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()",
           "refId": "A"
         }
       ],
@@ -903,7 +977,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 39
       },
       "id": 201,
       "options": {
@@ -935,7 +1009,7 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  a.name AS account,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%m/%d/%Y') AS last_update,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()\nGROUP BY a.name\nORDER BY balance DESC",
+          "rawSql": "SELECT\n  a.name AS account,\n  DATE_FORMAT(MAX(CAST(tj.date AS DATE)), '%Y-%m-%d') AS last_update,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM transactions t\nJOIN transaction_journals tj ON t.transaction_journal_id = tj.id\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND u.email = '$email'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND t.deleted_at IS NULL\n  AND CAST(tj.date AS DATE) <= $__timeTo()\nGROUP BY a.name\nORDER BY balance DESC",
           "refId": "A"
         }
       ],
@@ -975,7 +1049,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 39
       },
       "id": 202,
       "options": {
@@ -999,7 +1073,7 @@
           },
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  UNIX_TIMESTAMP(w.week_start) AS time,\n  a.name AS metric,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN transactions t ON t.deleted_at IS NULL\nJOIN transaction_journals tj\n  ON t.transaction_journal_id = tj.id\n  AND CAST(tj.date AS DATE) <= w.week_start\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start, a.name\nORDER BY w.week_start, a.name",
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(w.week_start) AS time,\n  a.name AS metric,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN transactions t ON t.deleted_at IS NULL\nJOIN transaction_journals tj\n  ON t.transaction_journal_id = tj.id\n  AND CAST(tj.date AS DATE) <= w.week_start\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci = 'Asset account'\n  AND u.email = '$email'\n  AND a.name REGEXP 'RESP|LIRA|TFSA|RRSP|FHSA'\n  AND a.active = 1\n  AND w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start, a.name\nORDER BY w.week_start, a.name",
           "refId": "A"
         }
       ],
@@ -1013,7 +1087,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 49
       },
       "id": 103,
       "title": "Detail",
@@ -1098,7 +1172,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 50
       },
       "id": 10,
       "options": {
@@ -1219,7 +1293,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 76
+        "y": 60
       },
       "id": 1010,
       "options": {
@@ -1267,7 +1341,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 76
+        "y": 70
       },
       "id": 300,
       "title": "Insights",
@@ -1311,10 +1385,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 6,
         "x": 0,
-        "y": 77
+        "y": 71
       },
       "id": 301,
       "options": {
@@ -1386,10 +1460,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 6,
         "x": 6,
-        "y": 77
+        "y": 71
       },
       "id": 302,
       "options": {
@@ -1439,10 +1513,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 12,
-        "y": 77
+        "y": 71
       },
       "id": 303,
       "options": {
@@ -1531,10 +1605,10 @@
         ]
       },
       "gridPos": {
-        "h": 4,
+        "h": 8,
         "w": 6,
         "x": 0,
-        "y": 83
+        "y": 79
       },
       "id": 304,
       "options": {
@@ -1617,7 +1691,7 @@
         "h": 8,
         "w": 6,
         "x": 6,
-        "y": 83
+        "y": 79
       },
       "id": 305,
       "options": {
@@ -1767,7 +1841,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 87
+        "y": 79
       },
       "id": 306,
       "options": {
@@ -1946,7 +2020,7 @@
         "h": 12,
         "w": 12,
         "x": 0,
-        "y": 91
+        "y": 87
       },
       "id": 307,
       "options": {
@@ -1980,77 +2054,13 @@
           },
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  COALESCE(m1.category, m2.category) AS category,\n  CONCAT(DATE_FORMAT(@m1_start := DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 0 MONTH), '%Y-%m-01'), '%b %Y')) AS `_dummy_m1`,\n  COALESCE(m1.amt, 0) AS recent_month,\n  COALESCE(m2.amt, 0) AS prior_month,\n  ROUND(COALESCE(m1.amt, 0) - COALESCE(m2.amt, 0), 2) AS delta\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n  GROUP BY category\n) m1\nLEFT JOIN (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 2 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n) m2 ON m1.category = m2.category\nUNION\nSELECT\n  m2b.category,\n  NULL,\n  0 AS recent_month,\n  m2b.amt AS prior_month,\n  ROUND(0 - m2b.amt, 2) AS delta\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 2 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n) m2b\nWHERE m2b.category NOT IN (\n  SELECT category\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n)\nORDER BY delta DESC",
+          "rawSql": "SELECT\n  COALESCE(m1.category, m2.category) AS category,\n  COALESCE(m1.amt, 0) AS recent_month,\n  COALESCE(m2.amt, 0) AS prior_month,\n  ROUND(COALESCE(m1.amt, 0) - COALESCE(m2.amt, 0), 2) AS delta\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n  GROUP BY category\n) m1\nLEFT JOIN (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 2 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n) m2 ON m1.category = m2.category\nUNION\nSELECT\n  m2b.category,\n  0 AS recent_month,\n  m2b.amt AS prior_month,\n  ROUND(0 - m2b.amt, 2) AS delta\nFROM (\n  SELECT category, ROUND(ABS(SUM(amount)), 2) AS amt\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 2 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n  GROUP BY category\n) m2b\nWHERE m2b.category NOT IN (\n  SELECT category\n  FROM analysis_txs\n  WHERE email = '$email'\n    AND meta_category = 'Expense'\n    AND category IS NOT NULL\n    AND `date` >= DATE_FORMAT(DATE_SUB(LAST_DAY($__timeTo()), INTERVAL 1 MONTH), '%Y-%m-01')\n    AND `date` < DATE_FORMAT(LAST_DAY($__timeTo()), '%Y-%m-01')\n)\nORDER BY delta DESC",
           "refId": "A"
         }
       ],
       "title": "Month-over-Month Spending Delta",
       "transparent": true,
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "mysql",
-        "uid": "P382BE89091B0B8E6"
-      },
-      "description": "HELOC, Loan, and Mortgage balance trajectory over time",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "scheme",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "unit": "prefix:$ "
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 12,
-        "w": 12,
-        "x": 12,
-        "y": 99
-      },
-      "id": 308,
-      "options": {
-        "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "displayMode": "table",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "mysql",
-            "uid": "P382BE89091B0B8E6"
-          },
-          "format": "time_series",
-          "rawQuery": true,
-          "rawSql": "SELECT\n  UNIX_TIMESTAMP(w.week_start) AS time,\n  a.name AS metric,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN transactions t ON t.deleted_at IS NULL\nJOIN transaction_journals tj\n  ON t.transaction_journal_id = tj.id\n  AND CAST(tj.date AS DATE) <= w.week_start\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci IN ('Loan', 'Mortgage')\n  AND a.active = 1\n  AND w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start, a.name\nORDER BY w.week_start, a.name",
-          "refId": "A"
-        }
-      ],
-      "title": "Debt Paydown Progress",
-      "transparent": true,
-      "type": "timeseries"
     },
     {
       "datasource": {
@@ -2182,8 +2192,8 @@
       "gridPos": {
         "h": 12,
         "w": 12,
-        "x": 0,
-        "y": 103
+        "x": 12,
+        "y": 87
       },
       "id": 309,
       "options": {
@@ -2372,7 +2382,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 115
+        "y": 99
       },
       "id": 310,
       "options": {
@@ -2432,7 +2442,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 115
+        "y": 99
       },
       "id": 311,
       "options": {
@@ -2472,12 +2482,76 @@
       "type": "barchart"
     },
     {
+      "datasource": {
+        "type": "mysql",
+        "uid": "P382BE89091B0B8E6"
+      },
+      "description": "HELOC, Loan, and Mortgage balance trajectory over time",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "unit": "prefix:$ "
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 109
+      },
+      "id": 308,
+      "options": {
+        "legend": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "mysql",
+            "uid": "P382BE89091B0B8E6"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  UNIX_TIMESTAMP(w.week_start) AS time,\n  a.name AS metric,\n  ROUND(SUM(t.amount), 2) AS balance\nFROM (\n  SELECT DATE_SUB($__timeTo(), INTERVAL seq WEEK) AS week_start\n  FROM (\n    SELECT @row := @row + 1 AS seq\n    FROM information_schema.columns a,\n         information_schema.columns b,\n         (SELECT @row := -1) r\n    LIMIT 520\n  ) series\n) w\nJOIN transactions t ON t.deleted_at IS NULL\nJOIN transaction_journals tj\n  ON t.transaction_journal_id = tj.id\n  AND CAST(tj.date AS DATE) <= w.week_start\nJOIN accounts a ON a.id = t.account_id\nJOIN account_types at2 ON a.account_type_id = at2.id\nJOIN users u ON a.user_id = u.id\nWHERE at2.type COLLATE utf8mb4_unicode_ci IN ('Loan', 'Mortgage')\n  AND u.email = '$email'\n  AND a.active = 1\n  AND w.week_start >= $__timeFrom()\n  AND w.week_start <= $__timeTo()\nGROUP BY w.week_start, a.name\nORDER BY w.week_start, a.name",
+          "refId": "A"
+        }
+      ],
+      "title": "Debt Paydown Progress",
+      "transparent": true,
+      "type": "timeseries"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 125
+        "y": 121
       },
       "id": 400,
       "panels": [],
@@ -2515,7 +2589,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 126
+        "y": 122
       },
       "id": 401,
       "options": {
@@ -2586,7 +2660,7 @@
         "h": 10,
         "w": 12,
         "x": 12,
-        "y": 126
+        "y": 122
       },
       "id": 402,
       "options": {

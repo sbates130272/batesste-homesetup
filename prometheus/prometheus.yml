@@ -136,9 +136,18 @@ scrape_configs:
           - /etc/prometheus/targets/discovered/cursor-exporter.json
         refresh_interval: 30s
 
-  - job_name: lemonade-exporter
-    file_sd_configs:
-      - files:
-          - /etc/prometheus/targets/lemonade-exporter.json
-          - /etc/prometheus/targets/discovered/lemonade-exporter.json
-        refresh_interval: 30s
+  # Lemonade exposes its own metrics endpoint over Tailscale
+  # (TLS, token auth). Static rather than file_sd because
+  # there is one such endpoint, not a discoverable fleet.
+  # server_name matches the label file_sd applies to other
+  # jobs; the Lemonade dashboard keys its instance variable
+  # on it.
+  - job_name: lemonade-snoc-strix
+    scheme: https
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/lemonade-api-key
+    static_configs:
+      - targets: ['snoc-strix.fold-leaffish.ts.net:13305']
+        labels:
+          server_name: snoc-strix

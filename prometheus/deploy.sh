@@ -56,8 +56,32 @@ if ! command -v promtool &>/dev/null; then
     exit 1
 fi
 
+# promtool stats every credentials_file, so a missing secret
+# fails validation with an opaque message. Check first, via
+# sudo: the secrets dir is prometheus-only, so an unprivileged
+# invoking user cannot even traverse it.
+LEMONADE_KEY_FILE="${PROM_ETC}/secrets/lemonade-api-key"
+if ! sudo test -r "${LEMONADE_KEY_FILE}"; then
+    cat >&2 <<EOF
+Error: ${LEMONADE_KEY_FILE} is missing or unreadable.
+
+The lemonade-snoc-strix job scrapes snoc-strix with a bearer
+token. Create the file (contents = LEMONADE_API_KEY, no
+trailing newline) with:
+
+  sudo install -d -m 0750 -o prometheus -g prometheus \\
+      ${PROM_ETC}/secrets
+  printf %s "\$LEMONADE_API_KEY" \\
+      | sudo tee ${LEMONADE_KEY_FILE} >/dev/null
+  sudo chown prometheus:prometheus ${LEMONADE_KEY_FILE}
+  sudo chmod 0400 ${LEMONADE_KEY_FILE}
+EOF
+    exit 1
+fi
+
+# Also under sudo, for the same traversal reason.
 echo "==> Validating config with promtool..."
-if ! promtool check config "${PROM_YML}"; then
+if ! sudo promtool check config "${PROM_YML}"; then
     echo "Error: config validation failed." >&2
     exit 1
 fi

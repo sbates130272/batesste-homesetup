@@ -169,7 +169,7 @@ The Firefly III Overview dashboard includes an
 Investments section that tracks CIBC investment
 account balances via SimpleFIN. These accounts use
 `sync_mode: "balance_only"` in the SimpleFIN sync
-script (`~/.openclaw/workspace/simplefin/scripts/`),
+script (`~/.hermes/workspace/simplefin/scripts/`),
 which compares the SimpleFIN-reported balance to
 Firefly III and creates adjustment transactions
 categorised as "Investment - Valuation". The
@@ -189,6 +189,42 @@ panels.
 The dashboard panels query the Firefly database
 directly using a `REGEXP` filter on account names
 matching `RESP|LIRA|TFSA|RRSP|FHSA`.
+
+## Data freshness
+
+The Summary row leads with a **Days Since Last
+Transaction** banner: green under a week, red past a
+month. It is the most prominent thing on the
+dashboard on purpose.
+
+On 2026-05-07 the SimpleFIN bridge's connection to
+CIBC started returning `Auth required`, and nothing
+noticed until 2026-09-03 — four months and roughly
+600 transactions later. Two failures compounded:
+
+- **The sync stopped being scheduled.** Logs end at
+  `simplefin-sync-2026-07-02_0801.log`; no timer or
+  cron entry survives. There is still no schedule —
+  the sync is run by hand.
+- **When it did run, it reported success.** SimpleFIN
+  signals a broken bank link in an `errors` array in
+  an otherwise-200 response, still serving each
+  account's last-known balance. The script ignored
+  that field, so it compared frozen balances against
+  the frozen values it had already imported and
+  logged `BALANCE OK` for every account.
+
+The sync script now reads the `errors` array, treats
+a `balance-date` older than `--max-age` (default 8
+days) as stale, refuses to call a stale match `OK`,
+and exits non-zero in either case. A match against a
+feed that has stopped refreshing is not agreement,
+it is the same stale number on both sides.
+
+Because SimpleFIN caps history at 90 days, the
+2026-05-08 → 2026-06-05 window was already beyond
+recovery by the time the outage was found. That gap
+is being backfilled from a CIBC CSV export.
 
 ## Workflow
 

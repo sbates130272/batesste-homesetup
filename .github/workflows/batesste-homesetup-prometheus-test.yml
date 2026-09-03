@@ -23,6 +23,16 @@ jobs:
         run: |
           sudo mkdir -p /etc/prometheus/targets
           sudo cp targets/*.json /etc/prometheus/targets/
+      - name: Stub scrape credential files for validation
+        run: |
+          # promtool stats every credentials_file referenced by
+          # prometheus.yml. The real secret only exists on the
+          # homelab host, so CI validates against a placeholder.
+          sudo mkdir -p /etc/prometheus/secrets
+          echo -n placeholder \
+            | sudo tee /etc/prometheus/secrets/lemonade-api-key \
+              >/dev/null
+          sudo chmod 0444 /etc/prometheus/secrets/lemonade-api-key
       - name: Validate prometheus.yml
         run: |
           promtool check config prometheus.yml

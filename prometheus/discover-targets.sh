@@ -71,7 +71,6 @@ SERVICE_MAP=(
     ["_nvme-exporter._tcp"]="nvme-exporter"
     ["_openai-exporter._tcp"]="openai_exporter"
     ["_cursor-exporter._tcp"]="cursor-exporter"
-    ["_lemonade-exporter._tcp"]="lemonade-exporter"
 )
 
 browse_service() {

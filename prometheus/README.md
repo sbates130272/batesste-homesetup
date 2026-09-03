@@ -110,11 +110,60 @@ Each exporter type uses a distinct DNS-SD service type:
 | `_nvme-exporter._tcp`        | 9998  | nvme-exporter            |
 | `_openai-exporter._tcp`      | 9185  | openai_exporter          |
 | `_cursor-exporter._tcp`      | 9788  | cursor-exporter          |
-| `_lemonade-exporter._tcp`    | 9091  | lemonade-exporter        |
 
 The `server_name` label is derived automatically from the
 Avahi hostname (e.g. `snoc-thinkstation.local` becomes
 `server_name=snoc-thinkstation`).
+
+## Scrape Credentials
+
+`snoc-strix` requires a bearer token for its Lemonade
+endpoint, so the `lemonade-snoc-strix` job reads one from
+`/etc/prometheus/secrets/lemonade-api-key`. That file is
+deliberately **not** in this repo; create it on the
+Prometheus host before running `deploy.sh`:
+
+```bash
+sudo install -d -m 0750 -o prometheus -g prometheus \
+    /etc/prometheus/secrets
+printf %s "$LEMONADE_API_KEY" \
+    | sudo tee /etc/prometheus/secrets/lemonade-api-key \
+      >/dev/null
+sudo chown prometheus:prometheus \
+    /etc/prometheus/secrets/lemonade-api-key
+sudo chmod 0400 /etc/prometheus/secrets/lemonade-api-key
+```
+
+Use `printf` rather than `echo` — a trailing newline becomes
+part of the token and the scrape returns 401.
+
+Prometheus re-reads the file on every scrape, so rotating
+the key needs no reload. `deploy.sh` refuses to run if the
+file is missing, and CI validates against a placeholder.
+
+### The lemonade-snoc-strix job
+
+Lemonade exposes its own metrics endpoint at
+`snoc-strix.fold-leaffish.ts.net:13305` over Tailscale, with
+TLS and a bearer token. The Tailscale certificate verifies
+against the system trust store, so no `tls_config` is
+needed.
+
+The job uses `static_configs`, breaking the file_sd
+convention used elsewhere, because this is a single known
+endpoint rather than a discoverable fleet. It sets
+`server_name: snoc-strix` by hand to match the label file_sd
+applies to other jobs — the Lemonade dashboard drives its
+instance picker from
+`label_values(lemonade_server_up, server_name)`, so that
+label is load-bearing.
+
+A previous `lemonade-exporter` job scraped `:9091` on both
+`snoc-strix` and `snoc-thinkstation` via file_sd and Avahi.
+No such exporter ever existed: `max_over_time(up[365d])` was
+`0` for both targets across the entire retention window. The
+job, its target file, and its Avahi service definition were
+removed in favour of Lemonade's built-in endpoint above.
 
 ## First-Time Migration
 
