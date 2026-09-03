@@ -1440,8 +1440,8 @@
       {
         "allowCustomValue": true,
         "current": {
-          "text": "",
-          "value": ""
+          "text": "snoc-beelink-prometheus",
+          "value": "ae8pyuqoyonpca"
         },
         "hide": 0,
         "includeAll": false,
