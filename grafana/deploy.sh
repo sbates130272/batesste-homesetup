@@ -148,6 +148,37 @@ while read -r src dest; do
         | sed 's/^/        /'
 done < <(discover_dirs)
 
+# rsync mirrors *within* each directory it is given, so deleting a whole
+# folder from the repo removes nothing: the loop above simply never
+# visits it and the server keeps serving its dashboards. That is worse
+# than untidy. Retiring a folder normally means retiring its provider in
+# the same commit, and a dashboard whose provider is gone becomes
+# unmanaged rather than deleted -- it cannot then be removed through the
+# API ("provisioned dashboard cannot be deleted") and it keeps its
+# internal ID, which is how two dashboards ended up sharing one and
+# deadlocking provisioning for hours.
+#
+# The existing preflight cannot catch this: it warns when a provider
+# outlives its directory, but here the provider and the directory are
+# removed together, so there is nothing left to compare.
+echo "==> Pruning dashboard directories no longer in the repo..."
+mapfile -t KEEP_DIRS < <(discover_dirs | cut -d' ' -f2)
+PRUNED=0
+for existing in "${GF_DASH}"/*/ "${GF_DASH}"/vendor/*/; do
+    [[ -d "${existing}" ]] || continue
+    existing="${existing%/}"
+    # vendor/ is a container for the vendor-* dirs, not a dashboard dir.
+    [[ "${existing}" == "${GF_DASH}/vendor" ]] && continue
+    for keep in "${KEEP_DIRS[@]}"; do
+        [[ "${existing}" == "${keep}" ]] && continue 2
+    done
+    echo "    removing ${existing}"
+    sudo find "${existing}" -maxdepth 1 -name '*.json' -printf '        %f\n'
+    run sudo rm -rf "${existing}"
+    PRUNED=1
+done
+[[ "${PRUNED}" -eq 0 ]] && echo "    nothing to prune"
+
 echo "==> Restarting grafana-server..."
 run sudo systemctl restart grafana-server
 

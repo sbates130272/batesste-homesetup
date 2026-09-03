@@ -19,7 +19,6 @@ grafana/
       datasources.yaml        # Prometheus + MySQL datasources
   dashboards/                 # first-party, one dir per Grafana folder
     amd-related/              # folder: AMD Related
-      cpu-gpu-monitoring.json
       cursor-usage.json
     general/                  # folder: (root)
       lan-overview.json
@@ -38,15 +37,10 @@ grafana/
     manifest.yaml             # provenance for each one
     dashboards/
       general/
-        amd-vllm-inference.json
         hsa-snoop.json
         lemonade-built-in-metrics.json
-        llamacpp-server-prometheus.json
       home-network-related/
         nvme-exporter-device-metrics.json
-        openai-exporter.json
-      rocm-aic-related/       # folder: ROCm AIC Related
-        rocm-aic-vllm-lmcache.json
     retired/                  # deleted from the server, kept for recovery
       hsa-snoop-v1.json
       rocm-aic-dashboard.json
@@ -89,7 +83,7 @@ user. The password is stored in the
 `/etc/default/grafana-server`). See
 `firefly-db-init.sql` for the one-time view setup.
 
-## Dashboards (18 total)
+## Dashboards (13 total)
 
 `provisioning/dashboards/dashboards.yaml` tells Grafana to
 watch `/var/lib/grafana/dashboards/<folder>/` for JSON
@@ -105,7 +99,6 @@ stable across a rebuild.
 
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
-| AMD Related | Lemonade: CPU & GPU Monitoring | GPU/CPU/Lemonade AI server metrics |
 | AMD Related | Cursor IDE Usage | Cursor API cost, tokens, quotas, and usage |
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs |
@@ -119,24 +112,30 @@ stable across a rebuild.
 
 Adopted third-party dashboards (see below):
 
-| Folder | Dashboard |
-|--------|-----------|
-| General | AMD vLLM Inference Dashboard |
-| General | HSA Snoop |
-| General | Lemonade Metrics Dashboard |
-| General | llama.cpp server (Prometheus /metrics) |
-| Home Network | NVMe Exporter Device Metrics |
-| Home Network | OpenAI Exporter |
-| ROCm AIC Related | ROCm(tm) AMD Infinity Context Dashboard |
+| Folder | Dashboard | Upstream |
+|--------|-----------|----------|
+| General | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
+| General | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
+| Home Network | NVMe Exporter Device Metrics | [grafana.com 12736](https://grafana.com/grafana/dashboards/12736-nvme-exporter/) |
 
 ## Third-party dashboards
 
 Several dashboards on the server came from elsewhere and
 were tracked nowhere, so a rebuild would have lost them.
 They now live under `vendor/`, with provenance recorded in
-`vendor/manifest.yaml`: UID, folder, upstream URL (or
-`local-import` where the origin is unknown), and the date
-the JSON was captured.
+`vendor/manifest.yaml`: UID, folder, upstream URL, and the
+date the JSON was captured.
+
+All three surviving vendor dashboards have a real upstream,
+so refreshing one is fetch → diff → commit rather than
+"export whatever is running". Note that each has *diverged*
+from its upstream deliberately, and the manifest says how —
+a blind overwrite would undo local fixes. Do not read a
+missing `gnetId` as proof a dashboard was hand-built; it is
+recorded only on import *by ID*, and pasting the same JSON
+leaves no trace of its origin. The surviving signal is a
+`DS_*` datasource variable, which grafana.com requires of
+published dashboards.
 
 `vendor-*` providers set `allowUiUpdates: false` on
 purpose. Making these read-only on the server is what keeps
@@ -151,16 +150,18 @@ them up and re-creates them.
 
 ### Recovered from v2 storage
 
-Five dashboards — four vendor, plus `lan-overview` — were
-stored by Grafana in the v2 dashboard schema
-(`elements`/`layout` rather than `panels`), which this repo
-does not track. They were captured by reading them back
-through the v1beta1 API, which renders the classic schema
-whatever is stored. Those files are therefore a *rendering*
-of what was running, not the stored bytes; deploying them
-converts the server's copy to v1 for real. That conversion
-is complete and every dashboard on the server is now
-file-provisioned.
+Five dashboards were stored by Grafana in the v2 dashboard
+schema — `elements`/`layout` rather than `panels` — which
+this repo does not track. Two survive today,
+`lemonade-built-in-metrics` and `lan-overview`; the other
+three were removed on 2026-09-03 as out of date.
+
+They were captured by reading them back through the v1beta1
+API, which renders the classic schema whatever is stored.
+Those files are therefore a *rendering* of what was running,
+not the stored bytes; deploying them converts the server's
+copy to v1 for real. That conversion is complete and every
+dashboard on the server is now file-provisioned.
 
 ## Investment Accounts
 

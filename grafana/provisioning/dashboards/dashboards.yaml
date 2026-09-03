@@ -115,15 +115,3 @@ providers:
     options:
       path: /var/lib/grafana/dashboards/vendor/home-network-related
       foldersFromFilesStructure: false
-
-  - name: vendor-rocm-aic-related
-    orgId: 1
-    folder: ROCm AIC Related
-    folderUid: efo21m3zdy6tcd
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: false
-    options:
-      path: /var/lib/grafana/dashboards/vendor/rocm-aic-related
-      foldersFromFilesStructure: false

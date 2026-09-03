@@ -94,31 +94,11 @@ dashboards:
       snoc-beelink-prometheus on adoption; the 49th is the built-in
       "-- Grafana --" annotation source and was left alone.
 
-  - uid: 6cfbc0e1-5316-4cb3-82ed-65ffcb3a2b37
-    title: OpenAI Exporter
-    file: dashboards/home-network-related/openai-exporter.json
-    folder: Home Network Related
-    upstream: local-import
-    retrieved: 2026-09-03
-    created: 2026-03-07
-
   # ── Recovered from v2 storage ───────────────────────────────────
-  # These four were stored in Grafana as v2 dashboards (elements/layout
-  # rather than panels), so they could only be captured in the v1 schema
-  # this repo tracks by reading them back through the v1beta1 API. The
-  # files below are that rendering, not the stored bytes.
-
-  - uid: b281712d-8bff-41ef-9f3f-71ad43c05e9b
-    title: AMD vLLM Inference Dashboard
-    file: dashboards/general/amd-vllm-inference.json
-    folder: General
-    upstream: local-import
-    retrieved: 2026-09-03
-    created: 2026-05-20
-    notes: >-
-      Its `datasource` template variable has an empty current value, so
-      the dashboard picks a datasource on load rather than pinning one.
-      Captured as-is; set a default here if it ever resolves wrongly.
+  # lemonade-built-in-metrics was stored in Grafana as a v2 dashboard
+  # (elements/layout rather than panels), so it could only be captured in
+  # the v1 schema this repo tracks by reading it back through the v1beta1
+  # API. The file below is that rendering, not the stored bytes.
 
   - uid: lemonade-built-in-metrics
     title: Lemonade Metrics Dashboard
@@ -159,45 +139,35 @@ dashboards:
       template variable, unlike the NVMe dashboard above where the same
       name was left as an unresolved import input.
 
-      Checked 2026-09-03 against the 44 lemonade_* series live in
-      Prometheus: 22 of its 25 metric names resolve. Two panels are dead,
-      both querying a lemonade_model_decode_token_time_* family that
-      lemonade no longer exports -- "Streaming Decode Token Timing" and
-      "Streaming Decode Token Samples". Upstream revision 1 queries those
-      same three metric names, so this is an upstream bug and refreshing
-      will not fix it. It needs either a newer revision of 25422 or a
-      local repoint.
+      Two panels were dead when this was adopted, both querying a
+      lemonade_model_decode_token_time_* family that does not exist in
+      Lemonade at all -- `decode_token_time` has no hits anywhere in
+      lemonade-sdk/lemonade, and upstream revision 1 queries the same
+      three names, so the breakage is upstream's and a refresh would not
+      have fixed it. Repointed locally on 2026-09-03 to metrics Lemonade
+      does export, preserving each panel's unit and stated meaning:
 
-      Checked 2026-09-03 against the 44 lemonade_* series live in
-      Prometheus: 22 of its 25 metric names resolve. Two panels are dead,
-      both querying a lemonade_model_decode_token_time_* family that
-      lemonade no longer exports -- "Streaming Decode Token Timing" and
-      "Streaming Decode Token Samples".
+        Streaming Decode Token Timing
+          was lemonade_model_decode_token_time_avg_seconds and
+          _max_seconds; now 1 / lemonade_model_tokens_per_second, which
+          is the mean decode interval in seconds. Lemonade exposes no
+          maximum, so that series was dropped rather than approximated.
 
-  - uid: llamacpp-server-prometheus
-    title: llama.cpp server (Prometheus /metrics)
-    file: dashboards/general/llamacpp-server-prometheus.json
-    folder: General
-    upstream: local-import
-    retrieved: 2026-09-03
-    created: 2026-06-15
-    notes: >-
-      Empty `datasource` variable default, as with AMD vLLM above.
+        Streaming Decode Token Samples
+          was lemonade_model_decode_token_time_count; now
+          lemonade_model_output_tokens, the token count of the latest
+          streamed response -- which is precisely the number of per-token
+          decode intervals it contained.
 
-  - uid: rocm-aic-vllm-lmcache
-    title: ROCm(tm) AMD Infinity Context Dashboard
-    file: dashboards/rocm-aic-related/rocm-aic-vllm-lmcache.json
-    folder: ROCm AIC Related
-    upstream: local-import
-    retrieved: 2026-09-03
-    created: 2026-05-29
-    notes: >-
-      Kept in preference to rocm-aic-dashboard, which shares its title
-      but is the older and far less edited of the two.
+      All 25 metric names the dashboard references now resolve against
+      live Prometheus. This divergence is intentional: do not let a
+      refresh from 25422 revert it.
 
-# Dashboards deleted from the server, archived under retired/ so they
-# can be restored by hand. Deliberately outside vendor/dashboards/ so no
-# provider picks them up and re-creates them.
+# Dashboards deleted from the server. hsa-snoop-v1 and rocm-aic-dashboard
+# are archived under retired/ so they can be restored by hand --
+# deliberately outside vendor/dashboards/ so no provider picks them up and
+# re-creates them. The 2026-09-03 removals below were deleted outright and
+# are recoverable only from git history.
 retired:
   - uid: hsa-snoop-v1
     title: HSA Snoop
@@ -207,6 +177,45 @@ retired:
       Duplicate title of hsa-snoop. Created 2026-07-11, last updated
       2026-07-17T20:26Z; hsa-snoop was updated an hour later at 21:27Z
       and is the copy in use.
+
+  # ── Removed 2026-09-03 as out of date, no file kept ─────────────
+  # Deleted outright rather than archived. All four had upstream:
+  # local-import, meaning nothing recorded where they came from, and none
+  # had a refresh path better than "export whatever is running".
+
+  - uid: 6cfbc0e1-5316-4cb3-82ed-65ffcb3a2b37
+    title: OpenAI Exporter
+    was: vendor/dashboards/home-network-related/openai-exporter.json
+    deleted: 2026-09-03
+    reason: Out of date.
+
+  - uid: b281712d-8bff-41ef-9f3f-71ad43c05e9b
+    title: AMD vLLM Inference Dashboard
+    was: vendor/dashboards/general/amd-vllm-inference.json
+    deleted: 2026-09-03
+    reason: Out of date.
+
+  - uid: llamacpp-server-prometheus
+    title: llama.cpp server (Prometheus /metrics)
+    was: vendor/dashboards/general/llamacpp-server-prometheus.json
+    deleted: 2026-09-03
+    reason: Out of date.
+
+  - uid: rocm-aic-vllm-lmcache
+    title: ROCm(tm) AMD Infinity Context Dashboard
+    was: vendor/dashboards/rocm-aic-related/rocm-aic-vllm-lmcache.json
+    deleted: 2026-09-03
+    reason: >-
+      Out of date. Was the last dashboard in ROCm AIC Related, so the
+      vendor-rocm-aic-related provider and the folder itself
+      (uid efo21m3zdy6tcd) went with it.
+
+  # cpu-gpu-monitoring was first-party rather than vendor, so it never had
+  # a manifest entry, but it was removed in the same pass:
+  # dashboards/amd-related/cpu-gpu-monitoring.json, "Lemonade: CPU & GPU
+  # Monitoring". Out of date -- 14 of its 21 metric names no longer
+  # existed, breaking 12 of its 46 panels, because it was written against
+  # a Lemonade naming scheme predating the lemonade_model_* rename.
 
   - uid: rocm-aic-dashboard
     title: ROCm(tm) AMD Infinity Context Dashboard

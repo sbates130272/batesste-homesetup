@@ -1112,7 +1112,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Latest streaming token interval aggregates measured at Lemonade's streaming proxy boundary.",
+      "description": "Average decode interval per model, derived as 1 / lemonade_model_tokens_per_second. The dashboard originally read lemonade_model_decode_token_time_avg_seconds and _max_seconds; neither exists in Lemonade, so both series were dead. There is no max equivalent, so only the average is plotted.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1200,23 +1200,11 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "lemonade_model_decode_token_time_avg_seconds",
+          "expr": "1 / lemonade_model_tokens_per_second",
           "instant": false,
-          "legendFormat": "avg {{model_name}}",
+          "legendFormat": "avg s/token {{model_name}}",
           "range": true,
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "editorMode": "code",
-          "expr": "lemonade_model_decode_token_time_max_seconds",
-          "instant": false,
-          "legendFormat": "max {{model_name}}",
-          "range": true,
-          "refId": "B"
         }
       ],
       "title": "Streaming Decode Token Timing",
@@ -1454,7 +1442,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
-      "description": "Number of per-token decode intervals captured for the latest streamed response.",
+      "description": "Token count of the latest streamed response per model, which is the number of per-token decode intervals it contained. Was lemonade_model_decode_token_time_count, which Lemonade does not export.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1542,9 +1530,9 @@
             "uid": "${DS_PROMETHEUS}"
           },
           "editorMode": "code",
-          "expr": "lemonade_model_decode_token_time_count",
+          "expr": "lemonade_model_output_tokens",
           "instant": false,
-          "legendFormat": "samples {{model_name}}",
+          "legendFormat": "tokens {{model_name}}",
           "range": true,
           "refId": "A"
         }
