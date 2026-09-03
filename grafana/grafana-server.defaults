@@ -30,6 +30,14 @@ PID_FILE_DIR=/run/grafana
 # (LAN, Tailscale, Docker bridge, etc.).
 GF_SERVER_HTTP_ADDR=0.0.0.0
 
+# The funnel-gateway vhost proxies /grafana/ without stripping the
+# prefix, so Grafana has to know it is served from a sub path.
+# Without these it emits root-relative redirects to /login, which the
+# gateway does not route, and every /grafana/ request 404s.
+# Note this moves direct access too: use :3000/grafana/, not :3000/.
+GF_SERVER_ROOT_URL=https://snoc-beelink.fold-leaffish.ts.net/grafana/
+GF_SERVER_SERVE_FROM_SUB_PATH=true
+
 # ── Firefly III datasource ──────────────────────────────────
 # Password for the firefly MySQL user that the firefly-mysql
 # provisioned datasource connects with.
