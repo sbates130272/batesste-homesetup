@@ -1,0 +1,46 @@
+# Host/Origin shim for the Hermes dashboard.
+#
+# The dashboard binds 127.0.0.1:9119 and enforces a DNS-rebinding guard
+# (GHSA-ppp5-vxwm-4cf7): on a loopback bind it accepts only loopback
+# Host values, and the WebSocket handshake applies the same test to
+# Origin. tailscale serve forwards the tailnet hostname verbatim, so
+# proxying straight to 9119 yields:
+#
+#   {"detail":"Invalid Host header. Dashboard requests must use the
+#     hostname the server was bound to."}
+#
+# This vhost normalises both headers back to loopback so the tailnet
+# path works. That does re-permit what the guard blocks, which is a
+# deliberate trade: the guard defends against a malicious website
+# rebinding DNS in a victim's browser, whereas everything reaching this
+# listener has already passed Tailscale's TLS and tailnet ACLs. The
+# dashboard runs with no auth provider, so tailnet membership is the
+# only thing gating it -- do not expose this vhost beyond loopback.
+#
+# tailscale serve points at 9120, not 9119:
+#   tailscale serve --bg --https 9119 http://127.0.0.1:9120
+
+server {
+    listen 127.0.0.1:9120;
+
+    location / {
+        proxy_pass http://127.0.0.1:9119;
+
+        # The whole point of this vhost.
+        proxy_set_header Host   127.0.0.1:9119;
+        proxy_set_header Origin http://127.0.0.1:9119;
+
+        # The dashboard pushes live updates over WebSocket.
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Long-lived WS connections; ws_ping_interval is 20s.
+        proxy_read_timeout  3600s;
+        proxy_send_timeout  3600s;
+    }
+}
