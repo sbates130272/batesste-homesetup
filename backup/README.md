@@ -30,6 +30,10 @@ Note that `MOUNT_POINT` must *not* exist and the script will fail if
 it does. The script deletes this folder once done. The script also
 supports a `FILE_MODE` for arbitrary files instead of block devices.
 
+If a run ever leaves `MOUNT_POINT` behind, every later run aborts on
+that guard until the directory is removed by hand. The exit trap
+tolerates a failed `umount` specifically so this cannot recur.
+
 Then proceed with the following steps:
 
 1. `sudo cp batesste-s3-backup /usr/local/bin`.
@@ -43,13 +47,24 @@ Then proceed with the following steps:
 
 ## Hermes backup (`batesste-hermes-s3-backup`)
 
+> **Disabled as of 3 Sep 2026.** The timer is installed but not
+> enabled. The archive step works; the upload does not, because the
+> `batesste-hermes-backups` bucket has never been created and the AWS
+> key in the secrets file is rejected with `InvalidAccessKeyId`. Create
+> the bucket and install a working key before re-enabling with
+> `systemctl --user enable --now batesste-hermes-s3-backup.timer`.
+> This backup has never completed successfully.
+
 Weekly backup of the Hermes agent home directory (`~/.hermes/`) using
 the built-in `hermes backup` command, followed by an upload to S3 with
 the AWS CLI. This captures config, secrets, memories, skills,
 sessions, and cron jobs while excluding the `hermes-agent` codebase.
 
 The timer runs as a **user** systemd unit because Hermes itself runs
-under `systemctl --user` on snoc-beelink.
+under `systemctl --user` on snoc-beelink. The user manager's PATH does
+not include `~/.local/bin`, so the unit sets `PATH` explicitly; without
+it `hermes` is not found and every run dies in the `require_command`
+guard.
 
 ### Prerequisites
 

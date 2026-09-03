@@ -36,7 +36,7 @@ grafana/
   vendor/                     # adopted third-party dashboards
     manifest.yaml             # provenance for each one
     dashboards/
-      general/
+      amd-related/
         hsa-snoop.json
         lemonade-built-in-metrics.json
       home-network-related/
@@ -114,8 +114,8 @@ Adopted third-party dashboards (see below):
 
 | Folder | Dashboard | Upstream |
 |--------|-----------|----------|
-| General | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
-| General | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
+| AMD Related | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
+| AMD Related | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
 | Home Network | NVMe Exporter Device Metrics | [grafana.com 12736](https://grafana.com/grafana/dashboards/12736-nvme-exporter/) |
 
 ## Third-party dashboards

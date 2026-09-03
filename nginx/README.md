@@ -125,7 +125,17 @@ file is unreadable, so tidying up `/etc/letsencrypt/archive/` would
 have taken nginx down on the next reboot.
 
 `/etc/letsencrypt/renewal/homelab.raithlin.com.conf` and the archived
-certificate are still on disk but nothing references them.
+certificate outlived the vhosts. certbot.timer kept trying to renew
+them twice a day and failing, because a wildcard needs DNS-01 and the
+cert had been issued by hand with `--manual`, which cannot run
+unattended without `--manual-auth-hook`. Removed on 3 Sep 2026 with
+`certbot delete --cert-name homelab.raithlin.com`; `certbot renew`
+is now a clean no-op. A tarball of the old `/etc/letsencrypt` is at
+`/root/letsencrypt-backup-2026-09-03.tar.gz`.
+
+Note that `raithlin.com` uses GoDaddy nameservers, not Route53, so the
+`certbot-dns-route53` plugin is not an option if a wildcard is ever
+wanted again here.
 
 ## Deploying
 

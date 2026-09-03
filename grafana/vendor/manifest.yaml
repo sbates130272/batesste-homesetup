@@ -46,8 +46,8 @@
 dashboards:
   - uid: hsa-snoop
     title: HSA Snoop
-    file: dashboards/general/hsa-snoop.json
-    folder: General
+    file: dashboards/amd-related/hsa-snoop.json
+    folder: AMD Related
     upstream: https://github.com/sbates130272/hsa-snoop/blob/main/grafana/hsa-snoop-dashboard.json
     upstream_ref: 6fe51004
     retrieved: 2026-09-03
@@ -102,8 +102,8 @@ dashboards:
 
   - uid: lemonade-built-in-metrics
     title: Lemonade Metrics Dashboard
-    file: dashboards/general/lemonade-built-in-metrics.json
-    folder: General
+    file: dashboards/amd-related/lemonade-built-in-metrics.json
+    folder: AMD Related
     upstream: https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/
     upstream_ref: revision 1
     upstream_metrics: https://github.com/lemonade-sdk/lemonade

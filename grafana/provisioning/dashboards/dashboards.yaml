@@ -87,24 +87,26 @@ providers:
       foldersFromFilesStructure: false
 
   # ── Adopted third-party dashboards ─────────────────────────────
+  #
+  # Neither provider below sets folderUid, on purpose. Grafana rejects two
+  # providers claiming the same one ("the same folder UID is used more
+  # than once"), and amd-related and home-network-related above already
+  # own bfhho76dk60hsf and ee8pz914edpfkf. Matching on title alone is safe
+  # here because those providers have already created the folders -- title
+  # matching only spawns a duplicate when no provisioned folder of that
+  # name exists yet.
 
-  - name: vendor-general
+  - name: vendor-amd-related
     orgId: 1
-    folder: ''
+    folder: AMD Related
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
     allowUiUpdates: false
     options:
-      path: /var/lib/grafana/dashboards/vendor/general
+      path: /var/lib/grafana/dashboards/vendor/amd-related
       foldersFromFilesStructure: false
 
-  # No folderUid here on purpose. Grafana rejects two providers claiming
-  # the same folderUid ("the same folder UID is used more than once"),
-  # and home-network-related above already owns ee8pz914edpfkf. Matching
-  # on title alone is safe in this case because that provider has already
-  # created the folder -- title matching only spawns a duplicate when no
-  # provisioned folder of that name exists yet.
   - name: vendor-home-network-related
     orgId: 1
     folder: Home Network Related

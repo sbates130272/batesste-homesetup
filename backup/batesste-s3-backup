@@ -49,8 +49,12 @@ fi
 
 set -e
 
+  # Ignore a failed umount. Under "set -e" it would abort this trap
+  # before the rm, stranding MOUNT_POINT and tripping the "already
+  # exists" guard on every later run.
+
 function cleanup() {
-    umount ${MOUNT_POINT}
+    umount ${MOUNT_POINT} || true
     rm -rf ${MOUNT_POINT}
 }
 trap cleanup EXIT
