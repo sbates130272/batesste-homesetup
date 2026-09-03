@@ -22,6 +22,10 @@
   "liveNow": false,
   "panels": [
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -112,15 +116,15 @@
       },
       "targets": [
         {
-          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "A",
-          "legendFormat": "{{card_model}}",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "{{card_model}}",
+          "refId": "A"
         }
       ],
       "title": "GPU Model",
@@ -151,40 +155,19 @@
           }
         }
       ],
-      "type": "table",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
+      "type": "table"
     },
     {
-      "gridPos": {
-        "h": 3,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 101,
-      "title": "ROCm Version",
-      "type": "stat",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "targets": [
-        {
-          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
-          "format": "table",
-          "instant": true,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -192,27 +175,50 @@
                 "color": "blue"
               }
             ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": []
+          }
         },
         "overrides": []
       },
+      "gridPos": {
+        "h": 3,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "id": 101,
       "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "/^driver_version$/",
           "values": false
         },
-        "orientation": "auto",
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none"
-      }
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "title": "ROCm Version",
+      "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "Current GPU graphics activity percentage.\n\nShows how much of the GPU's compute units are actively processing workloads. Values near 100% indicate the GPU is fully utilized.",
       "fieldConfig": {
         "defaults": {
@@ -257,98 +263,23 @@
       },
       "targets": [
         {
-          "expr": "amd_sysfs_gpu_busy_percent{hostname=\"$host\"}",
-          "legendFormat": "GPU {{gpu_id}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_sysfs_gpu_busy_percent{hostname=\"$host\"}",
+          "legendFormat": "GPU {{gpu_id}}",
+          "refId": "A"
         }
       ],
       "title": "GPU Utilization",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "Whether the Lemonade server is up and responding (1 = up, 0 = down).\n\nThis metric is based on successful health checks. If this shows 0, the server may be down, unreachable, or timing out.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "red",
-                  "text": "DOWN"
-                }
-              },
-              "type": "value"
-            },
-            {
-              "options": {
-                "1": {
-                  "color": "green",
-                  "text": "UP"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red"
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "none"
-        },
-        "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 8
-      },
-      "id": 109,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "expr": "lemonade_server_up{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "title": "Lemonade Server Status",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
-    },
-    {
       "description": "Percentage of GPU VRAM currently in use.\n\nHigh values (>90%) may indicate memory pressure. Monitor this to ensure models and data fit within available VRAM.",
       "fieldConfig": {
         "defaults": {
@@ -393,89 +324,24 @@
       },
       "targets": [
         {
-          "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / ignoring(type) amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
-          "refId": "A",
-          "legendFormat": "VRAM %",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / ignoring(type) amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
+          "legendFormat": "VRAM %",
+          "refId": "A"
         }
       ],
       "title": "VRAM Usage",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "Current token generation rate from the last request.\n\nShows how fast the server is generating tokens. Higher values indicate better performance. This is a per-request value, not an average.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue"
-              },
-              {
-                "color": "green",
-                "value": 10
-              },
-              {
-                "color": "yellow",
-                "value": 50
-              },
-              {
-                "color": "orange",
-                "value": 100
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 8
-      },
-      "id": 110,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "expr": "lemonade_tokens_per_second{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "title": "Lemonade Tokens Per Second",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "Current GPU edge temperature.\n\nNormal operating temperatures are typically 40-80\u00b0C. Temperatures above 90\u00b0C may indicate cooling issues or excessive load.",
+      "description": "Current GPU edge temperature.\n\nNormal operating temperatures are typically 40-80°C. Temperatures above 90°C may indicate cooling issues or excessive load.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -523,89 +389,24 @@
       },
       "targets": [
         {
-          "expr": "amd_sysfs_gpu_temperature_celsius{hostname=\"$host\"}",
-          "legendFormat": "Temp",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_sysfs_gpu_temperature_celsius{hostname=\"$host\"}",
+          "legendFormat": "Temp",
+          "refId": "A"
         }
       ],
       "title": "GPU Temperature",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "Time taken to generate the first token from the last request.\n\nLower values indicate faster response times. Includes prompt processing time. Typical values range from 0.1-2 seconds depending on model size and hardware.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 3,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 0.5
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 2
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 8
-      },
-      "id": 111,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "expr": "lemonade_time_to_first_token_seconds{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "title": "Lemonade Time to First Token",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "GPU Power and Server Power (W) over time.\nTotal Energy values (J) are in the legend table.\n\nEnergy = avg_over_time(power) \u00d7 time_range",
+      "description": "GPU Power and Server Power (W) over time.\nTotal Energy values (J) are in the legend table.\n\nEnergy = avg_over_time(power) × time_range",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -694,80 +495,285 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "amd_sysfs_gpu_power_watts{type=\"average\", hostname=\"$host\"}",
           "legendFormat": "GPU Power",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "amd_sysfs_gpu_power_watts{type=\"instant\", hostname=\"$host\"}",
           "legendFormat": "GPU Power (instant)",
-          "refId": "M",
+          "refId": "M"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "snoc_pinewood_plug_d_power",
           "legendFormat": "Server Power",
-          "refId": "B",
+          "refId": "B"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "snoc_pinewood_plug_h_power",
           "legendFormat": "Server Power",
-          "refId": "L",
+          "refId": "L"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "avg_over_time(amd_sysfs_gpu_power_watts{type=\"average\", hostname=\"$host\"}[$__range]) * ($__range_ms / 1000)",
           "hide": true,
           "legendFormat": "GPU Total Energy",
-          "refId": "C",
+          "refId": "C"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "avg_over_time(snoc_pinewood_plug_d_power[$__range]) * ($__range_ms / 1000)",
           "hide": true,
           "legendFormat": "Server Total Energy",
-          "refId": "D",
+          "refId": "D"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "avg_over_time(snoc_pinewood_plug_h_power[$__range]) * ($__range_ms / 1000)",
           "hide": true,
           "legendFormat": "Server Total Energy",
-          "refId": "N",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "N"
         }
       ],
       "title": "Power & Energy",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
+      },
+      "description": "Whether the Lemonade server is up and responding (1 = up, 0 = down).\n\nThis metric is based on successful health checks. If this shows 0, the server may be down, unreachable, or timing out.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "text": "DOWN"
+                }
+              },
+              "type": "value"
+            },
+            {
+              "options": {
+                "1": {
+                  "color": "green",
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      },
+      "id": 109,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "lemonade_server_up{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Lemonade Server Status",
+      "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Current token generation rate from the last request.\n\nShows how fast the server is generating tokens. Higher values indicate better performance. This is a per-request value, not an average.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue"
+              },
+              {
+                "color": "green",
+                "value": 10
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "orange",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 8
+      },
+      "id": 110,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "lemonade_tokens_per_second{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Lemonade Tokens Per Second",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Time taken to generate the first token from the last request.\n\nLower values indicate faster response times. Includes prompt processing time. Typical values range from 0.1-2 seconds depending on model size and hardware.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 3,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 8
+      },
+      "id": 111,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "lemonade_time_to_first_token_seconds{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Lemonade Time to First Token",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "Number of models currently loaded in memory.\n\nShows how many models are available for inference. Monitor to ensure models are loaded correctly and track memory usage.",
       "fieldConfig": {
         "defaults": {
@@ -808,23 +814,23 @@
       },
       "targets": [
         {
-          "expr": "lemonade_models_loaded{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_models_loaded{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Models Loaded",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "GPU graphics activity percentage over time.\n\nTrack GPU workload patterns and identify periods of high or low utilization. Useful for capacity planning and performance optimization.",
       "fieldConfig": {
         "defaults": {
@@ -892,23 +898,23 @@
       },
       "targets": [
         {
-          "expr": "amd_sysfs_gpu_busy_percent{hostname=\"$host\"}",
-          "legendFormat": "GPU {{gpu_id}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_sysfs_gpu_busy_percent{hostname=\"$host\"}",
+          "legendFormat": "GPU {{gpu_id}}",
+          "refId": "A"
         }
       ],
       "title": "GPU Utilization Over Time",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "GPU VRAM usage percentage and absolute values over time.\n\nUsed: Currently allocated VRAM in GB.\nTotal: Total available VRAM in GB.\n\nMonitor trends to detect memory leaks or plan for model loading strategies.",
       "fieldConfig": {
         "defaults": {
@@ -1016,42 +1022,42 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "(amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"} / ignoring(type) amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}) * 100",
           "legendFormat": "VRAM %",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_used\"}",
           "legendFormat": "Used (GB)",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         },
         {
-          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}",
-          "legendFormat": "Total (GB)",
-          "refId": "C",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}",
+          "legendFormat": "Total (GB)",
+          "refId": "C"
         }
       ],
       "title": "VRAM Usage Over Time",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "GPU temperature and power consumption over time.\n\nTemp: Edge temperature (\u00b0C).\nJunction Temp: Hotspot temperature (\u00b0C) - typically higher than edge temp.\nPower: Average package power consumption (W).\n\nCorrelate temperature with power to identify thermal throttling or cooling issues.",
+      },
+      "description": "GPU temperature and power consumption over time.\n\nTemp: Edge temperature (°C).\nJunction Temp: Hotspot temperature (°C) - typically higher than edge temp.\nPower: Average package power consumption (W).\n\nCorrelate temperature with power to identify thermal throttling or cooling issues.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1138,41 +1144,171 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "amd_sysfs_gpu_temperature_celsius{hostname=\"$host\"}",
           "legendFormat": "Temp",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "amd_sysfs_gpu_temperature_celsius{hostname=\"$host\",sensor=\"edge\"}",
           "legendFormat": "Edge (only sensor)",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         },
         {
-          "expr": "amd_sysfs_gpu_power_watts{type=\"average\", hostname=\"$host\"}",
-          "legendFormat": "Power (W)",
-          "refId": "C",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_sysfs_gpu_power_watts{type=\"average\", hostname=\"$host\"}",
+          "legendFormat": "Power (W)",
+          "refId": "C"
         }
       ],
       "title": "GPU Temperature & Power",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "mvolt"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 204,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_voltage_mv{hostname=\"$host\"}",
+          "legendFormat": "{{rail}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Voltage (mV)",
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 205,
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_sclk_mhz{hostname=\"$host\"}",
+          "legendFormat": "Shader Clock",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_mclk_mhz{hostname=\"$host\"}",
+          "legendFormat": "Memory Clock",
+          "refId": "B"
+        }
+      ],
+      "title": "Clocks (MHz)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "Token counts from the most recent request over time.\n\nInput: Tokens in the user's prompt.\nOutput: Tokens generated by the model.\nPrompt: Total prompt tokens (may include cached tokens).\n\nUseful for understanding request patterns and token usage.",
       "fieldConfig": {
         "defaults": {
@@ -1232,50 +1368,174 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "lemonade_input_tokens_last{node=\"$host\"}",
           "legendFormat": "Input",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "lemonade_output_tokens_last{node=\"$host\"}",
           "legendFormat": "Output",
-          "refId": "B",
+          "refId": "B"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "lemonade_prompt_tokens_last{node=\"$host\"}",
           "legendFormat": "Prompt",
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "C"
         },
         {
-          "expr": "lemonade_cached_tokens_last{node=\"$host\"}",
-          "legendFormat": "Cached",
-          "refId": "D",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_cached_tokens_last{node=\"$host\"}",
+          "legendFormat": "Cached",
+          "refId": "D"
         }
       ],
       "title": "Lemonade Last Request Tokens",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
+      },
+      "description": "1-minute average CPU load.\n\nLoad represents the average number of processes waiting for CPU time. Values above the number of CPU cores indicate system overload.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "orange",
+                "value": 4
+              },
+              {
+                "color": "red",
+                "value": 8
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 24
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "node_load1{instance=\"$node_instance\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Load (1min)",
+      "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Percentage of system RAM currently in use.\n\nHigh memory usage (>90%) may cause swapping and performance degradation. Monitor to ensure adequate RAM for workloads.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 70
+              },
+              {
+                "color": "red",
+                "value": 90
+              }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 24
+      },
+      "id": 9,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$node_instance\"} / node_memory_MemTotal_bytes{instance=\"$node_instance\"})) * 100",
+          "refId": "A"
+        }
+      ],
+      "title": "CPU Memory Usage",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "Key performance metrics over time.\n\nTokens/sec: Generation rate from last request.\nTime to First Token: Latency to first token.\nOutput Rate: Average output token rate over 5 minutes.\n\nMonitor these to track server performance and identify bottlenecks.",
       "fieldConfig": {
         "defaults": {
@@ -1372,165 +1632,41 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "lemonade_tokens_per_second{node=\"$host\"}",
           "legendFormat": "Tokens/sec",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "lemonade_time_to_first_token_seconds{node=\"$host\"}",
           "legendFormat": "Time to First Token (s)",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         },
         {
-          "expr": "rate(lemonade_output_tokens_total{node=\"$host\"}[5m])",
-          "legendFormat": "Output Rate (tokens/s)",
-          "refId": "C",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "rate(lemonade_output_tokens_total{node=\"$host\"}[5m])",
+          "legendFormat": "Output Rate (tokens/s)",
+          "refId": "C"
         }
       ],
       "title": "Lemonade Performance Metrics",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "1-minute average CPU load.\n\nLoad represents the average number of processes waiting for CPU time. Values above the number of CPU cores indicate system overload.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 2
-              },
-              {
-                "color": "orange",
-                "value": 4
-              },
-              {
-                "color": "red",
-                "value": 8
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
       },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 24
-      },
-      "id": 8,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "expr": "node_load1{instance=\"$node_instance\"}",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "title": "CPU Load (1min)",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
-    },
-    {
-      "description": "Percentage of system RAM currently in use.\n\nHigh memory usage (>90%) may cause swapping and performance degradation. Monitor to ensure adequate RAM for workloads.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 24
-      },
-      "id": 9,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "textMode": "value_and_name"
-      },
-      "targets": [
-        {
-          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$node_instance\"} / node_memory_MemTotal_bytes{instance=\"$node_instance\"})) * 100",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "title": "CPU Memory Usage",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
-    },
-    {
       "description": "Current disk read rate.\n\nShows data being read from storage devices. High read rates may indicate data loading, model loading, or cache misses.",
       "fieldConfig": {
         "defaults": {
@@ -1600,33 +1736,33 @@
       },
       "targets": [
         {
-          "expr": "irate(node_disk_read_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
-          "legendFormat": "Rate {{device}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "irate(node_disk_read_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
+          "legendFormat": "Rate {{device}}",
+          "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "node_disk_read_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"} - (node_disk_read_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"} @ start())",
           "hide": false,
           "legendFormat": "Total {{device}}",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         }
       ],
       "title": "Disk Reads",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Current disk write rate.\n\nShows data being written to storage devices. High write rates may indicate logging, checkpointing, or data persistence operations.",
       "fieldConfig": {
         "defaults": {
@@ -1696,33 +1832,33 @@
       },
       "targets": [
         {
-          "expr": "irate(node_disk_written_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
-          "legendFormat": "Rate {{device}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "irate(node_disk_written_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
+          "legendFormat": "Rate {{device}}",
+          "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "node_disk_written_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"} - (node_disk_written_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"} @ start())",
           "hide": false,
           "legendFormat": "Total {{device}}",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         }
       ],
       "title": "Disk Writes",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Estimated number of concurrent users based on request patterns.\n\nCalculated from requests within a sliding window. Useful for understanding server load and capacity planning.",
       "fieldConfig": {
         "defaults": {
@@ -1775,23 +1911,23 @@
       },
       "targets": [
         {
-          "expr": "lemonade_concurrent_users{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_concurrent_users{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Concurrent Users",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Total cumulative number of sessions processed.\n\nEach new request increments this counter. Useful for tracking overall server usage and workload volume over time.",
       "fieldConfig": {
         "defaults": {
@@ -1832,23 +1968,23 @@
       },
       "targets": [
         {
-          "expr": "lemonade_total_sessions_total{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_total_sessions_total{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Total Sessions",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Estimated number of requests currently being processed.\n\nBased on request timestamps and estimated durations. High values indicate the server is handling multiple concurrent requests.",
       "fieldConfig": {
         "defaults": {
@@ -1901,23 +2037,23 @@
       },
       "targets": [
         {
-          "expr": "lemonade_active_requests{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_active_requests{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Active Requests",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "CPU load averages (1min, 5min, 15min) and memory usage percentage over time.\n\nLoad averages show system demand trends. Memory % shows RAM utilization. Monitor for capacity planning and performance issues.",
       "fieldConfig": {
         "defaults": {
@@ -1998,50 +2134,50 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "node_load1{instance=\"$node_instance\"}",
           "legendFormat": "Load 1min",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "node_load5{instance=\"$node_instance\"}",
           "legendFormat": "Load 5min",
-          "refId": "B",
+          "refId": "B"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "node_load15{instance=\"$node_instance\"}",
           "legendFormat": "Load 15min",
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "C"
         },
         {
-          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$node_instance\"} / node_memory_MemTotal_bytes{instance=\"$node_instance\"})) * 100",
-          "legendFormat": "Memory %",
-          "refId": "D",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$node_instance\"} / node_memory_MemTotal_bytes{instance=\"$node_instance\"})) * 100",
+          "legendFormat": "Memory %",
+          "refId": "D"
         }
       ],
       "title": "CPU Load & Memory",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Disk read and write rates over time.\n\nRead Rate: Data read from storage (MB/s).\nWrite Rate: Data written to storage (MB/s).\n\nHigh I/O rates may indicate heavy data processing, model loading, or logging activity.",
       "fieldConfig": {
         "defaults": {
@@ -2101,32 +2237,32 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "irate(node_disk_read_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
           "legendFormat": "Read {{device}}",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "irate(node_disk_written_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
-          "legendFormat": "Write {{device}}",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "irate(node_disk_written_bytes_total{instance=\"$node_instance\", device=~\"nvme.*\"}[5m])",
+          "legendFormat": "Write {{device}}",
+          "refId": "B"
         }
       ],
       "title": "Disk I/O",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Prompt Throughput: Average tokens per second processed during prompt phase.\nGeneration Throughput: Average tokens per second generated during inference.\n\nHigher values indicate better performance. Prompt throughput is typically much higher than generation throughput.",
       "fieldConfig": {
         "defaults": {
@@ -2186,32 +2322,32 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "lemonade_llamacpp_prompt_tokens_per_second{node=\"$host\"}",
           "legendFormat": "{{model_name}} - Prompt",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "lemonade_llamacpp_predicted_tokens_per_second{node=\"$host\"}",
-          "legendFormat": "{{model_name}} - Generation",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_llamacpp_predicted_tokens_per_second{node=\"$host\"}",
+          "legendFormat": "{{model_name}} - Generation",
+          "refId": "B"
         }
       ],
       "title": "Lemonade llama.cpp Backend Throughput",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Processing: Number of requests currently being processed by the backend.\nDeferred: Number of requests waiting in queue (deferred due to capacity limits).\n\nHigh deferred counts indicate the backend is at capacity. Monitor this to detect when additional backends or resources are needed.",
       "fieldConfig": {
         "defaults": {
@@ -2271,32 +2407,32 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "lemonade_llamacpp_requests_processing{node=\"$host\"}",
           "legendFormat": "{{model_name}} Processing",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "lemonade_llamacpp_requests_deferred{node=\"$host\"}",
-          "legendFormat": "{{model_name}} Deferred",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_llamacpp_requests_deferred{node=\"$host\"}",
+          "legendFormat": "{{model_name}} Deferred",
+          "refId": "B"
         }
       ],
       "title": "Lemonade llama.cpp Backend Requests",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Generation load factor: ratio of generation time to wall clock time.\n\nValues range from 0.0 to 1.0+:\n- 0.0-0.5: Low load (generation time < 50% of wall clock)\n- 0.5-1.0: Moderate to high load\n- 1.0+: Very high load (multiple concurrent requests)\n\nCalculated as: increase(generation_time_total[5m]) / 300 - shows generation seconds per wall clock second over 5-minute window.",
       "fieldConfig": {
         "defaults": {
@@ -2357,23 +2493,23 @@
       },
       "targets": [
         {
-          "expr": "increase(lemonade_llamacpp_tokens_predicted_seconds_total{node=\"$host\"}[5m]) / 300",
-          "legendFormat": "{{model_name}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "increase(lemonade_llamacpp_tokens_predicted_seconds_total{node=\"$host\"}[5m]) / 300",
+          "legendFormat": "{{model_name}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade llama.cpp Generation Load Factor",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Unified Memory Controller (UMC) activity percentage.\n\nUMC manages GPU memory subsystem. High activity indicates active memory operations. Monitor for memory bandwidth bottlenecks.",
       "fieldConfig": {
         "defaults": {
@@ -2418,23 +2554,23 @@
       },
       "targets": [
         {
-          "expr": "amd_gpu_umc_activity{hostname=\"$host\"}",
-          "legendFormat": "UMC {{gpu_id}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_gpu_umc_activity{hostname=\"$host\"}",
+          "legendFormat": "UMC {{gpu_id}}",
+          "refId": "A"
         }
       ],
       "title": "UMC Activity",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Video Core Next (VCN) activity percentage.\n\nVCN handles video encoding/decoding. Activity indicates video processing workloads. Typically low for AI inference workloads.",
       "fieldConfig": {
         "defaults": {
@@ -2479,23 +2615,23 @@
       },
       "targets": [
         {
-          "expr": "amd_gpu_vcn_activity{hostname=\"$host\"}",
-          "legendFormat": "VCN {{gpu_id}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_gpu_vcn_activity{hostname=\"$host\"}",
+          "legendFormat": "VCN {{gpu_id}}",
+          "refId": "A"
         }
       ],
       "title": "VCN Activity",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Matrix Multiply Accelerator (MMA) activity percentage.\n\nMMA handles matrix operations used in AI/ML workloads. High activity indicates active inference or training operations.",
       "fieldConfig": {
         "defaults": {
@@ -2540,23 +2676,23 @@
       },
       "targets": [
         {
-          "expr": "amd_gpu_mma_activity{hostname=\"$host\"}",
-          "legendFormat": "MMA {{gpu_id}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_gpu_mma_activity{hostname=\"$host\"}",
+          "legendFormat": "MMA {{gpu_id}}",
+          "refId": "A"
         }
       ],
       "title": "MMA Activity",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Various GPU activity metrics over time.\n\nGFX: Graphics/compute activity.\nUMC: Memory controller activity.\nVCN: Video codec activity.\nMMA: Matrix multiply accelerator activity.\n\nCompare different activity types to understand GPU workload composition.",
       "fieldConfig": {
         "defaults": {
@@ -2616,50 +2752,295 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "amd_sysfs_gpu_busy_percent{hostname=\"$host\"}",
           "legendFormat": "GFX Activity",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "amd_gpu_umc_activity{hostname=\"$host\"}",
           "legendFormat": "UMC Activity",
-          "refId": "B",
+          "refId": "B"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "amd_gpu_vcn_activity{hostname=\"$host\"}",
           "legendFormat": "VCN Activity",
-          "refId": "C",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "C"
         },
         {
-          "expr": "amd_gpu_mma_activity{hostname=\"$host\"}",
-          "legendFormat": "MMA Activity",
-          "refId": "D",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "amd_gpu_mma_activity{hostname=\"$host\"}",
+          "legendFormat": "MMA Activity",
+          "refId": "D"
         }
       ],
       "title": "GPU Activity Metrics Over Time",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 60
+      },
+      "id": 200,
+      "options": {
+        "colorMode": "background_solid",
+        "graphMode": "none",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "name"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
+          "legendFormat": "gpu_id={{gpu_id}} ({{device_id}})",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU ID",
+      "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 60
+      },
+      "id": 201,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "count(amd_sysfs_gpu_info{hostname=\"$host\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Count",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue"
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 60
+      },
+      "id": 202,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Total VRAM",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red"
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 60
+      },
+      "id": 203,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "GPU Health",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "VRAM bandwidth utilization and cumulative data transfer over time.\n\nRead/Write Bandwidth: Current memory bandwidth usage (GB/s).\nTotal Read/Write/Transfer: Cumulative data moved over the time range (GB).\n\nHigh bandwidth indicates active GPU memory operations. Cumulative totals show overall data movement.",
       "fieldConfig": {
         "defaults": {
@@ -2751,71 +3132,71 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "amd_gpu_memory_bandwidth_read_bytes_per_second{hostname=\"$host\"} / 1024 / 1024 / 1024",
           "legendFormat": "Read Rate (GB/s)",
-          "refId": "A",
+          "refId": "A"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "amd_gpu_memory_bandwidth_write_bytes_per_second{hostname=\"$host\"} / 1024 / 1024 / 1024",
           "legendFormat": "Write Rate (GB/s)",
-          "refId": "B",
+          "refId": "B"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "(amd_gpu_memory_bandwidth_read_bytes_per_second{hostname=\"$host\"} + amd_gpu_memory_bandwidth_write_bytes_per_second{hostname=\"$host\"}) / 1024 / 1024 / 1024",
           "legendFormat": "Total Rate (GB/s)",
-          "refId": "C",
+          "refId": "C"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "avg_over_time(amd_gpu_memory_bandwidth_read_bytes_per_second{hostname=\"$host\"}[$__range]) * ($__range_ms / 1000) / 1024 / 1024 / 1024",
           "hide": false,
           "legendFormat": "Total Read (GB)",
-          "refId": "D",
+          "refId": "D"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "avg_over_time(amd_gpu_memory_bandwidth_write_bytes_per_second{hostname=\"$host\"}[$__range]) * ($__range_ms / 1000) / 1024 / 1024 / 1024",
           "hide": false,
           "legendFormat": "Total Write (GB)",
-          "refId": "E",
+          "refId": "E"
+        },
+        {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
-        },
-        {
+          },
           "expr": "avg_over_time((amd_gpu_memory_bandwidth_read_bytes_per_second{hostname=\"$host\"} + amd_gpu_memory_bandwidth_write_bytes_per_second{hostname=\"$host\"})[$__range]) * ($__range_ms / 1000) / 1024 / 1024 / 1024",
           "hide": false,
           "legendFormat": "Total Transfer (GB)",
-          "refId": "F",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "F"
         }
       ],
       "title": "VRAM Bandwidth & Data Transfer",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Network receive rate over time.\n\nShows incoming network traffic. High rates may indicate API requests, model downloads, or data ingestion.",
       "fieldConfig": {
         "defaults": {
@@ -2885,33 +3266,33 @@
       },
       "targets": [
         {
-          "expr": "irate(node_network_receive_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
-          "legendFormat": "Rate {{device}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "irate(node_network_receive_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
+          "legendFormat": "Rate {{device}}",
+          "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "node_network_receive_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"} - (node_network_receive_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"} @ start())",
           "hide": false,
           "legendFormat": "Total {{device}}",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         }
       ],
       "title": "Network Receive",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Network transmit rate over time.\n\nShows outgoing network traffic. High rates may indicate API responses, data exports, or streaming outputs.",
       "fieldConfig": {
         "defaults": {
@@ -2981,33 +3362,33 @@
       },
       "targets": [
         {
-          "expr": "irate(node_network_transmit_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
-          "legendFormat": "Rate {{device}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "irate(node_network_transmit_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
+          "legendFormat": "Rate {{device}}",
+          "refId": "A"
         },
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "node_network_transmit_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"} - (node_network_transmit_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"} @ start())",
           "hide": false,
           "legendFormat": "Total {{device}}",
-          "refId": "B",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "B"
         }
       ],
       "title": "Network Transmit",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Network receive and transmit rates over time.\n\nReceive Rate: Incoming traffic (MB/s).\nTransmit Rate: Outgoing traffic (MB/s).\n\nMonitor network activity to understand API usage patterns and bandwidth requirements.",
       "fieldConfig": {
         "defaults": {
@@ -3067,32 +3448,32 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "irate(node_network_receive_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
           "legendFormat": "RX {{device}}",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "irate(node_network_transmit_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
-          "legendFormat": "TX {{device}}",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "irate(node_network_transmit_bytes_total{instance=\"$node_instance\", device!~\"lo|docker.*|veth.*|virbr.*\"}[5m])",
+          "legendFormat": "TX {{device}}",
+          "refId": "B"
         }
       ],
       "title": "Network I/O",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Distribution of token decode times.\n\nShows how long it takes to decode each token. Heatmap visualization with time buckets on Y-axis and time ranges on X-axis. Lower decode times indicate better performance.",
       "fieldConfig": {
         "defaults": {
@@ -3150,7 +3531,7 @@
           "color": "rgba(255,0,255,0.7)"
         },
         "filterValues": {
-          "le": 1e-09
+          "le": 1E-9
         },
         "legend": {
           "show": true
@@ -3170,23 +3551,105 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m])) by (le)",
-          "legendFormat": "{{le}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "sum(rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m])) by (le)",
+          "legendFormat": "{{le}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Token Decode Time Histogram",
-      "type": "heatmap",
+      "type": "heatmap"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
+      },
+      "description": "Token decode time percentiles (p50, p95, p99) over time.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 84
+      },
+      "id": 206,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.50, rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m]))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m]))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.99, rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m]))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Decode Token Time (Percentiles)",
+      "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "KV cache hit rate from the last request (0.0-1.0).\n\nShows what fraction of prompt tokens were served from cache vs processed fresh. Higher values indicate better cache effectiveness, leading to faster responses and lower compute costs.\n\n- >0.8: Excellent cache performance\n- 0.5-0.8: Good cache performance\n- <0.5: Poor cache performance - investigate cache configuration",
       "fieldConfig": {
         "defaults": {
@@ -3231,23 +3694,23 @@
       },
       "targets": [
         {
-          "expr": "lemonade_cache_hit_rate{node=\"$host\"}",
-          "legendFormat": "{{node}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "lemonade_cache_hit_rate{node=\"$host\"}",
+          "legendFormat": "{{node}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Cache Hit Rate",
-      "type": "stat",
+      "type": "stat"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Rate of llama_decode() calls per second for each backend model.\n\nShows backend activity level and generation frequency. Higher rates indicate more active token generation. Useful for comparing model utilization and identifying which models are handling the most requests.",
       "fieldConfig": {
         "defaults": {
@@ -3307,23 +3770,23 @@
       },
       "targets": [
         {
-          "expr": "rate(lemonade_llamacpp_n_decode_total{node=\"$host\"}[5m])",
-          "legendFormat": "{{model_name}}",
-          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "rate(lemonade_llamacpp_n_decode_total{node=\"$host\"}[5m])",
+          "legendFormat": "{{model_name}}",
+          "refId": "A"
         }
       ],
       "title": "Lemonade Backend Decode Call Rate",
-      "type": "timeseries",
+      "type": "timeseries"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
-      }
-    },
-    {
+      },
       "description": "Overall token processing rates across all requests.\n\nInput Rate: Average input tokens per second (prompt processing).\nOutput Rate: Average output tokens per second (generation).\n\nShows aggregate system throughput over time. Useful for capacity planning, workload analysis, and tracking overall system performance trends.",
       "fieldConfig": {
         "defaults": {
@@ -3383,487 +3846,26 @@
       },
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "expr": "rate(lemonade_input_tokens_total{node=\"$host\"}[5m])",
           "legendFormat": "Input Rate",
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         },
         {
-          "expr": "rate(lemonade_output_tokens_total{node=\"$host\"}[5m])",
-          "legendFormat": "Output Rate",
-          "refId": "B",
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
-          }
+          },
+          "expr": "rate(lemonade_output_tokens_total{node=\"$host\"}[5m])",
+          "legendFormat": "Output Rate",
+          "refId": "B"
         }
       ],
       "title": "Lemonade Token Processing Rates",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      }
-    },
-    {
-      "id": 200,
-      "title": "GPU ID",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
-          "refId": "A",
-          "legendFormat": "gpu_id={{gpu_id}} ({{device_id}})",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "text"
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "name",
-        "colorMode": "background_solid",
-        "graphMode": "none"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 60,
-        "w": 6,
-        "h": 4
-      }
-    },
-    {
-      "id": 201,
-      "title": "GPU Count",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "count(amd_sysfs_gpu_info{hostname=\"$host\"})",
-          "refId": "A",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "gridPos": {
-        "x": 6,
-        "y": 60,
-        "w": 6,
-        "h": 4
-      }
-    },
-    {
-      "id": 202,
-      "title": "Total VRAM",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "amd_sysfs_gpu_memory_bytes{hostname=\"$host\",type=\"vram_total\"}",
-          "refId": "A",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue"
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 60,
-        "w": 6,
-        "h": 4
-      }
-    },
-    {
-      "id": 203,
-      "title": "GPU Health",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "amd_sysfs_gpu_info{hostname=\"$host\"}",
-          "refId": "A",
-          "legendFormat": "",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red"
-              },
-              {
-                "color": "green",
-                "value": 1
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "DOWN",
-                  "color": "red",
-                  "index": 0
-                },
-                "1": {
-                  "text": "UP",
-                  "color": "green",
-                  "index": 1
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "gridPos": {
-        "x": 18,
-        "y": 60,
-        "w": 6,
-        "h": 4
-      }
-    },
-    {
-      "id": 204,
-      "title": "Voltage (mV)",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "amd_sysfs_gpu_voltage_mv{hostname=\"$host\"}",
-          "refId": "A",
-          "legendFormat": "{{rail}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "unit": "mvolt"
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 18,
-        "w": 12,
-        "h": 6
-      }
-    },
-    {
-      "id": 205,
-      "title": "Clocks (MHz)",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "amd_sysfs_gpu_sclk_mhz{hostname=\"$host\"}",
-          "refId": "A",
-          "legendFormat": "Shader Clock",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        },
-        {
-          "expr": "amd_sysfs_gpu_mclk_mhz{hostname=\"$host\"}",
-          "refId": "B",
-          "legendFormat": "Memory Clock",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
-        }
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 18,
-        "w": 12,
-        "h": 6
-      }
-    },
-    {
-      "id": 206,
-      "title": "Decode Token Time (Percentiles)",
-      "description": "Token decode time percentiles (p50, p95, p99) over time.",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.50, rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m]))",
-          "refId": "A",
-          "legendFormat": "p50",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        },
-        {
-          "expr": "histogram_quantile(0.95, rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m]))",
-          "refId": "B",
-          "legendFormat": "p95",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        },
-        {
-          "expr": "histogram_quantile(0.99, rate(lemonade_decode_token_time_seconds_bucket{node=\"$host\"}[5m]))",
-          "refId": "C",
-          "legendFormat": "p99",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 15,
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "auto",
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        },
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "calcs": []
-        }
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 84,
-        "w": 24,
-        "h": 6
-      }
+      "type": "timeseries"
     }
   ],
   "refresh": "5s",
@@ -3902,6 +3904,10 @@
           "text": "",
           "value": ""
         },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
         "hide": 0,
         "includeAll": false,
         "label": "Host",
@@ -3916,17 +3922,17 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${datasource}"
-        }
+        "type": "query"
       },
       {
         "current": {
           "selected": false,
           "text": "",
           "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
         },
         "hide": 2,
         "includeAll": false,
@@ -3942,11 +3948,7 @@
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
-        "type": "query",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${datasource}"
-        }
+        "type": "query"
       }
     ]
   },
@@ -3957,6 +3959,6 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "Lemonade: CPU & GPU Monitoring",
-  "weekStart": "",
-  "uid": "cpu-gpu-monitoring"
+  "uid": "cpu-gpu-monitoring",
+  "weekStart": ""
 }

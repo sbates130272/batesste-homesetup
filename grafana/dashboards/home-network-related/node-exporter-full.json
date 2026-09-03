@@ -78,7 +78,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "dark-yellow",
@@ -126,7 +126,7 @@
         "text": {},
         "valueMode": "color"
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -153,7 +153,6 @@
           "exemplar": false,
           "expr": "irate(node_pressure_memory_waiting_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
           "format": "time_series",
-          "hide": false,
           "instant": true,
           "intervalFactor": 1,
           "legendFormat": "Mem",
@@ -170,7 +169,6 @@
           "exemplar": false,
           "expr": "irate(node_pressure_io_waiting_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
           "format": "time_series",
-          "hide": false,
           "instant": true,
           "intervalFactor": 1,
           "legendFormat": "I/O",
@@ -212,7 +210,7 @@
             "steps": [
               {
                 "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
+                "value": 0
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -250,7 +248,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -260,7 +258,6 @@
           "editorMode": "code",
           "exemplar": false,
           "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\", instance=\"$node\"}[$__rate_interval])))",
-          "hide": false,
           "instant": true,
           "intervalFactor": 1,
           "legendFormat": "",
@@ -302,7 +299,7 @@
             "steps": [
               {
                 "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
+                "value": 0
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -340,7 +337,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -351,7 +348,6 @@
           "exemplar": false,
           "expr": "scalar(node_load1{instance=\"$node\",job=\"$job\"}) * 100 / count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu))",
           "format": "time_series",
-          "hide": false,
           "instant": true,
           "intervalFactor": 1,
           "range": false,
@@ -382,7 +378,7 @@
             "steps": [
               {
                 "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
+                "value": 0
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -420,7 +416,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -447,7 +443,6 @@
           "exemplar": false,
           "expr": "(1 - (node_memory_MemAvailable_bytes{instance=\"$node\", job=\"$job\"} / node_memory_MemTotal_bytes{instance=\"$node\", job=\"$job\"})) * 100",
           "format": "time_series",
-          "hide": false,
           "instant": true,
           "intervalFactor": 1,
           "range": false,
@@ -488,7 +483,7 @@
             "steps": [
               {
                 "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
+                "value": 0
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -526,7 +521,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -576,7 +571,7 @@
             "steps": [
               {
                 "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
+                "value": 0
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -614,7 +609,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -662,7 +657,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -699,7 +694,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -746,7 +741,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -783,7 +778,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -831,7 +826,7 @@
             "steps": [
               {
                 "color": "rgba(50, 172, 45, 0.97)",
-                "value": null
+                "value": 0
               },
               {
                 "color": "rgba(237, 129, 40, 0.89)",
@@ -872,7 +867,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -883,7 +878,6 @@
           "exemplar": false,
           "expr": "node_filesystem_size_bytes{instance=\"$node\",job=\"$job\",mountpoint=\"/\",fstype!=\"rootfs\"}",
           "format": "time_series",
-          "hide": false,
           "instant": true,
           "intervalFactor": 1,
           "range": false,
@@ -922,7 +916,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -959,7 +953,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -1007,7 +1001,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1044,7 +1038,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -1112,6 +1106,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1129,7 +1124,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1263,11 +1258,12 @@
           "width": 250
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -1278,7 +1274,6 @@
           "exemplar": false,
           "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"system\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
           "format": "time_series",
-          "hide": false,
           "instant": false,
           "intervalFactor": 1,
           "legendFormat": "Busy System",
@@ -1294,7 +1289,6 @@
           "editorMode": "code",
           "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"user\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
           "format": "time_series",
-          "hide": false,
           "intervalFactor": 1,
           "legendFormat": "Busy User",
           "range": true,
@@ -1396,6 +1390,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1413,7 +1408,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -1809,11 +1804,12 @@
           "width": 350
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -1822,7 +1818,6 @@
           },
           "expr": "node_memory_MemTotal_bytes{instance=\"$node\",job=\"$job\"}",
           "format": "time_series",
-          "hide": false,
           "intervalFactor": 1,
           "legendFormat": "RAM Total",
           "refId": "A",
@@ -1835,7 +1830,6 @@
           },
           "expr": "node_memory_MemTotal_bytes{instance=\"$node\",job=\"$job\"} - node_memory_MemFree_bytes{instance=\"$node\",job=\"$job\"} - (node_memory_Cached_bytes{instance=\"$node\",job=\"$job\"} + node_memory_Buffers_bytes{instance=\"$node\",job=\"$job\"} + node_memory_SReclaimable_bytes{instance=\"$node\",job=\"$job\"})",
           "format": "time_series",
-          "hide": false,
           "intervalFactor": 1,
           "legendFormat": "RAM Used",
           "refId": "B",
@@ -1916,6 +1910,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -1932,7 +1927,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -2317,11 +2312,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -2386,6 +2382,7 @@
               "type": "linear"
             },
             "showPoints": "never",
+            "showValues": false,
             "spanNulls": false,
             "stacking": {
               "group": "A",
@@ -2404,7 +2401,7 @@
             "steps": [
               {
                 "color": "green",
-                "value": null
+                "value": 0
               },
               {
                 "color": "red",
@@ -2431,11 +2428,12 @@
           "showLegend": true
         },
         "tooltip": {
+          "hideZeros": false,
           "mode": "multi",
           "sort": "none"
         }
       },
-      "pluginVersion": "11.4.0",
+      "pluginVersion": "12.4.1",
       "targets": [
         {
           "datasource": {
@@ -2468,7 +2466,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2778,7 +2775,6 @@
               "editorMode": "code",
               "expr": "sum(irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\", mode=\"idle\"}[$__rate_interval])) / scalar(count(count(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}) by (cpu)))",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Idle - Waiting for something to happen",
               "range": true,
@@ -2794,7 +2790,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3184,7 +3179,6 @@
               },
               "expr": "node_memory_MemTotal_bytes{instance=\"$node\",job=\"$job\"} - node_memory_MemFree_bytes{instance=\"$node\",job=\"$job\"} - node_memory_Buffers_bytes{instance=\"$node\",job=\"$job\"} - node_memory_Cached_bytes{instance=\"$node\",job=\"$job\"} - node_memory_Slab_bytes{instance=\"$node\",job=\"$job\"} - node_memory_PageTables_bytes{instance=\"$node\",job=\"$job\"} - node_memory_SwapCached_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Apps - Memory used by user-space applications",
               "refId": "A",
@@ -3197,7 +3191,6 @@
               },
               "expr": "node_memory_PageTables_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "PageTables - Memory used to map between virtual and physical memory addresses",
               "refId": "B",
@@ -3222,7 +3215,6 @@
               },
               "expr": "node_memory_Slab_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Slab - Memory used by the kernel to cache data structures for its own use (caches like inode, dentry, etc)",
               "refId": "D",
@@ -3235,7 +3227,6 @@
               },
               "expr": "node_memory_Cached_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Cache - Parked file data (file content) cache",
               "refId": "E",
@@ -3248,7 +3239,6 @@
               },
               "expr": "node_memory_Buffers_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Buffers - Block device (e.g. harddisk) cache",
               "refId": "F",
@@ -3261,7 +3251,6 @@
               },
               "expr": "node_memory_MemFree_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Unused - Free memory unassigned",
               "refId": "G",
@@ -3274,7 +3263,6 @@
               },
               "expr": "(node_memory_SwapTotal_bytes{instance=\"$node\",job=\"$job\"} - node_memory_SwapFree_bytes{instance=\"$node\",job=\"$job\"})",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Swap - Swap space used",
               "refId": "H",
@@ -3287,7 +3275,6 @@
               },
               "expr": "node_memory_HardwareCorrupted_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Hardware Corrupted - Amount of RAM that the kernel identified as corrupted / not working",
               "refId": "I",
@@ -3487,7 +3474,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3589,7 +3575,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4028,7 +4013,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4230,7 +4214,6 @@
               },
               "expr": "irate(node_disk_read_bytes_total{instance=\"$node\",job=\"$job\",device=~\"$diskdevices\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Successfully read bytes",
               "refId": "A",
@@ -4243,7 +4226,6 @@
               },
               "expr": "irate(node_disk_written_bytes_total{instance=\"$node\",job=\"$job\",device=~\"$diskdevices\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Successfully written bytes",
               "refId": "B",
@@ -4258,7 +4240,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4374,7 +4355,6 @@
               },
               "expr": "irate(node_disk_io_time_seconds_total{instance=\"$node\",job=\"$job\",device=~\"$diskdevices\"} [$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{device}}",
@@ -4506,7 +4486,6 @@
               },
               "editorMode": "code",
               "expr": "sum by(instance) (irate(node_cpu_guest_seconds_total{instance=\"$node\",job=\"$job\", mode=\"user\"}[1m])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}[1m])))",
-              "hide": false,
               "legendFormat": "Guest - Time spent running a virtual CPU for a guest operating system",
               "range": true,
               "refId": "A"
@@ -4518,7 +4497,6 @@
               },
               "editorMode": "code",
               "expr": "sum by(instance) (irate(node_cpu_guest_seconds_total{instance=\"$node\",job=\"$job\", mode=\"nice\"}[1m])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}[1m])))",
-              "hide": false,
               "legendFormat": "GuestNice - Time spent running a niced guest  (virtual CPU for guest operating system)",
               "range": true,
               "refId": "B"
@@ -5649,7 +5627,6 @@
               },
               "expr": "node_memory_Inactive_file_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Inactive_file - File-backed memory on inactive LRU list",
               "refId": "A",
@@ -5662,7 +5639,6 @@
               },
               "expr": "node_memory_Inactive_anon_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Inactive_anon - Anonymous and swap cache on inactive LRU list, including tmpfs (shmem)",
               "refId": "B",
@@ -5675,7 +5651,6 @@
               },
               "expr": "node_memory_Active_file_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Active_file - File-backed memory on active LRU list",
               "refId": "C",
@@ -5688,7 +5663,6 @@
               },
               "expr": "node_memory_Active_anon_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Active_anon - Anonymous and swap cache on active least-recently-used (LRU) list, including tmpfs",
               "refId": "D",
@@ -7291,7 +7265,6 @@
               },
               "expr": "node_memory_VmallocChunk_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "VmallocChunk - Largest contiguous block of vmalloc area which is free",
               "refId": "A",
@@ -7304,7 +7277,6 @@
               },
               "expr": "node_memory_VmallocTotal_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "VmallocTotal - Total size of vmalloc memory area",
               "refId": "B",
@@ -7317,7 +7289,6 @@
               },
               "expr": "node_memory_VmallocUsed_bytes{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "VmallocUsed - Amount of vmalloc area which is used",
               "refId": "C",
@@ -11456,7 +11427,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11559,7 +11529,6 @@
               },
               "expr": "node_timex_estimated_error_seconds{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Estimated error in seconds",
@@ -11573,7 +11542,6 @@
               },
               "expr": "node_timex_offset_seconds{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Time offset in between local system and reference clock",
@@ -11587,7 +11555,6 @@
               },
               "expr": "node_timex_maxerror_seconds{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Maximum error in seconds",
@@ -11603,7 +11570,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11705,7 +11671,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11836,7 +11801,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -12268,7 +12232,6 @@
               },
               "expr": "irate(node_forks_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Processes forks second",
               "refId": "A",
@@ -12382,7 +12345,6 @@
                 "uid": "${datasource}"
               },
               "expr": "irate(process_virtual_memory_bytes{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Processes virtual memory size in bytes",
@@ -12395,7 +12357,6 @@
                 "uid": "${datasource}"
               },
               "expr": "process_resident_memory_max_bytes{instance=\"$node\",job=\"$job\"}",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Maximum amount of virtual memory available in bytes",
@@ -12408,7 +12369,6 @@
                 "uid": "${datasource}"
               },
               "expr": "irate(process_virtual_memory_bytes{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Processes virtual memory size in bytes",
@@ -12421,7 +12381,6 @@
                 "uid": "${datasource}"
               },
               "expr": "irate(process_virtual_memory_max_bytes{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Maximum amount of virtual memory available in bytes",
@@ -12949,7 +12908,6 @@
               },
               "expr": "irate(node_intr_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Interrupts",
               "refId": "B",
@@ -13251,7 +13209,6 @@
               "editorMode": "code",
               "expr": "node_cpu_scaling_frequency_hertz{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "CPU {{ cpu }}",
@@ -13267,7 +13224,6 @@
               "editorMode": "code",
               "expr": "avg(node_cpu_scaling_frequency_max_hertz{instance=\"$node\",job=\"$job\"})",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Max",
@@ -13283,7 +13239,6 @@
               "editorMode": "code",
               "expr": "avg(node_cpu_scaling_frequency_min_hertz{instance=\"$node\",job=\"$job\"})",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Min",
@@ -13464,7 +13419,6 @@
               "editorMode": "code",
               "expr": "rate(node_pressure_memory_waiting_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Memory some",
               "range": true,
@@ -13479,7 +13433,6 @@
               "editorMode": "code",
               "expr": "rate(node_pressure_memory_stalled_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "Memory full",
               "range": true,
@@ -13494,7 +13447,6 @@
               "editorMode": "code",
               "expr": "rate(node_pressure_io_waiting_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "I/O some",
               "range": true,
@@ -13509,7 +13461,6 @@
               "editorMode": "code",
               "expr": "rate(node_pressure_io_stalled_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "I/O full",
               "range": true,
@@ -14419,7 +14370,6 @@
               },
               "expr": "node_cooling_device_cur_state{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "Current {{ name }} in {{ type }}",
@@ -14534,7 +14484,6 @@
               },
               "expr": "node_power_supply_online{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{ power_supply }} online",
@@ -16158,7 +16107,6 @@
                 "uid": "${datasource}"
               },
               "expr": "irate(node_disk_read_time_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval]) / irate(node_disk_reads_completed_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "intervalFactor": 4,
               "legendFormat": "{{device}} - Read wait time avg",
@@ -16171,7 +16119,6 @@
                 "uid": "${datasource}"
               },
               "expr": "irate(node_disk_write_time_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval]) / irate(node_disk_writes_completed_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Write wait time avg",
@@ -17832,7 +17779,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18260,7 +18206,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18348,7 +18293,6 @@
               },
               "expr": "node_filesystem_avail_bytes{instance=\"$node\",job=\"$job\",device!~'rootfs'}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "{{mountpoint}} - Available",
               "metric": "",
@@ -18390,7 +18334,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18478,7 +18421,6 @@
               },
               "expr": "node_filesystem_files_free{instance=\"$node\",job=\"$job\",device!~'rootfs'}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "{{mountpoint}} - Free file nodes",
               "refId": "A",
@@ -18493,7 +18435,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18607,7 +18548,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18695,7 +18635,6 @@
               },
               "expr": "node_filesystem_files{instance=\"$node\",job=\"$job\",device!~'rootfs'}",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "{{mountpoint}} - File nodes total",
               "refId": "A",
@@ -18710,7 +18649,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19762,7 +19700,6 @@
               },
               "expr": "irate(node_network_receive_frame_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "intervalFactor": 1,
               "legendFormat": "{{device}} - Receive frame",
               "refId": "A",
@@ -22433,7 +22370,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22521,7 +22457,6 @@
               },
               "expr": "irate(node_netstat_TcpExt_ListenOverflows{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "ListenOverflows - Times the listen queue of a socket overflowed",
@@ -22535,7 +22470,6 @@
               },
               "expr": "irate(node_netstat_TcpExt_ListenDrops{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "ListenDrops - SYNs to LISTEN sockets ignored",
@@ -22592,7 +22526,6 @@
               },
               "editorMode": "code",
               "expr": "irate(node_netstat_TcpExt_TCPRcvQDrop{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "legendFormat": "TCPRcvQDrop - Packets meant to be queued in rcv queue but dropped because socket rcvbuf limit hit",
               "range": true,
@@ -22605,7 +22538,6 @@
               },
               "editorMode": "code",
               "expr": "irate(node_netstat_TcpExt_TCPOFOQueue{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "hide": false,
               "interval": "",
               "legendFormat": "TCPOFOQueue - TCP layer receives an out of order packet and has enough memory to queue it",
               "range": true,
@@ -22727,7 +22659,6 @@
               },
               "expr": "node_netstat_Tcp_CurrEstab{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "CurrEstab - TCP connections for which the current state is either ESTABLISHED or CLOSE- WAIT",
@@ -22741,7 +22672,6 @@
               },
               "expr": "node_netstat_Tcp_MaxConn{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "MaxConn - Limit on the total number of TCP connections the entity can support (Dynamic is \"-1\")",
@@ -22757,7 +22687,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22857,7 +22786,6 @@
               },
               "expr": "irate(node_netstat_TcpExt_SyncookiesFailed{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "SyncookiesFailed - Invalid SYN cookies received",
@@ -22871,7 +22799,6 @@
               },
               "expr": "irate(node_netstat_TcpExt_SyncookiesRecv{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "SyncookiesRecv - SYN cookies received",
@@ -22885,7 +22812,6 @@
               },
               "expr": "irate(node_netstat_TcpExt_SyncookiesSent{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "SyncookiesSent - SYN cookies sent",
@@ -23116,7 +23042,6 @@
               "editorMode": "code",
               "expr": "node_tcp_connection_states{state=\"fin_wait2\",instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "fin_wait2 - TCP sockets in fin_wait2 state",
@@ -23132,7 +23057,6 @@
               "editorMode": "code",
               "expr": "node_tcp_connection_states{state=\"listen\",instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "listen - TCP sockets in listen state",
@@ -23148,7 +23072,6 @@
               "editorMode": "code",
               "expr": "node_tcp_connection_states{state=\"time_wait\",instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "time_wait - TCP sockets in time_wait state",
@@ -23179,7 +23102,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -23266,7 +23188,6 @@
               },
               "expr": "node_scrape_collector_duration_seconds{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{collector}} - Scrape duration",
@@ -23282,7 +23203,6 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -23392,7 +23312,6 @@
               },
               "expr": "node_scrape_collector_success{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{collector}} - Scrape success",
@@ -23406,7 +23325,6 @@
               },
               "expr": "node_textfile_scrape_error{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
-              "hide": false,
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{collector}} - Scrape textfile error (1 = true)",
@@ -23424,7 +23342,7 @@
   ],
   "preload": false,
   "refresh": "1m",
-  "schemaVersion": 40,
+  "schemaVersion": 42,
   "tags": [
     "linux",
     "node-exporter"
@@ -23436,6 +23354,7 @@
           "text": "snoc-beelink-prometheus",
           "value": "ae8pyuqoyonpca"
         },
+        "hide": 2,
         "includeAll": false,
         "label": "Datasource",
         "name": "datasource",
@@ -23455,6 +23374,7 @@
           "uid": "${datasource}"
         },
         "definition": "",
+        "hide": 2,
         "includeAll": false,
         "label": "Job",
         "name": "job",
@@ -23465,6 +23385,7 @@
         },
         "refresh": 1,
         "regex": "",
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
@@ -23490,6 +23411,7 @@
         },
         "refresh": 1,
         "regex": "",
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
@@ -23503,7 +23425,7 @@
           "uid": "${datasource}"
         },
         "definition": "label_values(node_uname_info{server_name=\"$host\"},instance)",
-        "hide": 1,
+        "hide": 2,
         "includeAll": false,
         "label": "The IP address of the host",
         "name": "node",
@@ -23515,6 +23437,7 @@
         },
         "refresh": 1,
         "regex": "",
+        "regexApplyTo": "value",
         "sort": 1,
         "type": "query"
       },
@@ -23534,7 +23457,8 @@
           }
         ],
         "query": "[a-z]+|nvme[0-9]+n[0-9]+|mmcblk[0-9]+",
-        "type": "custom"
+        "type": "custom",
+        "valuesFormat": "csv"
       }
     ]
   },

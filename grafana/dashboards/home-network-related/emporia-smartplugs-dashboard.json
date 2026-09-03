@@ -157,6 +157,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_b_power",
@@ -165,11 +169,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Home Office",
@@ -234,6 +234,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_c_power",
@@ -242,11 +246,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Living Room Light",
@@ -311,6 +311,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_d_power",
@@ -319,11 +323,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "snoc-thinkstation",
@@ -388,6 +388,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_e_power",
@@ -396,11 +400,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Playstation",
@@ -465,6 +465,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_f_power",
@@ -473,11 +477,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Master Bedroom - Stevie",
@@ -542,6 +542,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_g_power",
@@ -550,11 +554,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "Master Bedroom - Ang",
@@ -619,6 +619,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_h_power",
@@ -627,11 +631,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "snoc-strix",
@@ -826,6 +826,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_a_power",
@@ -834,11 +838,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         },
         {
           "datasource": {
@@ -1143,6 +1143,10 @@
       "pluginVersion": "12.2.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "snoc_pinewood_plug_a_on{snoc_pinewood_plug_a_on=\"on\"}",
@@ -1151,11 +1155,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         },
         {
           "datasource": {
@@ -1319,5 +1319,6 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "Emporia SmartPlugs",
-  "uid": "be8ws4eoud3b4d"
+  "uid": "be8ws4eoud3b4d",
+  "weekStart": ""
 }

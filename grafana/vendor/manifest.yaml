@@ -1,0 +1,130 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# Provenance for third-party dashboards adopted into this repo.
+#
+# These were running on snoc-beelink but tracked nowhere, so a rebuild
+# would have lost them. None of them carries a `gnetId`, and all were
+# created by the same local Grafana user, so they were hand-imported
+# rather than installed from grafana.com -- which is why most `upstream`
+# fields below say `local-import`. Fill in a real URL as you identify
+# where each one came from; that upgrades its refresh path from
+# "export what is running" to "re-fetch and diff".
+#
+# Fields:
+#   uid        Grafana dashboard UID. The sync script keys on this, so
+#              it must match the `uid` inside the JSON file.
+#   folder     Grafana folder the dashboard appears in.
+#   upstream   Source URL, or `local-import` if unknown.
+#   retrieved  Date the JSON in this repo was captured.
+#   created    Date the dashboard first appeared in Grafana.
+#
+# To refresh one with a known upstream: fetch it, overwrite the file,
+# `git diff` to see what changed upstream, then ./deploy.sh.
+# For `local-import` entries: ./sync-dashboards.sh --pull.
+
+dashboards:
+  - uid: hsa-snoop
+    title: HSA Snoop
+    file: dashboards/general/hsa-snoop.json
+    folder: General
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-07-17
+    notes: >-
+      Kept in preference to the near-identical hsa-snoop-v1, which was
+      the older copy despite its name and is archived under retired/.
+
+  - uid: WwP1Px4Mz
+    title: NVMe Exporter Device Metrics
+    file: dashboards/home-network-related/nvme-exporter-device-metrics.json
+    folder: Home Network Related
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-03-04
+    notes: >-
+      Imported without binding its ${DS_PROMETHEUS} input, so 43 panels
+      pointed at a literal unresolved variable and 2 more at a datasource
+      uid (afbhhnhhmsttsb) that does not exist on this server. All 45
+      were repointed to snoc-beelink-prometheus on adoption.
+
+  - uid: 6cfbc0e1-5316-4cb3-82ed-65ffcb3a2b37
+    title: OpenAI Exporter
+    file: dashboards/home-network-related/openai-exporter.json
+    folder: Home Network Related
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-03-07
+
+  # ── Recovered from v2 storage ───────────────────────────────────
+  # These four were stored in Grafana as v2 dashboards (elements/layout
+  # rather than panels), so they could only be captured in the v1 schema
+  # this repo tracks by reading them back through the v1beta1 API. The
+  # files below are that rendering, not the stored bytes.
+
+  - uid: b281712d-8bff-41ef-9f3f-71ad43c05e9b
+    title: AMD vLLM Inference Dashboard
+    file: dashboards/general/amd-vllm-inference.json
+    folder: General
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-05-20
+    notes: >-
+      Its `datasource` template variable has an empty current value, so
+      the dashboard picks a datasource on load rather than pinning one.
+      Captured as-is; set a default here if it ever resolves wrongly.
+
+  - uid: lemonade-built-in-metrics
+    title: Lemonade Metrics Dashboard
+    file: dashboards/general/lemonade-built-in-metrics.json
+    folder: General
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-06-05
+    notes: >-
+      Uses ${DS_PROMETHEUS} across 50 panels, but unlike the NVMe
+      dashboard above that is a real datasource template variable bound
+      to snoc-beelink-prometheus, not an unresolved import input.
+
+  - uid: llamacpp-server-prometheus
+    title: llama.cpp server (Prometheus /metrics)
+    file: dashboards/general/llamacpp-server-prometheus.json
+    folder: General
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-06-15
+    notes: >-
+      Empty `datasource` variable default, as with AMD vLLM above.
+
+  - uid: rocm-aic-vllm-lmcache
+    title: ROCm(tm) AMD Infinity Context Dashboard
+    file: dashboards/rocm-aic-related/rocm-aic-vllm-lmcache.json
+    folder: ROCm AIC Related
+    upstream: local-import
+    retrieved: 2026-09-03
+    created: 2026-05-29
+    notes: >-
+      Kept in preference to rocm-aic-dashboard, which shares its title
+      but is the older and far less edited of the two.
+
+# Dashboards deleted from the server, archived under retired/ so they
+# can be restored by hand. Deliberately outside vendor/dashboards/ so no
+# provider picks them up and re-creates them.
+retired:
+  - uid: hsa-snoop-v1
+    title: HSA Snoop
+    file: retired/hsa-snoop-v1.json
+    deleted: 2026-09-03
+    reason: >-
+      Duplicate title of hsa-snoop. Created 2026-07-11, last updated
+      2026-07-17T20:26Z; hsa-snoop was updated an hour later at 21:27Z
+      and is the copy in use.
+
+  - uid: rocm-aic-dashboard
+    title: ROCm(tm) AMD Infinity Context Dashboard
+    file: retired/rocm-aic-dashboard.json
+    deleted: 2026-09-03
+    reason: >-
+      Duplicate title of rocm-aic-vllm-lmcache. 5 revisions and last
+      touched 2026-06-04, against 64 revisions and 2026-07-01.

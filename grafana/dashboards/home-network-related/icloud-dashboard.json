@@ -91,6 +91,10 @@
       "pluginVersion": "11.6.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "icloud_auth_2fa_update_needed{server_name=\"$server_name\"}",
@@ -99,11 +103,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "2FA Status",
@@ -160,6 +160,10 @@
       "pluginVersion": "11.6.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "icloud_photos_total_photos{server_name=\"$server_name\"}",
@@ -168,11 +172,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "iCloud Photos",
@@ -229,6 +229,10 @@
       "pluginVersion": "11.6.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "disableTextWrap": false,
           "editorMode": "builder",
           "expr": "icloud_contacts_total_contacts{server_name=\"$server_name\"}",
@@ -237,11 +241,7 @@
           "legendFormat": "__auto",
           "range": true,
           "refId": "A",
-          "useBackend": false,
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "useBackend": false
         }
       ],
       "title": "iCloud Contacts",
@@ -593,15 +593,15 @@
       "pluginVersion": "11.6.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
           "expr": "icloud_location_latitude{server_name=\"$server_name\",device=~\"ip.*\"}",
           "legendFormat": "{{device}}",
           "range": true,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         }
       ],
       "title": "Device Latitude",
@@ -689,15 +689,15 @@
       "pluginVersion": "11.6.0",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
           "editorMode": "code",
           "expr": "icloud_location_longtitude{server_name=\"$server_name\",device=~\"ip.*\"}",
           "legendFormat": "{{device}}",
           "range": true,
-          "refId": "A",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          }
+          "refId": "A"
         }
       ],
       "title": "Device Longitude",
@@ -706,8 +706,11 @@
   ],
   "preload": false,
   "refresh": "30s",
-  "schemaVersion": 41,
-  "tags": ["icloud", "location"],
+  "schemaVersion": 42,
+  "tags": [
+    "icloud",
+    "location"
+  ],
   "templating": {
     "list": [
       {
@@ -761,5 +764,6 @@
   "timepicker": {},
   "timezone": "browser",
   "title": "iCloud",
-  "uid": "febsqrm0j5v5sa"
+  "uid": "febsqrm0j5v5sa",
+  "weekStart": ""
 }

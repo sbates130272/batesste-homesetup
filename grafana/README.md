@@ -9,19 +9,18 @@ and dashboard provider configuration.
 
 ```
 grafana/
-  deploy.sh                   # deploy to system paths
-  export-dashboards.sh        # pull dashboards from API
+  deploy.sh                   # repo -> Grafana
+  sync-dashboards.sh          # compare / Grafana -> repo
   firefly-db-init.sql         # Firefly III DB user + views
   provisioning/
     dashboards/
       dashboards.yaml         # dashboard provider config
     datasources/
       datasources.yaml        # Prometheus + MySQL datasources
-  dashboards/
+  dashboards/                 # first-party, one dir per Grafana folder
     amd-related/              # folder: AMD Related
       cpu-gpu-monitoring.json
       cursor-usage.json
-      rocm-xio-dashboard.json
     general/                  # folder: (root)
       lan-overview.json
     home-network-related/     # folder: Home Network Related
@@ -33,17 +32,53 @@ grafana/
       speedtest-wan-testing.json
     personal-finance/         # folder: Personal Finance
       firefly-overview.json
+    rocm-xio-related/         # folder: ROCm XIO Related
+      rocm-xio-dashboard.json
+  vendor/                     # adopted third-party dashboards
+    manifest.yaml             # provenance for each one
+    dashboards/
+      general/
+        amd-vllm-inference.json
+        hsa-snoop.json
+        lemonade-built-in-metrics.json
+        llamacpp-server-prometheus.json
+      home-network-related/
+        nvme-exporter-device-metrics.json
+        openai-exporter.json
+      rocm-aic-related/       # folder: ROCm AIC Related
+        rocm-aic-vllm-lmcache.json
+    retired/                  # deleted from the server, kept for recovery
+      hsa-snoop-v1.json
+      rocm-aic-dashboard.json
 ```
+
+The directory name under `dashboards/` and
+`vendor/dashboards/` is the folder slug, and every one must
+have a matching provider in
+`provisioning/dashboards/dashboards.yaml`. `deploy.sh`
+asserts this before it copies anything — adding a
+directory without a provider is an error rather than a
+silent no-op.
 
 ## Datasources
 
 Two datasources are configured via the provisioning YAML
 under `provisioning/datasources/`:
 
-| Name | Type | URL | Purpose |
-|------|------|-----|---------|
-| `snoc-beelink-prometheus` | Prometheus | `http://localhost:9090` | System/network metrics |
-| `firefly-mysql` | MySQL | `127.0.0.1:3306` | Firefly III personal finance |
+| Name | Type | UID | URL |
+|------|------|-----|-----|
+| `snoc-beelink-prometheus` | Prometheus | `ae8pyuqoyonpca` | `http://10.0.0.15:9090/prometheus` |
+| `firefly-mysql` | MySQL | `P382BE89091B0B8E6` | `127.0.0.1:3306` |
+
+Both UIDs are **pinned deliberately**. Every dashboard
+JSON in this repo hardcodes them; if Grafana were left to
+generate its own on a rebuild, every panel would lose its
+datasource. Don't change them without rewriting the
+dashboards to match.
+
+Both are also `editable: false`. Prometheus previously
+drifted from this file because the URL had been edited in
+the UI — change it here and run `./deploy.sh` instead.
 
 The Firefly III MySQL datasource connects to the
 MariaDB container on the Docker bridge network
@@ -54,20 +89,24 @@ user. The password is stored in the
 `/etc/default/grafana-server`). See
 `firefly-db-init.sql` for the one-time view setup.
 
-## Dashboards (11 total)
+## Dashboards (18 total)
 
-Dashboard JSON files are organized by Grafana folder.
-The `provisioning/dashboards/dashboards.yaml` file tells
-Grafana to watch `/var/lib/grafana/dashboards/<folder>/`
-for JSON files. `allowUiUpdates` is set to `true` so
-dashboards can still be edited in the Grafana UI and
-then re-exported.
+`provisioning/dashboards/dashboards.yaml` tells Grafana to
+watch `/var/lib/grafana/dashboards/<folder>/` for JSON
+files. First-party providers set `allowUiUpdates: true`, so
+dashboards can be edited in the UI and pulled back with
+`./sync-dashboards.sh --pull`.
+
+Each provider also pins `folderUid`. Provisioning matches
+folders by title alone and will create a *second* folder
+with the same name rather than adopt an existing one;
+pinning the UID prevents that and keeps folder identity
+stable across a rebuild.
 
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
-| AMD Related | CPU & GPU Monitoring | GPU/CPU/Lemonade AI server metrics |
+| AMD Related | Lemonade: CPU & GPU Monitoring | GPU/CPU/Lemonade AI server metrics |
 | AMD Related | Cursor IDE Usage | Cursor API cost, tokens, quotas, and usage |
-| AMD Related | rocm-xio dashboard | NVMe/RDMA xio benchmark results |
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs |
 | Home Network | iCloud | Device location tracking, photos, contacts |
@@ -76,6 +115,52 @@ then re-exported.
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
 | Personal Finance | Firefly III Overview | Income, spending, investments, category breakdown |
+| ROCm XIO Related | rocm-xio dashboard | NVMe/RDMA xio benchmark results |
+
+Adopted third-party dashboards (see below):
+
+| Folder | Dashboard |
+|--------|-----------|
+| General | AMD vLLM Inference Dashboard |
+| General | HSA Snoop |
+| General | Lemonade Metrics Dashboard |
+| General | llama.cpp server (Prometheus /metrics) |
+| Home Network | NVMe Exporter Device Metrics |
+| Home Network | OpenAI Exporter |
+| ROCm AIC Related | ROCm(tm) AMD Infinity Context Dashboard |
+
+## Third-party dashboards
+
+Several dashboards on the server came from elsewhere and
+were tracked nowhere, so a rebuild would have lost them.
+They now live under `vendor/`, with provenance recorded in
+`vendor/manifest.yaml`: UID, folder, upstream URL (or
+`local-import` where the origin is unknown), and the date
+the JSON was captured.
+
+`vendor-*` providers set `allowUiUpdates: false` on
+purpose. Making these read-only on the server is what keeps
+"sync" meaningful — to change one, edit the JSON here (or
+re-fetch it from its recorded upstream) and run
+`./deploy.sh`.
+
+`vendor/retired/` holds dashboards deleted from the server,
+kept so they can be restored by hand. It sits outside
+`vendor/dashboards/` deliberately, so no provider picks
+them up and re-creates them.
+
+### Recovered from v2 storage
+
+Five dashboards — four vendor, plus `lan-overview` — were
+stored by Grafana in the v2 dashboard schema
+(`elements`/`layout` rather than `panels`), which this repo
+does not track. They were captured by reading them back
+through the v1beta1 API, which renders the classic schema
+whatever is stored. Those files are therefore a *rendering*
+of what was running, not the stored bytes; deploying them
+converts the server's copy to v1 for real. That conversion
+is complete and every dashboard on the server is now
+file-provisioned.
 
 ## Investment Accounts
 
@@ -106,55 +191,91 @@ matching `RESP|LIRA|TFSA|RRSP|FHSA`.
 
 ## Workflow
 
-### Deploying changes from the repo to Grafana
-
-After editing dashboard JSON files or provisioning YAML
-in this repo, deploy them to the live Grafana instance:
+### Checking whether repo and server agree
 
 ```bash
 cd grafana
-./deploy.sh
+./sync-dashboards.sh --check
 ```
 
-This copies provisioning configs to
-`/etc/grafana/provisioning/`, dashboard JSONs to
-`/var/lib/grafana/dashboards/`, sets ownership to
-`grafana:grafana`, and restarts the Grafana service. Use
-`--dry-run` to preview without making changes.
+Reports drift and exits non-zero if any is found; writes
+nothing. It flags dashboards that differ, dashboards
+running in Grafana that no repo file claims
+(`UNTRACKED`), and repo files with no live counterpart
+(`ORPHANED`).
+
+### Deploying changes from the repo to Grafana
+
+```bash
+cd grafana
+./deploy.sh          # --dry-run to preview
+```
+
+Copies provisioning configs to `/etc/grafana/provisioning/`
+and dashboard JSONs to `/var/lib/grafana/dashboards/`, sets
+ownership to `grafana:grafana`, and restarts Grafana.
+
+Deployment is a **mirror**: files removed from the repo are
+removed from `/var/lib/grafana/dashboards/` too. That
+matters when a dashboard moves between folders — without
+pruning, the stale copy stays behind and two providers end
+up fighting over the same UID.
 
 ### Exporting dashboards from Grafana to the repo
 
-After editing a dashboard in the Grafana UI, export the
-changes back to the repo:
-
 ```bash
 cd grafana
-./export-dashboards.sh
+./sync-dashboards.sh --pull
 ```
 
-This pulls all dashboards via the Grafana HTTP API, strips
-transient fields (`id`, `version`), and writes them to the
-correct subdirectory under `dashboards/`. Review the diff
-and commit the changes.
+Pulls dashboards via the Grafana API, strips transient
+fields (`id`, `version`, `__inputs`), and updates files
+**keyed by UID** so a dashboard renamed in the UI updates
+its existing file rather than spawning a second one.
+Anything Grafana doesn't provision from disk is filed under
+`vendor/` for adoption. Review the diff and commit.
+
+Files are written in a canonical form — keys sorted, and
+`panels` sorted by grid position — and `--check` compares
+in that same form. Both orderings are cosmetic (Grafana
+lays panels out from `gridPos`, not array index), but
+Grafana is free to vary them, and a single panel out of
+position shifts every panel after it. Before canonicalising,
+that made no-op diffs read as thousands of changed lines and
+hid real edits inside them.
+
+Reads are done through
+`/apis/dashboard.grafana.app/v1beta1/...` rather than
+`/api/dashboards/uid/...`, because the latter returns
+whatever schema a dashboard happens to be stored as — and
+Grafana 13 stores some of ours as v2, which would produce
+thousands of lines of phantom diff against the v1 files on
+disk.
 
 ### Round-trip editing
 
-The intended workflow is:
-
 1. Edit a dashboard in the Grafana UI.
-2. Run `./export-dashboards.sh` to capture the change.
-3. Review the diff with `git diff`.
-4. Commit and push.
+2. `./sync-dashboards.sh --pull`
+3. `git diff`, then commit.
 
 Or the reverse:
 
 1. Edit a dashboard JSON file in the repo.
-2. Run `./deploy.sh` to push the change to Grafana.
-3. Commit and push.
+2. `./deploy.sh`
+3. Commit.
+
+### Moving a dashboard between folders
+
+Provisioning honours `folderUid` when it *creates* a
+dashboard, but will not relocate one that already exists.
+To move a provisioned dashboard, remove its JSON from
+`/var/lib/grafana/dashboards/`, restart Grafana so the
+dashboard is deleted, then restore the file in its new
+directory and restart again.
 
 ## Service Account Token
 
-The export script authenticates via a Grafana service
+`sync-dashboards.sh` authenticates via a Grafana service
 account token stored in `grafana-api.secrets` (gitignored
 by the `*.secrets` pattern). To create one:
 

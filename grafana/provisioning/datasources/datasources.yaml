@@ -4,15 +4,25 @@
 
 apiVersion: 1
 
+# The uid values below are pinned deliberately. Every dashboard JSON in
+# this repo hardcodes them; if Grafana were left to generate its own on a
+# rebuild, every panel would lose its datasource. Do not change them
+# without rewriting the dashboards to match.
+#
+# editable is false so UI edits cannot silently diverge from this file --
+# change the datasource here and run ./deploy.sh.
+
 datasources:
   - name: snoc-beelink-prometheus
+    uid: ae8pyuqoyonpca
     type: prometheus
     access: proxy
-    url: http://localhost:9090
+    url: http://10.0.0.15:9090/prometheus
     isDefault: true
-    editable: true
+    editable: false
 
   - name: firefly-mysql
+    uid: P382BE89091B0B8E6
     type: mysql
     url: 127.0.0.1:3306
     database: firefly
@@ -22,4 +32,4 @@ datasources:
     jsonData:
       maxOpenConns: 2
       connMaxLifetime: 14400
-    editable: true
+    editable: false
