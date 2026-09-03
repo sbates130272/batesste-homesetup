@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+#
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+#
+# batesste-hermes-s3-backup
+# -------------------------
+#
+# Create a Hermes home-directory backup with ``hermes backup`` and upload
+# the resulting zip archive to AWS S3.  Intended to run from a weekly
+# systemd user timer on hosts that run Hermes (for example snoc-beelink).
+
+set -euo pipefail
+
+AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID:-none}"
+AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-none}"
+AWS_REGION="${AWS_REGION:-us-west-2}"
+AWS_BUCKET="${AWS_BUCKET:-batesste-hermes-backups}"
+PRUNE_DAYS="${PRUNE_DAYS:-90}"
+BACKUP_WORKDIR="${BACKUP_WORKDIR:-/var/tmp/hermes-backup}"
+LOG_DIR="${LOG_DIR:-${HOME}/.hermes/workspace/logs}"
+
+HOST="$(uname -n)"
+STAMP="$(date +%F-%H-%M)"
+ZIP_BASENAME="${HOST}-hermes-backup-${STAMP}.zip"
+ZIP_PATH="${BACKUP_WORKDIR}/${ZIP_BASENAME}"
+LOG_FILE="${LOG_DIR}/hermes_s3_backup.log"
+
+log() {
+    local message="$1"
+    printf '%s %s\n' "$(date --iso-8601=seconds)" "${message}" | tee -a "${LOG_FILE}"
+}
+
+require_command() {
+    local cmd="$1"
+    if ! command -v "${cmd}" >/dev/null 2>&1; then
+        log "ERROR: Required command not found: ${cmd}"
+        exit 1
+    fi
+}
+
+validate_config() {
+    if [[ "${AWS_ACCESS_KEY_ID}" == "none" ]]; then
+        log "ERROR: AWS_ACCESS_KEY_ID is not set."
+        exit 1
+    fi
+    if [[ "${AWS_SECRET_ACCESS_KEY}" == "none" ]]; then
+        log "ERROR: AWS_SECRET_ACCESS_KEY is not set."
+        exit 1
+    fi
+}
+
+prune_local_staging() {
+    find "${BACKUP_WORKDIR}" -name '*-hermes-backup-*.zip' -mtime +7 -delete
+}
+
+prune_remote_backups() {
+    local cutoff_epoch file_epoch date_part file_name
+    cutoff_epoch=$(( $(date +%s) - PRUNE_DAYS * 86400 ))
+
+    while IFS= read -r line; do
+        [[ -n "${line}" ]] || continue
+        date_part="$(awk '{print $1}' <<< "${line}")"
+        file_name="$(awk '{print $4}' <<< "${line}")"
+        [[ "${file_name}" == *hermes-backup* ]] || continue
+
+        file_epoch="$(date -d "${date_part}" +%s 2>/dev/null || true)"
+        [[ -n "${file_epoch}" ]] || continue
+
+        if (( file_epoch < cutoff_epoch )); then
+            log "INFO: Pruning s3://${AWS_BUCKET}/${file_name}"
+            aws s3 rm "s3://${AWS_BUCKET}/${file_name}" \
+                --region "${AWS_REGION}"
+        fi
+    done < <(aws s3 ls "s3://${AWS_BUCKET}/" --region "${AWS_REGION}" \
+        | grep 'hermes-backup' || true)
+}
+
+main() {
+    mkdir -p "${BACKUP_WORKDIR}" "${LOG_DIR}"
+    validate_config
+    require_command hermes
+    require_command aws
+
+    log "INFO: Creating Hermes backup at ${ZIP_PATH}"
+    hermes backup -o "${ZIP_PATH}"
+
+    log "INFO: Uploading to s3://${AWS_BUCKET}/${ZIP_BASENAME}"
+    aws s3 cp "${ZIP_PATH}" "s3://${AWS_BUCKET}/${ZIP_BASENAME}" \
+        --region "${AWS_REGION}" \
+        --sse AES256
+
+    log "INFO: Pruning local staging files older than 7 days"
+    prune_local_staging
+
+    log "INFO: Pruning remote backups older than ${PRUNE_DAYS} days"
+    prune_remote_backups
+
+    log "INFO: Backup complete: s3://${AWS_BUCKET}/${ZIP_BASENAME}"
+}
+
+main "$@"

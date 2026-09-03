@@ -1,0 +1,7 @@
+[Unit]
+Description=Weekly Hermes backup to AWS S3
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/batesste-hermes-s3-backup
+EnvironmentFile=%h/.config/batesste-hermes-s3-backup/batesste-hermes-s3-backup.secrets
