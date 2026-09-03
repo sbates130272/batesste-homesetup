@@ -27,6 +27,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DASH_DIR="${SCRIPT_DIR}/dashboards"
 VENDOR_DIR="${SCRIPT_DIR}/vendor/dashboards"
 MANIFEST="${SCRIPT_DIR}/vendor/manifest.yaml"
+PROVIDERS_YAML="${PROVIDERS_YAML:-${SCRIPT_DIR}/provisioning/dashboards/dashboards.yaml}"
+GF_UNIT="${GF_UNIT:-grafana-server}"
 SECRETS_FILE="${SCRIPT_DIR}/grafana-api.secrets"
 GRAFANA_URL="${GRAFANA_URL:-http://localhost:3000}"
 NS="default"
@@ -43,6 +45,9 @@ repository, and optionally reconcile them.
 Modes:
   --check   (default) Report drift and exit non-zero if any is found.
             Writes nothing. Suitable for CI or a pre-commit hook.
+            Also scans the Grafana journal for dashboards that
+            provisioning is refusing to write -- those compare as
+            in-sync while silently discarding every edit.
   --pull    Live Grafana -> repo. Updates tracked files in place, keyed
             by dashboard UID, and files any dashboard Grafana does not
             provision from disk under vendor/ as an adopted third-party
@@ -159,6 +164,68 @@ normalize() {
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
+# Drift is a content comparison, so by construction it cannot see a
+# dashboard Grafana is refusing to *write*. That is not hypothetical:
+# amd-vllm-inference and node-exporter-full were issued the same
+# deprecatedInternalID, so provisioning rejected both with "unexpected
+# number of dashboards for id 1", and neither accepted an update for
+# hours. Nothing reported it, because the content already matched --
+# they had been created by an earlier pull, so there was nothing left to
+# write and nothing to diff. The next real edit simply vanished.
+#
+# So check the other half: not "do repo and server agree" but "is the
+# server still able to be updated at all".
+#
+# The window comes from the providers file. A rejected write is retried
+# on every provisioning poll (the save fails, so the stored checksum
+# never advances), which means anything currently broken has logged
+# within one interval; three gives margin without scanning the journal
+# back to boot.
+check_provisioning_health() {
+    local poll window log failures f
+
+    # The journal describes the Grafana running on *this* host, so it says
+    # nothing about a remote --url. And a healthy Grafana is quiet: it logs
+    # only on change or error, so "no lines in the window" is a normal pass,
+    # not evidence of anything. Gate on the unit actually running instead.
+    if ! command -v journalctl >/dev/null 2>&1 \
+        || ! command -v systemctl >/dev/null 2>&1 \
+        || ! systemctl is-active --quiet "${GF_UNIT}" 2>/dev/null \
+        || [[ ! "${GRAFANA_URL}" =~ ^https?://(localhost|127\.0\.0\.1)(:|/|$) ]]
+    then
+        echo "    NOTE: ${GF_UNIT} is not a running local systemd unit for"
+        echo "          ${GRAFANA_URL}, so provisioning health was not checked."
+        return 0
+    fi
+
+    poll="$(sed -n \
+        's/^[[:space:]]*updateIntervalSeconds:[[:space:]]*\([0-9][0-9]*\).*/\1/p' \
+        "${PROVIDERS_YAML}" 2>/dev/null | sort -n | tail -1)"
+    [[ -z "${poll}" ]] && poll=30
+    window=$((poll * 3))
+    [[ "${window}" -lt 120 ]] && window=120
+
+    log="$(journalctl -u "${GF_UNIT}" --since "-${window}s" --no-pager 2>/dev/null || true)"
+
+    failures="$(grep -F 'failed to save dashboard' <<<"${log}" \
+        | grep -oP 'file=\S+' | sed 's/^file=//' | sort -u || true)"
+    [[ -z "${failures}" ]] && return 0
+
+    while IFS= read -r f; do
+        [[ -z "$f" ]] && continue
+        echo "    REJECTED   ${f}"
+        grep -F 'failed to save dashboard' <<<"${log}" \
+            | grep -F "file=${f}" \
+            | grep -oP 'error="\K[^"]+' | sort -u \
+            | sed 's/^/               /'
+        echo "               Grafana is refusing to write this dashboard, so"
+        echo "               edits to it are silently discarded."
+    done <<<"${failures}"
+    DRIFT=1
+    REJECTED=1
+}
+REJECTED=0
+
 # ── Build uid -> repo path index ────────────────────────────────────
 # This is what makes the sync stable: a dashboard that gets renamed in
 # the UI updates its existing file rather than spawning a new one.
@@ -273,11 +340,23 @@ for u in "${!UID_PATH[@]}"; do
     fi
 done
 
+check_provisioning_health
+
 echo ""
 if [[ "${MODE}" == "check" ]]; then
     if [[ "${DRIFT}" -eq 0 ]]; then
         echo "==> In sync."
         exit 0
+    fi
+    if [[ "${REJECTED}" -eq 1 ]]; then
+        # Neither --pull nor --push helps here: one would overwrite the
+        # repo with a copy the server cannot update, the other would
+        # write changes the server drops on the floor.
+        echo "==> Grafana is rejecting writes for the dashboards marked" >&2
+        echo "    REJECTED above. Fix that before syncing -- --pull would" >&2
+        echo "    adopt a copy the server cannot update, and --push would" >&2
+        echo "    send changes it will discard." >&2
+        exit 1
     fi
     echo "==> Drift detected. Run --pull to adopt Grafana's state," >&2
     echo "    or --push to overwrite it from the repo." >&2

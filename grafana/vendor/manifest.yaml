@@ -5,18 +5,37 @@
 # Provenance for third-party dashboards adopted into this repo.
 #
 # These were running on snoc-beelink but tracked nowhere, so a rebuild
-# would have lost them. None of them carries a `gnetId`, and all were
-# created by the same local Grafana user, so they were hand-imported
-# rather than installed from grafana.com -- which is why most `upstream`
-# fields below say `local-import`. Fill in a real URL as you identify
-# where each one came from; that upgrades its refresh path from
-# "export what is running" to "re-fetch and diff".
+# would have lost them. Fill in a real URL as you identify where each one
+# came from; that upgrades its refresh path from "export what is running"
+# to "re-fetch and diff".
+#
+# Do not read a missing `gnetId` as "not from grafana.com". Every file
+# here lacks one, and that was originally taken as evidence they were all
+# hand-authored -- wrong for two of them. `gnetId` is only recorded when a
+# dashboard is imported *by ID*; pasting the same JSON by hand produces an
+# identical dashboard with no gnetId and no trace of its origin.
+#
+# The signal that does survive a paste is a `DS_*` datasource template
+# variable. grafana.com requires published dashboards to parameterise
+# their datasource, so `DS_PROMETHEUS` with `query: prometheus` is the
+# fingerprint of that publishing flow. It picks out exactly the two
+# entries below with a grafana.com upstream and nothing else, which is
+# why the remaining `local-import` entries are believed genuine rather
+# than merely unidentified.
 #
 # Fields:
 #   uid        Grafana dashboard UID. The sync script keys on this, so
 #              it must match the `uid` inside the JSON file.
 #   folder     Grafana folder the dashboard appears in.
 #   upstream   Source URL, or `local-import` if unknown.
+#   upstream_ref
+#              The exact upstream revision our copy corresponds to, where
+#              that has been established by diff. Its absence means the
+#              upstream is identified but the revision is not.
+#   upstream_confidence
+#              Present, and `probable`, where the upstream was matched by
+#              circumstantial evidence rather than a JSON diff. Treat a
+#              refresh from one of these as a change, not a no-op.
 #   retrieved  Date the JSON in this repo was captured.
 #   created    Date the dashboard first appeared in Grafana.
 #
@@ -29,25 +48,51 @@ dashboards:
     title: HSA Snoop
     file: dashboards/general/hsa-snoop.json
     folder: General
-    upstream: local-import
+    upstream: https://github.com/sbates130272/hsa-snoop/blob/main/grafana/hsa-snoop-dashboard.json
+    upstream_ref: 6fe51004
     retrieved: 2026-09-03
     created: 2026-07-17
     notes: >-
       Kept in preference to the near-identical hsa-snoop-v1, which was
       the older copy despite its name and is archived under retired/.
 
+      Our copy is upstream commit 6fe51004 (2026-07-17) exactly: same 39
+      panels, same titles, byte-identical queries. The only differences
+      are regenerated panel uids and Grafana's own normalisation on read
+      (dropped `"value": null` threshold steps and `gnetId`, materialised
+      `weekStart` and the default annotation).
+
+      Do NOT refresh from main without checking Loki first. Upstream
+      85c6b424 (2026-09-01, NDJSON dispatch log) took it to 48 panels,
+      and 7 of the 9 new ones query a `loki` datasource. This server has
+      only prometheus and mysql provisioned, so those panels would render
+      as datasource errors. Either provision Loki first, or cherry-pick
+      the prometheus-only additions (the AIS Ops/Bytes/Snoop panels,
+      which upstream also renamed from AIS Status/AIS Total Bytes).
+
   - uid: WwP1Px4Mz
     title: NVMe Exporter Device Metrics
     file: dashboards/home-network-related/nvme-exporter-device-metrics.json
     folder: Home Network Related
-    upstream: local-import
+    upstream: https://grafana.com/grafana/dashboards/12736-nvme-exporter/
+    upstream_confidence: probable
     retrieved: 2026-09-03
     created: 2026-03-04
     notes: >-
-      Imported without binding its ${DS_PROMETHEUS} input, so 43 panels
-      pointed at a literal unresolved variable and 2 more at a datasource
-      uid (afbhhnhhmsttsb) that does not exist on this server. All 45
-      were repointed to snoc-beelink-prometheus on adoption.
+      Identified as grafana.com 12736 (exporter:
+      github.com/yongseokoh/nvme_exporter) by its description, which
+      matches 12736's verbatim, by panel count, and by the DS_PROMETHEUS
+      variable that marks a grafana.com publication. Not confirmed against
+      the upstream JSON -- this host has no direct egress to grafana.com.
+      The near-identical 14983 "NVMe Exporter All Device" was ruled out:
+      it collapses every metric into one panel and ours has 20.
+
+      Imported without binding its ${DS_PROMETHEUS} input, so its panels
+      pointed at either a literal unresolved variable or a datasource uid
+      (afbhhnhhmsttsb) that does not exist on this server. All 48 real
+      datasource references across the 20 panels were repointed to
+      snoc-beelink-prometheus on adoption; the 49th is the built-in
+      "-- Grafana --" annotation source and was left alone.
 
   - uid: 6cfbc0e1-5316-4cb3-82ed-65ffcb3a2b37
     title: OpenAI Exporter
@@ -79,13 +124,41 @@ dashboards:
     title: Lemonade Metrics Dashboard
     file: dashboards/general/lemonade-built-in-metrics.json
     folder: General
-    upstream: local-import
+    upstream: https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/
+    upstream_confidence: probable
+    upstream_metrics: https://github.com/lemonade-sdk/lemonade
     retrieved: 2026-09-03
     created: 2026-06-05
     notes: >-
-      Uses ${DS_PROMETHEUS} across 50 panels, but unlike the NVMe
-      dashboard above that is a real datasource template variable bound
-      to snoc-beelink-prometheus, not an unresolved import input.
+      grafana.com 25422. Its slug is our uid verbatim, it carries the
+      `built-in-metrics` tag, and it has the DS_PROMETHEUS variable that
+      only the grafana.com publishing flow requires. Marked probable
+      rather than confirmed because this host cannot reach grafana.com to
+      diff the JSON, and because our title reads "Lemonade Metrics
+      Dashboard" against the listing's "Lemonade Built-in Metrics" --
+      either a local rename or a listing/JSON mismatch, unresolved.
+
+      Note it is not in the lemonade-sdk/lemonade repo: that ships no
+      Grafana JSON at all. `upstream_metrics` records where the metric
+      *contract* lives instead (src/cpp/server/prometheus_metrics.cpp),
+      which is what a query has to stay valid against.
+
+      ${DS_PROMETHEUS} is bound here to snoc-beelink-prometheus -- a real
+      template variable, unlike the NVMe dashboard above where the same
+      name was left as an unresolved import input.
+
+      Checked 2026-09-03 against the 44 lemonade_* series live in
+      Prometheus: 22 of its 25 metric names resolve. Two panels are dead,
+      both querying a lemonade_model_decode_token_time_* family that
+      lemonade no longer exports -- "Streaming Decode Token Timing" and
+      "Streaming Decode Token Samples". Re-fetching 25422 may well fix
+      those, since upstream tracks lemonade's renames.
+
+      Checked 2026-09-03 against the 44 lemonade_* series live in
+      Prometheus: 22 of its 25 metric names resolve. Two panels are dead,
+      both querying a lemonade_model_decode_token_time_* family that
+      lemonade no longer exports -- "Streaming Decode Token Timing" and
+      "Streaming Decode Token Samples".
 
   - uid: llamacpp-server-prometheus
     title: llama.cpp server (Prometheus /metrics)

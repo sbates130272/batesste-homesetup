@@ -204,6 +204,27 @@ running in Grafana that no repo file claims
 (`UNTRACKED`), and repo files with no live counterpart
 (`ORPHANED`).
 
+It also scans the Grafana journal for dashboards
+provisioning is refusing to write (`REJECTED`). That is a
+separate failure from drift, and the comparison cannot see
+it: a dashboard whose content already matches compares as
+in-sync while silently discarding every subsequent edit.
+This is not hypothetical — `amd-vllm-inference` and
+`node-exporter-full` were once issued the same internal ID,
+so Grafana rejected both writes for hours while `--check`
+reported everything fine.
+
+Neither `--pull` nor `--push` is the right response to
+`REJECTED`: one would adopt a copy the server cannot
+update, the other would send changes it will discard. Fix
+the underlying rejection first.
+
+The scan only runs against a local Grafana managed by
+systemd, since the journal says nothing about a remote
+`--url`. Where it cannot run it says so rather than imply a
+clean bill of health. Override the unit name with
+`GF_UNIT` if yours differs from `grafana-server`.
+
 ### Deploying changes from the repo to Grafana
 
 ```bash
