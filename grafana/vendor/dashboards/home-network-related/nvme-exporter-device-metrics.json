@@ -25,6 +25,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Read and write throughput as the Linux block layer accounts for it, from node-exporter. Compare with \"Data Units Read and Written to Device\" below, which is the drive's own accounting of the same traffic.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -133,7 +134,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
-      "description": "This is a plot of the amount of data written/read to and from this NVMe Device.",
+      "description": "Throughput as the drive itself accounts for it, from the SMART data-unit counters (1000 x 512-byte blocks each, hence x 512000). Compare with NVMe Throughput above, which is what the kernel block layer saw.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -193,7 +194,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "Bps"
         },
         "overrides": []
       },
@@ -225,11 +226,11 @@
             "uid": "ae8pyuqoyonpca"
           },
           "editorMode": "code",
-          "expr": "rate(nvme_data_units_read{device=\"$device\"}[$__rate_interval])",
+          "expr": "rate(nvme_data_units_read{device=\"$device\"}[$__rate_interval]) * 512000",
           "format": "time_series",
           "instant": false,
           "interval": "",
-          "legendFormat": "LBAs Read",
+          "legendFormat": "Read",
           "range": true,
           "refId": "A"
         },
@@ -239,9 +240,9 @@
             "uid": "ae8pyuqoyonpca"
           },
           "editorMode": "code",
-          "expr": "rate(nvme_data_units_written{device=\"$device\"}[$__rate_interval])",
+          "expr": "rate(nvme_data_units_written{device=\"$device\"}[$__rate_interval]) * 512000",
           "instant": false,
-          "legendFormat": "LBAs Written",
+          "legendFormat": "Written",
           "range": true,
           "refId": "B"
         }
@@ -254,6 +255,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Vendor estimate of endurance consumed, as a percentage of the drive's rated write endurance. It is allowed to exceed 100%; the drive does not stop working when it does.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -271,7 +273,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -319,6 +322,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Composite controller temperature reported in the SMART log.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -337,7 +341,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "celsius"
         },
         "overrides": []
       },
@@ -387,6 +391,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "SMART critical-warning bit 4: the subsystem has degraded to the point of affecting reliability. Any value other than OK warrants attention.",
       "fieldConfig": {
         "defaults": {
           "displayName": "Available Spare",
@@ -394,10 +399,14 @@
             {
               "options": {
                 "0": {
-                  "text": "Health"
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
                 },
                 "1": {
-                  "text": "Warning"
+                  "color": "red",
+                  "index": 1,
+                  "text": "WARN"
                 }
               },
               "type": "value"
@@ -419,7 +428,7 @@
               }
             ]
           },
-          "unit": "Misc"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -470,6 +479,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "SMART critical-warning bit 1: the composite temperature is above the over-temperature threshold or below the under-temperature threshold.",
       "fieldConfig": {
         "defaults": {
           "displayName": "Available Spare",
@@ -477,10 +487,14 @@
             {
               "options": {
                 "0": {
-                  "text": "Health"
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
                 },
                 "1": {
-                  "text": "Warning"
+                  "color": "red",
+                  "index": 1,
+                  "text": "WARN"
                 }
               },
               "type": "value"
@@ -502,7 +516,7 @@
               }
             ]
           },
-          "unit": "Misc"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -552,6 +566,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "SMART critical-warning bit 0: available spare capacity has fallen below the threshold shown in \"Spare Threshold\".",
       "fieldConfig": {
         "defaults": {
           "displayName": "Available Spare",
@@ -559,10 +574,14 @@
             {
               "options": {
                 "0": {
-                  "text": "Health"
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
                 },
                 "1": {
-                  "text": "Warning"
+                  "color": "red",
+                  "index": 1,
+                  "text": "WARN"
                 }
               },
               "type": "value"
@@ -584,7 +603,7 @@
               }
             ]
           },
-          "unit": "Misc"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -635,6 +654,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Lifetime count of entries in the drive's error information log. Grows monotonically; a jump means something new went wrong.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -650,7 +670,8 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -685,7 +706,7 @@
             "type": "prometheus",
             "uid": "ae8pyuqoyonpca"
           },
-          "expr": "nvme_num_error_log_entries{device=\"$device\"}",
+          "expr": "nvme_num_err_log_entries{device=\"$device\"}",
           "instant": false,
           "interval": "",
           "legendFormat": "",
@@ -700,7 +721,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
-      "description": "Show the remaining capacity of the target device as a percentage of capacity.",
+      "description": "Remaining spare blocks as a percentage of the factory allotment. Falling towards \"Spare Threshold\" means the drive is running out of replacements for worn blocks.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -725,7 +746,8 @@
                 "value": 30
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -773,6 +795,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "The level at which the drive raises the Available Spare critical warning. Compare against \"Available Spare Capacity\" above.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -790,7 +813,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "percent"
         },
         "overrides": []
       },
@@ -838,6 +862,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "SMART critical-warning bit 3: the media has been placed in read-only mode. The drive will accept no further writes.",
       "fieldConfig": {
         "defaults": {
           "displayName": "Available Spare",
@@ -845,10 +870,14 @@
             {
               "options": {
                 "0": {
-                  "text": "Health"
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
                 },
                 "1": {
-                  "text": "Warning"
+                  "color": "red",
+                  "index": 1,
+                  "text": "WARN"
                 }
               },
               "type": "value"
@@ -870,7 +899,7 @@
               }
             ]
           },
-          "unit": "Misc"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -920,6 +949,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "SMART critical-warning bit 4: the volatile-memory backup device has failed. Only meaningful on drives that have one.",
       "fieldConfig": {
         "defaults": {
           "displayName": "Available Spare",
@@ -927,10 +957,14 @@
             {
               "options": {
                 "0": {
-                  "text": "Health"
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
                 },
                 "1": {
-                  "text": "Warning"
+                  "color": "red",
+                  "index": 1,
+                  "text": "WARN"
                 }
               },
               "type": "value"
@@ -952,7 +986,7 @@
               }
             ]
           },
-          "unit": "Misc"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1002,6 +1036,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "SMART critical-warning bit 5: the Persistent Memory Region has become read-only or unreliable.",
       "fieldConfig": {
         "defaults": {
           "displayName": "Available Spare",
@@ -1009,10 +1044,14 @@
             {
               "options": {
                 "0": {
-                  "text": "Health"
+                  "color": "green",
+                  "index": 0,
+                  "text": "OK"
                 },
                 "1": {
-                  "text": "Warning"
+                  "color": "red",
+                  "index": 1,
+                  "text": "WARN"
                 }
               },
               "type": "value"
@@ -1034,7 +1073,7 @@
               }
             ]
           },
-          "unit": "Misc"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1084,6 +1123,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Lifetime count of unrecovered data-integrity errors: uncorrectable ECC, CRC failures, and LBA tag mismatches. Should stay at zero.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -1099,7 +1139,8 @@
                 "value": 1
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -1149,6 +1190,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Lifetime power-on count, plotted against the subset of those that ended in an unsafe shutdown (power lost before the drive was told to stop).",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1258,6 +1300,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Fraction of time the drive spends above its warning and critical composite-temperature thresholds. The counters are in minutes, so the rate is scaled by 60 to read as a duty cycle.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1312,7 +1355,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "percentunit"
         },
         "overrides": []
       },
@@ -1344,7 +1387,7 @@
             "uid": "ae8pyuqoyonpca"
           },
           "editorMode": "code",
-          "expr": "rate(nvme_warning_temp_time{device=\"$device\"}[$__rate_interval])",
+          "expr": "rate(nvme_warning_temp_time{device=\"$device\"}[$__rate_interval]) * 60",
           "interval": "",
           "legendFormat": "warning",
           "range": true,
@@ -1356,7 +1399,7 @@
             "uid": "ae8pyuqoyonpca"
           },
           "editorMode": "code",
-          "expr": "rate(nvme_critical_comp_time{device=\"$device\"}[$__rate_interval])",
+          "expr": "rate(nvme_critical_comp_time{device=\"$device\"}[$__rate_interval]) * 60",
           "interval": "",
           "legendFormat": "critical",
           "range": true,
@@ -1371,6 +1414,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Cumulative hours the drive has been powered on over its lifetime.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1425,7 +1469,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "h"
         },
         "overrides": []
       },
@@ -1470,6 +1514,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Total bytes read from and written to the device over its lifetime. SMART reports these as \"data units\" of 1000 x 512-byte blocks, so the raw counter is scaled by 512000 to get bytes.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1524,7 +1569,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "bytes"
         },
         "overrides": []
       },
@@ -1556,7 +1601,7 @@
             "uid": "ae8pyuqoyonpca"
           },
           "editorMode": "code",
-          "expr": "nvme_data_units_read{device=\"$device\"} * 512 * 1024 / 1024 / 1024 / 1024",
+          "expr": "nvme_data_units_read{device=\"$device\"} * 512000",
           "interval": "",
           "legendFormat": "Read",
           "range": true,
@@ -1568,14 +1613,14 @@
             "uid": "ae8pyuqoyonpca"
           },
           "editorMode": "code",
-          "expr": "nvme_data_units_written{device=\"$device\"} * 512 * 1024 / 1024 / 1024 / 1024",
+          "expr": "nvme_data_units_written{device=\"$device\"} * 512000",
           "interval": "",
-          "legendFormat": "Write",
+          "legendFormat": "Written",
           "range": true,
           "refId": "B"
         }
       ],
-      "title": "Data Unit Read/Write",
+      "title": "Data Read/Written (lifetime)",
       "type": "timeseries"
     },
     {
@@ -1583,6 +1628,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Lifetime count of read and write commands the host has issued. Divided into the data-unit counters, this gives average command size.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1692,6 +1738,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
+      "description": "Cumulative time the controller has spent servicing I/O. The SMART counter is in minutes and is scaled by 60 here so the unit reads as seconds.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1746,7 +1793,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -1777,7 +1824,7 @@
             "type": "prometheus",
             "uid": "ae8pyuqoyonpca"
           },
-          "expr": "nvme_controller_busy_time{device=\"$device\"}",
+          "expr": "nvme_controller_busy_time{device=\"$device\"} * 60",
           "interval": "",
           "legendFormat": "{{device}}",
           "refId": "A"
@@ -1893,8 +1940,8 @@
     ]
   },
   "time": {
-    "from": "2026-03-04T16:26:26.156Z",
-    "to": "2026-03-04T16:46:26.156Z"
+    "from": "now-6h",
+    "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [

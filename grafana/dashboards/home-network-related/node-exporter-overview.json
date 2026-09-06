@@ -32,7 +32,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "One row per host running node-exporter: kernel and release from node_uname_info, then CPU, memory and filesystem utilisation, peak disk and network rates over the window, TCP socket counts, and load average normalised by core count. Hosts that have stopped reporting drop out of the table entirely rather than showing as down -- use the Service Health tiles on LAN Overview for liveness.",
       "fieldConfig": {
         "defaults": {
           "custom": {

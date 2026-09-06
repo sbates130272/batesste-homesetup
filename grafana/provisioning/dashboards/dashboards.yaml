@@ -50,18 +50,6 @@ providers:
       path: /var/lib/grafana/dashboards/general
       foldersFromFilesStructure: false
 
-  - name: amd-related
-    orgId: 1
-    folder: AMD Related
-    folderUid: bfhho76dk60hsf
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /var/lib/grafana/dashboards/amd-related
-      foldersFromFilesStructure: false
-
   - name: personal-finance
     orgId: 1
     folder: Personal Finance
@@ -87,18 +75,19 @@ providers:
       foldersFromFilesStructure: false
 
   # ── Adopted third-party dashboards ─────────────────────────────
-  #
-  # Neither provider below sets folderUid, on purpose. Grafana rejects two
-  # providers claiming the same one ("the same folder UID is used more
-  # than once"), and amd-related and home-network-related above already
-  # own bfhho76dk60hsf and ee8pz914edpfkf. Matching on title alone is safe
-  # here because those providers have already created the folders -- title
-  # matching only spawns a duplicate when no provisioned folder of that
-  # name exists yet.
 
+  # This one *does* pin folderUid, unlike its sibling below. Retiring
+  # cursor-usage emptied dashboards/amd-related/ and took the first-party
+  # amd-related provider with it, which had been the sole claimant of
+  # bfhho76dk60hsf. Leaving it unpinned would mean nothing binds AMD
+  # Related to that uid, so a rebuild would match on title, find no
+  # provisioned folder of that name, and create a fresh one. Grafana only
+  # rejects a folderUid claimed *twice*; now that it is claimed once, this
+  # provider should hold it.
   - name: vendor-amd-related
     orgId: 1
     folder: AMD Related
+    folderUid: bfhho76dk60hsf
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
@@ -107,6 +96,12 @@ providers:
       path: /var/lib/grafana/dashboards/vendor/amd-related
       foldersFromFilesStructure: false
 
+  # No folderUid here, for the opposite reason: home-network-related above
+  # is still alive and already claims ee8pz914edpfkf, and Grafana rejects
+  # two providers claiming one uid. Matching on title alone is safe while
+  # that provider exists, because title matching only spawns a duplicate
+  # when no provisioned folder of that name does. If it is ever retired,
+  # move the uid here the way it was moved onto vendor-amd-related.
   - name: vendor-home-network-related
     orgId: 1
     folder: Home Network Related

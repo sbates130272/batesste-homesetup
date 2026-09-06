@@ -26,6 +26,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Whether the Lemonade server is reporting itself up. This is Lemonade's own self-report, not scrape liveness -- if the scrape fails the panel goes to no-data rather than zero.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -110,6 +111,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Number of models currently resident. Compare against \"Configured Max Loaded Models\" below.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -175,6 +177,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Lifetime request count across all models since the server started. Resets when Lemonade restarts.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -240,6 +243,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "One row per loaded model, from lemonade_model_info: the label set carries the checkpoint, recipe and device placement. The value itself is not meaningful.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -340,6 +344,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Requests per second, in total and broken down by model.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -452,6 +457,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Prefill latency of the most recent request for each model -- how long the user waited before any output appeared. This is a last-value gauge, not an average over the window.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -553,6 +559,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Cumulative prompt and generated token counts since server start.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -665,6 +672,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "CPU, GPU and NPU utilisation as Lemonade itself measures them. For the discrete GPU, \"External AMD GPU\" panels below are the authoritative source; these are Lemonade's view of whichever device it is scheduled on.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -798,6 +806,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Decode throughput of the most recent request for each model. Like TTFT above, a last-value gauge rather than a windowed average.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -899,6 +908,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "The ceiling Lemonade is configured to keep resident, by model type. Loading past it evicts.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1000,6 +1010,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Host memory and VRAM Lemonade reports as in use, in gigabytes.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1215,6 +1226,7 @@
         "type": "prometheus",
         "uid": "${DS_PROMETHEUS}"
       },
+      "description": "Requests the llama.cpp backend is actively processing versus those deferred behind them. A persistent deferred count means the backend is the bottleneck, not the model.",
       "fieldConfig": {
         "defaults": {
           "color": {

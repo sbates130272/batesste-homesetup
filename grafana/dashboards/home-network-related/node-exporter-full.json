@@ -2466,6 +2466,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Per-mode CPU time as a fraction of total capacity, normalised by core count so the stack tops out at 100% regardless of how many cores the host has. Sustained iowait is a storage problem, sustained system is usually interrupt or syscall load.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -2790,6 +2791,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Where RAM has actually gone, as a stack: application memory, page cache, buffers, swap and free. Cache filling up is normal and healthy -- it is the application slice growing that matters.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3289,6 +3291,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Bits per second in and out of every interface. Loopback and virtual interfaces are included, so totals here can exceed what crosses the wire.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3474,6 +3477,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Bytes used per mountpoint. The absolute view; \"Disk Space Used Basic\" above is the same data as a percentage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -3575,6 +3579,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Read and write operations per second for the selected devices. Compare with \"I/O Usage Read / Write\" -- high IOps at low bandwidth means a small-random workload.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4013,6 +4018,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Bytes per second to and from the selected devices.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4240,6 +4246,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Fraction of wall-clock time each device spent with at least one request in flight. Approaching 100% means the device is saturated, though for NVMe that is a weaker signal than for spinning disks because they service requests in parallel.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4370,6 +4377,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Fraction of CPU time spent running guest virtual machines. Zero on hosts that are not hypervisors.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4485,7 +4493,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "sum by(instance) (irate(node_cpu_guest_seconds_total{instance=\"$node\",job=\"$job\", mode=\"user\"}[1m])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}[1m])))",
+              "expr": "sum by(instance) (irate(node_cpu_guest_seconds_total{instance=\"$node\",job=\"$job\", mode=\"user\"}[$__rate_interval])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])))",
               "legendFormat": "Guest - Time spent running a virtual CPU for a guest operating system",
               "range": true,
               "refId": "A"
@@ -4496,7 +4504,7 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "sum by(instance) (irate(node_cpu_guest_seconds_total{instance=\"$node\",job=\"$job\", mode=\"nice\"}[1m])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}[1m])))",
+              "expr": "sum by(instance) (irate(node_cpu_guest_seconds_total{instance=\"$node\",job=\"$job\", mode=\"nice\"}[$__rate_interval])) / on(instance) group_left sum by (instance)((irate(node_cpu_seconds_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])))",
               "legendFormat": "GuestNice - Time spent running a niced guest  (virtual CPU for guest operating system)",
               "range": true,
               "refId": "B"
@@ -4524,6 +4532,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Pages the kernel considers recently used versus reclaim candidates. A large inactive pool is headroom, not waste.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -4894,6 +4903,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Committed_AS is the total address space processes have asked for; CommitLimit is what the overcommit policy will allow. Committed crossing the limit is where allocations start failing.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5283,6 +5293,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "The active/inactive split broken into file-backed and anonymous pages. Inactive file pages are cheap to reclaim; inactive anonymous pages have to go to swap first.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -5677,6 +5688,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Pages modified but not yet on disk (Dirty) and pages currently being written out (Writeback). A persistently large dirty pool means the writeback path is not keeping up with the write rate.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6088,6 +6100,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Memory-mapped file pages and shared memory segments, including their hugepage components.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6508,6 +6521,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Kernel object caches, split into reclaimable (dentries, inodes) and unreclaimable. Unbounded growth in SUnreclaim is the signature of a kernel or driver leak.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -6907,6 +6921,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Virtually contiguous kernel allocations: total address space reserved, how much is used, and the largest free chunk.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7303,6 +7318,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Memory used for bounce buffers, needed when a device cannot DMA to the region a page lives in. Essentially always zero on modern 64-bit hardware.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -7661,6 +7677,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Process memory not backed by a file, and the transparent-hugepage portion of it.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8057,6 +8074,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Kernel stacks for all threads, and per-CPU allocator memory. Both scale with thread and core count.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8428,6 +8446,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Free, reserved and surplus hugepages from the static pool. Distinct from transparent hugepages, which appear under Memory Anonymous.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8823,6 +8842,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Total static hugepages configured and the size of each one.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9206,6 +9226,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "How the kernel direct map is paged: 4k, 2M or 1G. Larger mappings mean fewer TLB entries for the same coverage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9603,6 +9624,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Pages the reclaimer is not allowed to touch, including anything a process has mlock()ed.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -9973,6 +9995,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "NFS pages written to the server but not yet committed to its stable storage. Nonzero only on NFS clients.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10374,6 +10397,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Pages read from and written to block devices per second, counted by the VM subsystem. This is all block I/O the page cache sees, not just swap.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10423,7 +10447,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -10499,6 +10523,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Swap traffic per second. Sustained swap-in is the one that hurts -- it means the working set no longer fits.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10548,7 +10573,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -10624,6 +10649,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Total page faults against major faults. Only major faults require disk I/O; the minor ones are ordinary and cheap.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -10674,7 +10700,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -11025,6 +11051,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Rate at which the kernel has killed processes to reclaim memory. Any nonzero value is worth investigating.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11075,7 +11102,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -11427,6 +11454,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "The kernel clock discipline's own error estimates and its current offset from the reference. Offset should stay small and oscillate around zero; a persistent one-sided offset means the sync daemon is losing.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11570,6 +11598,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Time constant of the kernel phase-locked loop. It rises as the clock settles and the discipline becomes less aggressive.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11671,6 +11700,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Whether the kernel considers the clock synchronised, and the frequency correction it is applying to the local oscillator.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11801,6 +11831,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Tick length and the current TAI offset from UTC (the accumulated leap seconds).",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -11929,6 +11960,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Runnable and uninterruptible-sleep process counts straight from /proc/stat. A rising blocked count is the clearest cheap signal of storage trouble.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -12145,6 +12177,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Process creation rate. A steady high rate usually means a shell loop or a cron job doing more work than intended.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -12195,7 +12228,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -12246,6 +12279,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Memory used by the node-exporter process itself, not by the host. Both series are gauges and are plotted directly; they were previously wrapped in irate(), which graphed the rate of change of a memory size as if it were the size. process_virtual_memory_max_bytes is omitted because RLIMIT_AS is unlimited here, so it reads 1.8e19 and flattens everything else.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -12344,10 +12378,10 @@
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "irate(process_virtual_memory_bytes{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+              "expr": "process_resident_memory_bytes{instance=\"$node\",job=\"$job\"}",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Processes virtual memory size in bytes",
+              "legendFormat": "Resident set size",
               "refId": "A",
               "step": 240
             },
@@ -12356,35 +12390,11 @@
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "process_resident_memory_max_bytes{instance=\"$node\",job=\"$job\"}",
+              "expr": "process_virtual_memory_bytes{instance=\"$node\",job=\"$job\"}",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "Maximum amount of virtual memory available in bytes",
+              "legendFormat": "Virtual memory size",
               "refId": "B",
-              "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "expr": "irate(process_virtual_memory_bytes{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "Processes virtual memory size in bytes",
-              "refId": "C",
-              "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "expr": "irate(process_virtual_memory_max_bytes{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "Maximum amount of virtual memory available in bytes",
-              "refId": "D",
               "step": 240
             }
           ],
@@ -12532,6 +12542,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Per-CPU time spent running tasks versus time runnable tasks spent waiting for a CPU. Both are rates of a seconds counter, so they read as a fraction of one CPU-second per second.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -12581,7 +12592,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": [
               {
@@ -12809,6 +12820,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Context switches and hardware interrupts per second. Interrupts tracking network or disk throughput is expected; context switches climbing without matching work is contention.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -12859,7 +12871,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -12922,6 +12934,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Load average over 1, 5 and 15 minutes. On Linux this counts uninterruptible sleepers as well as runnable tasks, so I/O waits inflate it -- compare with CPU Busy before concluding the CPU is the problem.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -13047,6 +13060,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Current per-core frequency against the scaling driver's configured minimum and maximum. Cores pinned at minimum under load mean thermal or power capping.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -13476,7 +13490,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "Enable with --collector.interrupts argument on node-exporter",
+          "description": "Hardware interrupts serviced per second, in aggregate. The per-IRQ breakdown this panel originally showed needs --collector.interrupts on node-exporter, which is not enabled here, so node_intr_total is used instead.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -13527,7 +13541,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -13601,11 +13615,11 @@
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "irate(node_interrupts_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
+              "expr": "irate(node_intr_total{instance=\"$node\",job=\"$job\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "{{ type }} - {{ info }}",
+              "legendFormat": "Interrupts served",
               "refId": "A",
               "step": 240
             }
@@ -13618,6 +13632,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Scheduler timeslices dispatched per second, per CPU. Useful for spotting a workload that has ended up pinned to one core.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -13667,7 +13682,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -13719,6 +13734,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Bits available in the kernel entropy pool. Modern kernels seed from a hardware RNG and this stays near full; a starved pool blocks anything reading /dev/random.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -13820,6 +13836,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "CPU consumed by the node-exporter process itself, as a fraction of one core. This is the cost of the monitoring, not of the host.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -13869,7 +13886,7 @@
                   }
                 ]
               },
-              "unit": "s"
+              "unit": "percentunit"
             },
             "overrides": []
           },
@@ -13921,6 +13938,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Open file descriptors held by the node-exporter process against its own rlimit. For the host-wide figure see \"File Descriptor\" under Storage Filesystem.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -14068,6 +14086,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Every hwmon temperature sensor the kernel exposes, joined against node_hwmon_chip_names so the series are labelled by chip rather than by sysfs path.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -14264,6 +14283,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Current and maximum throttle state of each registered cooling device. Current climbing towards maximum means the platform is actively throttling to shed heat.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -14398,6 +14418,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Whether each power supply is online. On a laptop this is the AC adapter; on a server it is one series per PSU.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -14513,6 +14534,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Connections accepted per second by socket-activated systemd units.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -14563,7 +14585,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -14615,6 +14637,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Count of systemd units in each state. The series to watch is \"failed\" -- anything above zero means a unit needs attention.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -17779,6 +17802,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "TRIM/discard operations per second, completed and merged. Nonzero only on SSDs with discard enabled, either via the discard mount option or a periodic fstrim.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18206,6 +18230,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Space free per mountpoint, shown three ways: available to unprivileged users, free in total, and filesystem size. The gap between available and free is the root-reserved block percentage.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18334,6 +18359,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Free inodes per filesystem. A filesystem can run out of inodes with space to spare -- typically a directory full of tiny files -- and the failure looks like a full disk.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18435,6 +18461,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Host-wide open file descriptors against the system maximum, from /proc/sys/fs/file-nr. Distinct from the node-exporter process figure under System Misc.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18548,6 +18575,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Total inodes provisioned per filesystem. Fixed at mkfs time for ext4; compare with File Nodes Free above.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18649,6 +18677,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Whether a filesystem has been remounted read-only or the device reported an error. Either is the kernel telling you it has given up on writing.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18794,6 +18823,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Packets per second in and out of each interface. Read alongside the bits/s view: high packet rates at low bandwidth are what saturate CPUs.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -18982,6 +19012,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Receive and transmit errors per second. Almost always a physical-layer problem: cabling, an SFP, or a duplex mismatch.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19108,6 +19139,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Packets dropped per second at the interface. Receive drops usually mean the ring buffer overflowed before the kernel drained it; see Softnet Out of Quota.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19234,6 +19266,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Compressed packets per second. Nonzero only on interfaces doing link-layer compression, which in practice means some VPN and PPP setups.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19360,6 +19393,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Multicast packets received per second. mDNS, SSDP and the like -- expect a constant low background on any home LAN.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19474,6 +19508,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "FIFO buffer overruns per second. The NIC had frames it could not hand over fast enough.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19600,6 +19635,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Frame alignment errors on receive. A physical-layer fault, same family as the error counters above.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19714,6 +19750,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Carrier losses on transmit per second -- the link dropped mid-send.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19763,7 +19800,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "pps"
             },
             "overrides": []
           },
@@ -19815,6 +19852,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Ethernet collisions per second. Only meaningful on half-duplex links, so on anything modern this should be flat zero.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -19864,7 +19902,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "pps"
             },
             "overrides": [
               {
@@ -19929,6 +19967,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Netfilter connection-tracking entries against the table limit. Hitting the limit makes the kernel drop new connections, which presents as intermittent, inexplicable connection failures.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20062,6 +20101,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Entries in the ARP cache, roughly the number of hosts recently talked to on the local segment.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20163,6 +20203,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Configured MTU per interface. Worth checking when large transfers stall but pings succeed.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20265,6 +20306,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Negotiated link speed per interface, in bytes per second. A gigabit port reading 12.5 MB/s here has negotiated 100Mb -- usually a cable fault.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20316,7 +20358,7 @@
                   }
                 ]
               },
-              "unit": "bytes"
+              "unit": "Bps"
             },
             "overrides": []
           },
@@ -20367,6 +20409,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Transmit queue length per interface, as configured rather than as occupied.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20469,6 +20512,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Packets processed and dropped per second by the softirq network path, per CPU. Drops here mean the backlog queue overflowed.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20518,7 +20562,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -20597,6 +20641,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Times per second the softirq handler exhausted its budget and deferred the rest of the backlog. Sustained values mean one CPU cannot keep up with the packet rate.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20646,7 +20691,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -20699,6 +20744,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Administrative state (node_network_up) against physical carrier. Up with no carrier means the interface is configured but the cable is out.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20825,6 +20871,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "TCP socket counts from /proc/net/sockstat: allocated, in use, in TIME_WAIT, orphaned, and pages of memory charged to TCP.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -20981,6 +21028,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "UDP and UDP-Lite sockets in use and the memory charged to them.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21110,6 +21158,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "IP fragment reassembly queues and raw sockets in use. Both normally near zero.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21226,6 +21275,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Kernel memory charged to TCP, UDP and IP fragment reassembly, in bytes.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21353,6 +21403,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Total sockets in use across all protocols.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21470,6 +21521,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "IP-layer bytes per second in and out. Counted above the interfaces, so this is the closest thing to a single host throughput figure.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21519,7 +21571,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "Bps"
             },
             "overrides": [
               {
@@ -21597,6 +21649,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Rate of change of the IP forwarding flag. It is a boolean, so this is flat zero unless someone toggles routing on the host.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21647,7 +21700,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -21700,6 +21753,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "ICMP messages per second in each direction -- pings, and the unreachable and time-exceeded messages the stack generates.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21749,7 +21803,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -21827,6 +21881,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Malformed or otherwise unprocessable ICMP messages received per second.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21876,7 +21931,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -21941,6 +21996,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "UDP datagrams per second in each direction.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -21990,7 +22046,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -22080,6 +22136,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "UDP receive errors and datagrams that arrived for a port with nothing listening. A steady NoPorts rate is usually a scanner or a stale client.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22129,7 +22186,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -22230,6 +22287,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "TCP segments per second in each direction.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22279,7 +22337,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -22370,6 +22428,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Listen-queue overflows and drops, SYN retransmits, total retransmits, checksum errors and resets sent. The TCPRcvQDrop and TCPOFOQueue series are absent on this kernel and stay empty.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22420,7 +22479,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -22552,6 +22611,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "TCP connections currently in ESTABLISHED or CLOSE_WAIT. The MaxConn series was dropped: node-exporter does not export node_netstat_Tcp_MaxConn, and on Linux the limit is dynamic anyway.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22664,19 +22724,6 @@
               "legendFormat": "CurrEstab - TCP connections for which the current state is either ESTABLISHED or CLOSE- WAIT",
               "refId": "A",
               "step": 240
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-              },
-              "expr": "node_netstat_Tcp_MaxConn{instance=\"$node\",job=\"$job\"}",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "MaxConn - Limit on the total number of TCP connections the entity can support (Dynamic is \"-1\")",
-              "refId": "B",
-              "step": 240
             }
           ],
           "title": "TCP Connections",
@@ -22687,6 +22734,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "SYN cookies sent, received back, and failed. Anything nonzero means a listen queue overflowed hard enough for the kernel to fall back to cookies.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22736,7 +22784,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": [
               {
@@ -22827,6 +22875,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Connections opened per second, split into outbound (active) and inbound (passive), against connections reset and closed.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -22877,7 +22926,7 @@
                   }
                 ]
               },
-              "unit": "short"
+              "unit": "cps"
             },
             "overrides": []
           },
@@ -22942,7 +22991,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "description": "Enable with --collector.tcpstat argument on node-exporter",
+          "description": "TCP socket counts from /proc/net/sockstat. The per-state breakdown this panel originally showed needs --collector.tcpstat, which is not enabled here.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -23025,11 +23074,11 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "node_tcp_connection_states{state=\"established\",instance=\"$node\",job=\"$job\"}",
+              "expr": "node_sockstat_TCP_inuse{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "established - TCP sockets in established state",
+              "legendFormat": "inuse - TCP sockets in use",
               "range": true,
               "refId": "A",
               "step": 240
@@ -23040,11 +23089,11 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "node_tcp_connection_states{state=\"fin_wait2\",instance=\"$node\",job=\"$job\"}",
+              "expr": "node_sockstat_TCP_tw{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "fin_wait2 - TCP sockets in fin_wait2 state",
+              "legendFormat": "tw - TCP sockets in TIME_WAIT",
               "range": true,
               "refId": "B",
               "step": 240
@@ -23055,11 +23104,11 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "node_tcp_connection_states{state=\"listen\",instance=\"$node\",job=\"$job\"}",
+              "expr": "node_sockstat_TCP_orphan{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "listen - TCP sockets in listen state",
+              "legendFormat": "orphan - orphaned TCP sockets",
               "range": true,
               "refId": "C",
               "step": 240
@@ -23070,11 +23119,11 @@
                 "uid": "${datasource}"
               },
               "editorMode": "code",
-              "expr": "node_tcp_connection_states{state=\"time_wait\",instance=\"$node\",job=\"$job\"}",
+              "expr": "node_sockstat_TCP_alloc{instance=\"$node\",job=\"$job\"}",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
-              "legendFormat": "time_wait - TCP sockets in time_wait state",
+              "legendFormat": "alloc - allocated TCP sockets",
               "range": true,
               "refId": "D",
               "step": 240
@@ -23102,6 +23151,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "How long each collector takes. A collector that has grown slow -- usually the filesystem or systemd one -- can push the whole scrape past its timeout and blank the dashboard.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -23203,6 +23253,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
+          "description": "Whether each collector succeeded, and whether the textfile collector hit a parse error. A collector failing here explains an empty panel elsewhere without anything being wrong with the host.",
           "fieldConfig": {
             "defaults": {
               "color": {

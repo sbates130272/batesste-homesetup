@@ -113,6 +113,37 @@ for f in "${SCRIPT_DIR}"/targets/discovered/*.json; do
         "${PROM_DISCOVERED}/${name}"
 done
 
+# Deploying is a copy, not a mirror, so a target file deleted
+# from the repo used to linger in /etc forever. Harmless while
+# its job is also gone, but re-adding a job of the same name
+# silently picks the stale targets back up. Prune anything in
+# /etc that the repo no longer carries. Editor backups (*.json~)
+# go too: file_sd only globs the exact paths named in
+# prometheus.yml, but they are pure noise in a managed dir.
+PRUNED=0
+
+prune_orphans() {
+    local dir="$1" src="$2" label="$3"
+    local name
+    for f in "${dir}"/*.json "${dir}"/*.json~; do
+        [[ -e "$f" ]] || continue
+        name="$(basename "$f")"
+        if [[ ! -f "${src}/${name%\~}" || "$f" == *~ ]]; then
+            echo "    ${label}${name} (orphan)"
+            run sudo rm -f "$f"
+            PRUNED=$((PRUNED + 1))
+        fi
+    done
+}
+
+echo "==> Pruning target files no longer in the repo..."
+prune_orphans "${PROM_TARGETS}" "${SCRIPT_DIR}/targets" ""
+prune_orphans "${PROM_DISCOVERED}" \
+    "${SCRIPT_DIR}/targets/discovered" "discovered/"
+if [[ "${PRUNED}" -eq 0 ]]; then
+    echo "    nothing to prune"
+fi
+
 if $TARGETS_ONLY; then
     echo "==> Targets deployed. Prometheus will pick up"
     echo "    changes automatically (no reload needed)."

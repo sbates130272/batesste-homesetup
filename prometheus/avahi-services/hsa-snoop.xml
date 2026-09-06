@@ -1,0 +1,18 @@
+<?xml version="1.0" standalone='no'?>
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  Avahi service definition for hsa-snoop's Prometheus
+  exporter. Copy to /etc/avahi/services/ on any machine
+  running hsa-snoop in Prometheus mode.
+-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h hsa-snoop</name>
+  <service>
+    <type>_hsa-snoop._tcp</type>
+    <port>9488</port>
+  </service>
+</service-group>

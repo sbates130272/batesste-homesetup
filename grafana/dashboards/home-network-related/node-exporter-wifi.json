@@ -26,6 +26,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Wireless interface name from node_wifi_station_info, for the selected node.",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -109,6 +110,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Network the interface is currently associated with.",
       "fieldConfig": {
         "defaults": {
           "mappings": [],
@@ -177,6 +179,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "MAC address of the access point the interface is associated with. A change here means it roamed to a different AP.",
       "fieldConfig": {
         "defaults": {
           "mappings": [
@@ -260,6 +263,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Received signal level at the station, in dBm. Closer to zero is better: roughly -50 excellent, -70 usable, below -80 expect retries and throughput collapse.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -346,7 +350,7 @@
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "",
+          "legendFormat": "{{server_name}} {{device}}",
           "refId": "A"
         }
       ],
@@ -358,6 +362,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Centre frequency of the channel in use. Which band the interface landed on is often the real explanation for a throughput change.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -455,6 +460,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Time since the interface associated with the current AP. A reset to zero is a disconnect, and is easier to spot here than in the error counters.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -508,7 +514,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "s"
         },
         "overrides": []
       },
@@ -553,6 +559,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Beacon losses, failed transmissions and transmit retries, all as per-second rates. They were previously a mix of raw lifetime counters and one rate on the same axis, so the counters swamped the rate.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -605,7 +612,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "cps"
         },
         "overrides": []
       },
@@ -636,12 +643,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "node_wifi_station_beacon_loss_total{instance=~\"$node:$port\"}",
+          "expr": "rate(node_wifi_station_beacon_loss_total{instance=~\"$node:$port\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "beacon loss (total)",
+          "legendFormat": "beacon loss",
           "refId": "A"
         },
         {
@@ -650,12 +657,12 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "node_wifi_station_transmit_failed_total{instance=~\"$node:$port\"}",
+          "expr": "rate(node_wifi_station_transmit_failed_total{instance=~\"$node:$port\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
           "intervalFactor": 1,
-          "legendFormat": "tx failed (total)",
+          "legendFormat": "tx failed",
           "refId": "B"
         },
         {
@@ -663,7 +670,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(node_wifi_station_transmit_retries_total{instance=~\"$node:$port\"}[1m])",
+          "expr": "rate(node_wifi_station_transmit_retries_total{instance=~\"$node:$port\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -679,6 +686,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Bytes per second in and out of the wireless interfaces (device=~\"wl.*\"), from the generic node-exporter network counters rather than the wifi collector.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -791,6 +799,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Negotiated PHY rate for the current link. This is the ceiling the radio has agreed to, not achieved throughput -- compare with Network throughput above.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -903,7 +912,11 @@
   "preload": false,
   "refresh": "auto",
   "schemaVersion": 42,
-  "tags": [],
+  "tags": [
+    "wifi",
+    "linux",
+    "node-exporter"
+  ],
   "templating": {
     "list": [
       {
