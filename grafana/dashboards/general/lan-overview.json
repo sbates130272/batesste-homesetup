@@ -291,7 +291,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_uname_info",
+          "expr": "max by (instance, server_name, release) (node_uname_info)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -313,7 +313,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "expr": "max by (instance) ((1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -324,7 +324,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_memory_MemTotal_bytes",
+          "expr": "max by (instance) (node_memory_MemTotal_bytes)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -335,7 +335,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(node_cpu_seconds_total{mode=\"idle\"}) by (instance)",
+          "expr": "count by (instance) (node_cpu_seconds_total{mode=\"idle\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -346,7 +346,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "time() - node_boot_time_seconds",
+          "expr": "max by (instance) (time() - node_boot_time_seconds)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -357,7 +357,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_wifi_station_signal_dbm",
+          "expr": "max by (instance) (node_wifi_station_signal_dbm)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -384,27 +384,7 @@
               "Time 6": true,
               "Time 7": true,
               "Value #A": true,
-              "__name__ 1": true,
-              "device": true,
-              "domainname": true,
-              "instance": true,
-              "job 1": true,
-              "job 2": true,
-              "job 3": true,
-              "job 4": true,
-              "job 5": true,
-              "job 6": true,
-              "job 7": true,
-              "machine": true,
-              "nodename": true,
-              "server_name 2": true,
-              "server_name 3": true,
-              "server_name 4": true,
-              "server_name 5": true,
-              "server_name 6": true,
-              "server_name 7": true,
-              "sysname": true,
-              "version": true
+              "instance": true
             },
             "renameByName": {
               "Value #B": "CPU %",
@@ -414,10 +394,10 @@
               "Value #F": "Uptime",
               "Value #G": "WiFi (dBm)",
               "release": "Kernel",
-              "server_name 1": "Node"
+              "server_name": "Node"
             },
             "indexByName": {
-              "server_name 1": 0,
+              "server_name": 0,
               "Value #B": 1,
               "Value #C": 2,
               "Value #D": 3,
@@ -433,27 +413,7 @@
               "Time 6": 13,
               "Time 7": 14,
               "Value #A": 15,
-              "__name__ 1": 16,
-              "device": 17,
-              "domainname": 18,
-              "instance": 19,
-              "job 1": 20,
-              "job 2": 21,
-              "job 3": 22,
-              "job 4": 23,
-              "job 5": 24,
-              "job 6": 25,
-              "job 7": 26,
-              "machine": 27,
-              "nodename": 28,
-              "server_name 2": 29,
-              "server_name 3": 30,
-              "server_name 4": 31,
-              "server_name 5": 32,
-              "server_name 6": 33,
-              "server_name 7": 34,
-              "sysname": 35,
-              "version": 36
+              "instance": 16
             }
           }
         }
@@ -2738,7 +2698,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nvme_device_info",
+          "expr": "label_join(max by (instance, server_name, device, model_number) (nvme_namespace), \"id\", \" \", \"server_name\", \"device\")",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2749,7 +2709,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nvme_avail_spare",
+          "expr": "max by (id) (label_join(max by (server_name, device) (nvme_avail_spare), \"id\", \" \", \"server_name\", \"device\"))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2760,7 +2720,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nvme_temperature_celsius",
+          "expr": "max by (id) (label_join(max by (server_name, device) (nvme_temperature), \"id\", \" \", \"server_name\", \"device\")) - 273.15",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2771,7 +2731,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nvme_power_on_hours",
+          "expr": "max by (id) (label_join(max by (server_name, device) (nvme_power_on_hours), \"id\", \" \", \"server_name\", \"device\"))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2782,7 +2742,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nvme_media_errors",
+          "expr": "max by (id) (label_join(max by (server_name, device) (nvme_media_errors), \"id\", \" \", \"server_name\", \"device\"))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2794,7 +2754,7 @@
         {
           "id": "seriesToColumns",
           "options": {
-            "byField": "instance"
+            "byField": "id"
           }
         },
         {
@@ -2807,29 +2767,34 @@
               "Time 4": true,
               "Time 5": true,
               "Value #A": true,
-              "__name__": true,
-              "__name__ 1": true,
-              "firmware_revision": true,
-              "instance": true,
-              "job 1": true,
-              "job 2": true,
-              "job 3": true,
-              "job 4": true,
-              "job 5": true,
-              "serial_number": true,
-              "server_name 2": true,
-              "server_name 3": true,
-              "server_name 4": true,
-              "server_name 5": true
+              "id": true,
+              "instance": true
             },
             "renameByName": {
               "Value #B": "Spare %",
               "Value #C": "Temp",
               "Value #D": "Power-On Hours",
               "Value #E": "Media Errors",
-              "device 1": "Device",
+              "device": "Device",
               "model_number": "Model",
-              "server_name 1": "Node"
+              "server_name": "Node"
+            },
+            "indexByName": {
+              "server_name": 0,
+              "device": 1,
+              "model_number": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5,
+              "Value #E": 6,
+              "Time 1": 7,
+              "Time 2": 8,
+              "Time 3": 9,
+              "Time 4": 10,
+              "Time 5": 11,
+              "Value #A": 12,
+              "id": 13,
+              "instance": 14
             }
           }
         }
