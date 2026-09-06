@@ -39,6 +39,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "One row per host running node-exporter, joined on instance: kernel and release, CPU and memory utilisation, core count, total RAM, uptime, and wifi signal where the host is wireless. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -414,6 +415,45 @@
               "Value #G": "WiFi (dBm)",
               "release": "Kernel",
               "server_name 1": "Node"
+            },
+            "indexByName": {
+              "server_name 1": 0,
+              "Value #B": 1,
+              "Value #C": 2,
+              "Value #D": 3,
+              "Value #E": 4,
+              "Value #F": 5,
+              "Value #G": 6,
+              "release": 7,
+              "Time 1": 8,
+              "Time 2": 9,
+              "Time 3": 10,
+              "Time 4": 11,
+              "Time 5": 12,
+              "Time 6": 13,
+              "Time 7": 14,
+              "Value #A": 15,
+              "__name__ 1": 16,
+              "device": 17,
+              "domainname": 18,
+              "instance": 19,
+              "job 1": 20,
+              "job 2": 21,
+              "job 3": 22,
+              "job 4": 23,
+              "job 5": 24,
+              "job 6": 25,
+              "job 7": 26,
+              "machine": 27,
+              "nodename": 28,
+              "server_name 2": 29,
+              "server_name 3": 30,
+              "server_name 4": 31,
+              "server_name 5": 32,
+              "server_name 6": 33,
+              "server_name 7": 34,
+              "sysname": 35,
+              "version": 36
             }
           }
         }
@@ -425,10 +465,11 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.",
       "fieldConfig": {
         "defaults": {
           "custom": {
-            "align": "center",
+            "align": "left",
             "cellOptions": {
               "type": "auto"
             },
@@ -438,16 +479,13 @@
             },
             "inspect": false
           },
+          "noValue": "—",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "text",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           }
@@ -461,43 +499,170 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 160
+                "value": 190
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "GPU Model"
+              "options": "GPU"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 280
+                "value": 230
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "GPU ID"
+              "options": "PCI Chip"
             },
             "properties": [
               {
                 "id": "custom.width",
-                "value": 70
+                "value": 230
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "ROCm"
+              "options": "Temp"
             },
             "properties": [
               {
+                "id": "unit",
+                "value": "celsius"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 70
+                    },
+                    {
+                      "color": "red",
+                      "value": 85
+                    }
+                  ]
+                }
+              },
+              {
                 "id": "custom.width",
-                "value": 90
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Power"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "watt"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Busy"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 140
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Exporter"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "color": "red",
+                        "index": 0,
+                        "text": "DOWN"
+                      },
+                      "1": {
+                        "color": "green",
+                        "index": 1,
+                        "text": "UP"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 110
               }
             ]
           }
@@ -509,7 +674,7 @@
         "x": 0,
         "y": 9
       },
-      "id": 36,
+      "id": 47,
       "options": {
         "cellHeight": "sm",
         "showHeader": true,
@@ -527,41 +692,114 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "amd_sysfs_gpu_info",
+          "expr": "max by (server_name, chip) (node_hwmon_chip_names{chip_name=\"amdgpu\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (server_name) (node_hwmon_temp_celsius and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"})",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (server_name) (amd_gpu_average_package_power) or max by (server_name) ((node_hwmon_power_watt or node_hwmon_power_average_watt) and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"})",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (server_name) (amd_gpu_gfx_activity)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (server_name, card_model) (amd_gpu_average_package_power)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "max by (server_name) (up{job=\"amd-gpu-metrics-exporter\"})",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "F"
         }
       ],
       "title": "GPU Inventory",
       "transformations": [
         {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "server_name"
+          }
+        },
+        {
           "id": "organize",
           "options": {
             "excludeByName": {
-              "Time": true,
-              "Value": true,
-              "__name__": true,
-              "card": true,
-              "card_vendor": true,
-              "cluster_name": true,
-              "device_id": true,
-              "gpu_compute_partition_type": true,
-              "gpu_memory_partition_type": true,
-              "gpu_partition_id": true,
-              "gpu_uuid": true,
-              "instance": true,
-              "job": true,
-              "server_name": true,
-              "vbios": true,
-              "vbios_version": true
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Time 6": true,
+              "Value #A": true,
+              "Value #E": true
+            },
+            "indexByName": {
+              "server_name": 0,
+              "card_model": 1,
+              "chip": 2,
+              "Value #B": 3,
+              "Value #C": 4,
+              "Value #D": 5,
+              "Value #F": 6,
+              "Time 1": 7,
+              "Time 2": 8,
+              "Time 3": 9,
+              "Time 4": 10,
+              "Time 5": 11,
+              "Time 6": 12,
+              "Value #A": 13,
+              "Value #E": 14
             },
             "renameByName": {
-              "card_model": "GPU Model",
-              "driver_version": "ROCm",
-              "gpu_id": "GPU ID",
-              "hostname": "Node"
+              "server_name": "Node",
+              "card_model": "GPU",
+              "chip": "PCI Chip",
+              "Value #B": "Temp",
+              "Value #C": "Power",
+              "Value #D": "Busy",
+              "Value #F": "Exporter"
             }
           }
         }
@@ -585,6 +823,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "How many node-exporter targets are currently up. There are eight in the scrape config, so anything below that is a host that is off or unreachable.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -664,6 +903,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Lemonade instances reporting themselves up. Counts lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -743,6 +983,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "How many nvme-exporter targets are up.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -822,6 +1063,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Count of amd-gpu-metrics-exporter targets that are up, across all hosts.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -887,7 +1129,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(up{job=~\"amd-.*\"} == 1)",
+          "expr": "count(up{job=\"amd-gpu-metrics-exporter\"} == 1)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -901,6 +1143,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Whether the speedtest exporter on the beelink is being scraped successfully.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -980,6 +1223,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Whether the Emporia smart-plug exporter is being scraped successfully.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1059,6 +1303,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Scrape state of the iCloud exporter on localhost:9948. It has been refusing connections since the exporter stopped; the dashboard that consumed its metrics was retired on 2026-09-03. The tile stays because the job is still in the scrape config.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1143,6 +1388,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Scrape state of the Cursor exporter. Note that up=1 here is not the same as working: the exporter answers scrapes but its Cursor API calls fail, so it emits only the cursor_subscription_* gauges. Its dashboard was retired on 2026-09-03 for that reason.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1227,6 +1473,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Scrape state of the OpenAI exporter. As with Cursor, up=1 overstates its health -- it serves only Go runtime metrics, no openai_* series at all, so the daily-cost panel that used to sit under AI & Developer Usage was removed.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1311,90 +1558,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "options": {
-                "0": {
-                  "color": "green",
-                  "index": 0,
-                  "text": "Good"
-                },
-                "1": {
-                  "color": "red",
-                  "index": 1,
-                  "text": "Needs Update!"
-                }
-              },
-              "type": "value"
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 12,
-        "y": 17
-      },
-      "id": 13,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "value_and_name",
-        "wideLayout": true
-      },
-      "pluginVersion": "13.0.1+security-01",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "icloud_auth_2fa_update_needed",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "iCloud 2FA",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
+      "description": "Prometheus scraping itself. This needs metrics_path: /prometheus/metrics in the scrape config, because the server runs behind --web.route-prefix=/prometheus and a bare /metrics returns 404.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1437,7 +1601,7 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 17
       },
       "id": 14,
@@ -1479,29 +1643,34 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "How many hsa-snoop targets are up.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "thresholds"
           },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                }
+              },
+              "type": "value"
+            }
+          ],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": 0
               },
               {
-                "color": "yellow",
+                "color": "green",
                 "value": 1
-              },
-              {
-                "color": "orange",
-                "value": 20
-              },
-              {
-                "color": "red",
-                "value": 50
               }
             ]
           },
@@ -1512,10 +1681,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 20,
+        "x": 16,
         "y": 17
       },
-      "id": 15,
+      "id": 46,
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -1540,13 +1709,13 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(apt_upgrades_pending)",
+          "expr": "count(up{job=\"hsa-snoop\"} == 1)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Apt Updates",
+      "title": "HSA Snoop",
       "type": "stat"
     },
     {
@@ -1566,6 +1735,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Instantaneous draw across all eight Emporia plugs. Each term is wrapped in \"or vector(0)\" so a plug that drops out of the scrape contributes zero rather than voiding the whole sum.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1638,6 +1808,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Per-plug draw over time. See the Emporia SmartPlugs dashboard for which plug is which and for on/off state.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1826,6 +1997,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Download throughput from the most recent speedtest run, converted from the exporter's bytes/s to bits/s.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1925,6 +2097,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Upload throughput from the same run, likewise in bits/s.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2024,6 +2197,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Idle latency and jitter from the speedtest run. The jitter series uses speedtest_jittter_seconds -- the exporter's own misspelling, not a typo here.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2119,7 +2293,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "speedtest_jitter_seconds",
+          "expr": "speedtest_jittter_seconds",
           "format": "time_series",
           "instant": false,
           "legendFormat": "Jitter",
@@ -2245,258 +2419,6 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 2,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 100
-              },
-              {
-                "color": "orange",
-                "value": 500
-              },
-              {
-                "color": "red",
-                "value": 1000
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 4,
-        "x": 0,
-        "y": 35
-      },
-      "id": 25,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(cursor_usage_events_cost_dollars)",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Cursor Total Cost",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "fillOpacity": 15,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "showPoints": "never",
-            "spanNulls": false
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 4,
-        "y": 35
-      },
-      "id": 26,
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "cursor_usage_events_cost_dollars{kind=\"On-Demand\"}",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "{{model}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Cursor Cost by Model",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue"
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 4,
-        "x": 12,
-        "y": 35
-      },
-      "id": 37,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(cursor_usage_events_request_count)",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Cursor Requests",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "purple"
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 4,
-        "x": 16,
-        "y": 35
-      },
-      "id": 38,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(cursor_usage_events_total_tokens)",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Cursor Total Tokens",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
       "description": "Time to first token per Lemonade server node.",
       "fieldConfig": {
         "defaults": {
@@ -2526,8 +2448,8 @@
       },
       "gridPos": {
         "h": 6,
-        "w": 4,
-        "x": 20,
+        "w": 12,
+        "x": 0,
         "y": 35
       },
       "id": 29,
@@ -2548,82 +2470,15 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "lemonade_time_to_first_token_seconds",
+          "expr": "lemonade_model_time_to_first_token_seconds",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{node}}",
+          "legendFormat": "{{model_name}}",
           "refId": "A"
         }
       ],
       "title": "Lemonade TTFT",
       "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "decimals": 4,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 10
-              }
-            ]
-          },
-          "unit": "currencyUSD"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 4,
-        "x": 12,
-        "y": 41
-      },
-      "id": 27,
-      "options": {
-        "colorMode": "background",
-        "graphMode": "area",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(openai_api_daily_cost)",
-          "instant": true,
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "OpenAI Daily Cost",
-      "type": "stat"
     },
     {
       "datasource": {
@@ -2653,15 +2508,15 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "tok/s"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 6,
-        "w": 4,
-        "x": 16,
-        "y": 41
+        "w": 12,
+        "x": 12,
+        "y": 35
       },
       "id": 28,
       "options": {
@@ -2681,10 +2536,10 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "lemonade_tokens_per_second",
+          "expr": "lemonade_model_tokens_per_second",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{node}}",
+          "legendFormat": "{{model_name}}",
           "refId": "A"
         }
       ],
@@ -2697,7 +2552,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 41
       },
       "id": 44,
       "title": "Storage",
@@ -2708,6 +2563,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Every NVMe drive across the fleet, joined by instance: spare capacity, composite temperature, power-on hours and lifetime media errors. Media Errors turns red at 1 -- it should never leave zero.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -2859,7 +2715,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 42
       },
       "id": 31,
       "options": {
@@ -2904,7 +2760,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nvme_temperature",
+          "expr": "nvme_temperature_celsius",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2985,6 +2841,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Space used on every ext4, xfs and btrfs mount. tmpfs and the like are excluded deliberately.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3016,7 +2873,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 48
       },
       "id": 32,
       "options": {
@@ -3056,7 +2913,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 54
       },
       "id": 45,
       "title": "System Load",
@@ -3099,7 +2956,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 61
+        "y": 55
       },
       "id": 34,
       "options": {
@@ -3166,7 +3023,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 61
+        "y": 55
       },
       "id": 35,
       "options": {

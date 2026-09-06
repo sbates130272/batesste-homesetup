@@ -31,6 +31,11 @@ scrape_configs:
   - job_name: prometheus
     scrape_interval: 5s
     scrape_timeout: 5s
+    # Scrape Prometheus directly on its own listener
+    # (--web.listen-address=127.0.0.1:9092,
+    # --web.route-prefix=/), so a bare /metrics is correct.
+    # Port 9090 is the nginx listener that fronts it; going
+    # via nginx returns 401 because that vhost requires auth.
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/prometheus.json
@@ -82,22 +87,33 @@ scrape_configs:
           - /etc/prometheus/targets/amd-gpu-metrics-exporter.json
           - /etc/prometheus/targets/discovered/amd-gpu-metrics-exporter.json
         refresh_interval: 30s
-    # Strix Halo APUs: amdsmi cannot read card_model
-    # (ROCm/ROCm#6035). Hardcode it until the library
-    # adds gfx1151 support.
+    # The exporter used to serve card_model="" on both hosts, and
+    # Prometheus drops empty labels, so the label vanished and
+    # dashboards rendered a blank GPU column. The rule below
+    # hardcodes it for the one host where that is still true.
+    #
+    # It matches on an *empty* card_model, so an exporter that
+    # starts populating the field wins automatically rather than
+    # fighting a stale override. That is not theoretical: the
+    # matching rule for snoc-strix went dead on its own when
+    # amdgpu-exporter 1.5.1 landed with gfx1151 support and began
+    # reporting "AMD Radeon 8060S Graphics", so it was removed.
+    # ROCm/ROCm#6035 no longer applies.
+    #
+    # snoc-thinkstation is still pending: amd-smi static knows the
+    # name, but that host has been offline since before 1.5.1 and
+    # its exporter has never been observed populating the field.
+    # Leave the rule until it comes back and proves otherwise.
+    #
+    # Note the metric names this job produces are amd_gpu_* and
+    # amd_pcie_*, not bare gpu_*. MetricsFieldPrefix: "amd_" is
+    # the exporter's own packaged default, not a local choice.
     metric_relabel_configs:
       - source_labels: [hostname, card_model]
         separator: ;
-        regex: 'snoc-strix;'
+        regex: 'snoc-thinkstation;'
         target_label: card_model
-        replacement: 'Radeon 8060S (Strix Halo)'
-
-  - job_name: amd-sysfs-gpu-exporter
-    file_sd_configs:
-      - files:
-          - /etc/prometheus/targets/amd-sysfs-gpu-exporter.json
-          - /etc/prometheus/targets/discovered/amd-sysfs-gpu-exporter.json
-        refresh_interval: 30s
+        replacement: 'Radeon RX 9070 XT'
 
   - job_name: ais-exporter
     file_sd_configs:
@@ -119,6 +135,23 @@ scrape_configs:
           - /etc/prometheus/targets/nvme-exporter.json
           - /etc/prometheus/targets/discovered/nvme-exporter.json
         refresh_interval: 30s
+
+  - job_name: hsa-snoop
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/hsa-snoop.json
+          - /etc/prometheus/targets/discovered/hsa-snoop.json
+        refresh_interval: 30s
+    # hsa-snoop stamps every metric with a constant `host`
+    # label taken from gethostname(), and the HSA Snoop
+    # dashboard drives its picker from
+    # label_values(hsa_snoop_up, host). Normalise it to the
+    # server_name file_sd applies, so the picker agrees with
+    # every other dashboard even when the box's kernel
+    # hostname differs from its homelab name.
+    metric_relabel_configs:
+      - source_labels: [server_name]
+        target_label: host
 
   - job_name: openai_exporter
     scrape_interval: 60s

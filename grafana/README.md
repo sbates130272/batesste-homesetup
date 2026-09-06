@@ -18,13 +18,10 @@ grafana/
     datasources/
       datasources.yaml        # Prometheus + MySQL datasources
   dashboards/                 # first-party, one dir per Grafana folder
-    amd-related/              # folder: AMD Related
-      cursor-usage.json
     general/                  # folder: (root)
       lan-overview.json
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
-      icloud-dashboard.json
       node-exporter-full.json
       node-exporter-overview.json
       node-exporter-wifi.json
@@ -83,7 +80,7 @@ user. The password is stored in the
 `/etc/default/grafana-server`). See
 `firefly-db-init.sql` for the one-time view setup.
 
-## Dashboards (13 total)
+## Dashboards (11 total)
 
 `provisioning/dashboards/dashboards.yaml` tells Grafana to
 watch `/var/lib/grafana/dashboards/<folder>/` for JSON
@@ -91,19 +88,22 @@ files. First-party providers set `allowUiUpdates: true`, so
 dashboards can be edited in the UI and pulled back with
 `./sync-dashboards.sh --pull`.
 
-Each provider also pins `folderUid`. Provisioning matches
+Most providers also pin `folderUid`. Provisioning matches
 folders by title alone and will create a *second* folder
 with the same name rather than adopt an existing one;
 pinning the UID prevents that and keeps folder identity
-stable across a rebuild.
+stable across a rebuild. The exception is
+`vendor-home-network-related`, which cannot pin
+`ee8pz914edpfkf` because `home-network-related` already
+does and Grafana rejects two providers claiming one UID.
+Title matching is safe there only while that provider
+survives; `dashboards.yaml` says what to do if it doesn't.
 
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
-| AMD Related | Cursor IDE Usage | Cursor API cost, tokens, quotas, and usage |
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs |
-| Home Network | iCloud | Device location tracking, photos, contacts |
-| Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860) |
+| Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
 | Home Network | Node Exporter Overview | Fleet summary table |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
@@ -114,6 +114,8 @@ Adopted third-party dashboards (see below):
 
 | Folder | Dashboard | Upstream |
 |--------|-----------|----------|
+| AMD Related | AMD GPU (device-metrics-exporter) | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json) |
+| AMD Related | AMD GPU Fleet Overview | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json) |
 | AMD Related | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
 | AMD Related | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
 | Home Network | NVMe Exporter Device Metrics | [grafana.com 12736](https://grafana.com/grafana/dashboards/12736-nvme-exporter/) |
@@ -126,7 +128,7 @@ They now live under `vendor/`, with provenance recorded in
 `vendor/manifest.yaml`: UID, folder, upstream URL, and the
 date the JSON was captured.
 
-All three surviving vendor dashboards have a real upstream,
+All five surviving vendor dashboards have a real upstream,
 so refreshing one is fetch → diff → commit rather than
 "export whatever is running". Note that each has *diverged*
 from its upstream deliberately, and the manifest says how —
@@ -162,6 +164,115 @@ Those files are therefore a *rendering* of what was running,
 not the stored bytes; deploying them converts the server's
 copy to v1 for real. That conversion is complete and every
 dashboard on the server is now file-provisioned.
+
+## The 2026-09-03 scrub
+
+Every dashboard except Firefly III Overview was audited
+against live Prometheus, each exporter's own `/metrics`,
+and exporter source where a metric was absent from both.
+That last step matters, because three different things
+present identically as an empty panel and want opposite
+responses:
+
+| Cause | Example | Response |
+|---|---|---|
+| Metric renamed or mistyped | `speedtest_jitter_seconds` → `speedtest_jittter_seconds` | Fix the query |
+| Exporter alive, family never materialised | `hsa_errors_total` | **Leave alone** |
+| Feed gone | all `icloud_*`, all `cursor_usage_events_*` | Retire |
+
+The middle row is the trap. prometheus-cpp does not
+materialise a metric family until a labelled child exists,
+so hsa-snoop's `hsa_errors_total` and `ais_tx_errors_total`
+are declared upstream and simply have not fired yet. Four
+working panels would have been "fixed" without that check.
+
+Two dashboards were retired: **Cursor IDE Usage** (24 of 28
+panels dead) and **iCloud** (6 of 6). Both were exporter
+failures, not query bugs — the iCloud job refuses
+connections, and cursor-exporter answers scrapes while
+emitting only its `cursor_subscription_*` gauges because
+its Cursor API calls fail. LAN Overview's *OpenAI Daily
+Cost* went the same way: `openai_api_daily_cost` has never
+existed in this TSDB and the exporter serves only Go
+runtime metrics. The `up{}` health tiles for all three
+stay, because the jobs are still in the scrape config and
+the tiles correctly report the outage.
+
+### Node Exporter Full has diverged from 1860
+
+It came from [grafana.com
+1860](https://grafana.com/grafana/dashboards/1860-node-exporter-full/)
+(`gnetId: 1860`, not recorded in the JSON — it was pasted
+rather than imported by ID). All 116 panels now carry
+descriptions, several units were corrected, and four dead
+panels were repointed at metrics this fleet actually
+collects:
+
+- *Interrupts Detail* → `node_intr_total`, since
+  `--collector.interrupts` is off and the per-IRQ
+  breakdown is unavailable.
+- *TCP Stat* → `node_sockstat_TCP_*`, since
+  `--collector.tcpstat` is off.
+- *TCP Connections* — dropped `node_netstat_Tcp_MaxConn`,
+  which node-exporter does not export.
+- *Processes Memory* — dropped `irate()` from two gauges,
+  dropped a duplicate target, and dropped
+  `process_virtual_memory_max_bytes`, which reads 1.8e19
+  here because `RLIMIT_AS` is unlimited.
+
+The panels still marked "Enable with `--collector.processes`"
+were left alone: they document their own absence, and there
+is no aggregate substitute.
+
+**A refresh from 1860 is now a manual merge, not a
+review.** That is the cost of the pass, accepted
+deliberately.
+
+### GPU detection is spined on hwmon
+
+LAN Overview's *GPU Inventory* used to enumerate cards from
+`amd-gpu-metrics-exporter`, which meant a GPU became
+invisible the moment its exporter broke — the failure mode
+looked identical to having no GPU at all. On
+`snoc-thinkstation` that hid a Radeon RX 9070 XT for weeks:
+`/etc/modprobe.d/amdgpu-blacklist.conf` kept the driver
+unbound, `gpuagent` failed `rsmi_init` and core-dumped 6,198
+times, and the exporter answered scrapes with an empty
+registry.
+
+The panel is now spined on
+`node_hwmon_chip_names{chip_name="amdgpu"}`, which
+node-exporter emits whenever the kernel driver is bound —
+independent of any AMD userspace. Temperature and a power
+fallback come from the same hwmon chip. The vendor exporter
+still supplies `card_model` and `gpu_gfx_activity`, and its
+`up` value is its own column, so the two detectors can
+disagree visibly:
+
+| PCI Chip | Exporter | Meaning |
+|---|---|---|
+| set | UP | healthy |
+| set | DOWN | exporter fault; card is fine |
+| blank | UP | driver never bound — check `/etc/modprobe.d` |
+
+The old *GPU Exporter Health* table was folded into this
+panel; the `up{job="amd-gpu-metrics-exporter"}` stat tile
+under *Service Health* is unchanged.
+
+The exporter's metric names are `amd_gpu_*`, not bare
+`gpu_*` — `MetricsFieldPrefix: "amd_"` is its packaged
+default. The three GPU Inventory targets that read from this
+job (Power, Busy, GPU) use the prefixed names accordingly;
+the two that spine on hwmon do not.
+
+`card_model` used to arrive empty from the exporter, and
+Prometheus drops empty labels, so `prometheus.yml` hardcoded
+it per host via `metric_relabel_configs`. `snoc-strix` no
+longer needs that — `amdgpu-exporter` 1.5.1 reports
+`AMD Radeon 8060S Graphics` natively and the **GPU** column
+now shows the exporter's own string. `snoc-thinkstation` is
+still hardcoded. See
+[prometheus/README.md](../prometheus/README.md).
 
 ## Investment Accounts
 

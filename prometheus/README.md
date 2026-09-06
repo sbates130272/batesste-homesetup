@@ -52,6 +52,16 @@ Preview without changes:
 ./deploy.sh --dry-run
 ```
 
+`deploy.sh` prunes `/etc/prometheus/targets` down to what
+the repo carries. Deploying is a copy, not a mirror, so a
+target file deleted from the repo used to linger in `/etc`
+forever — harmless while its job was also gone, but
+re-adding a job of the same name silently picked the stale
+targets back up. Editor backups (`*.json~`) are removed too;
+`file_sd` only globs the exact paths named in
+`prometheus.yml`, so they were never scraped, but they are
+noise in a managed directory.
+
 ### Avahi auto-discovery
 
 On each target machine, copy the appropriate Avahi service
@@ -108,6 +118,7 @@ Each exporter type uses a distinct DNS-SD service type:
 | `_ais-exporter._tcp`         | 9092  | ais-exporter             |
 | `_rdma-exporter._tcp`        | 9879  | rdma-exporter             |
 | `_nvme-exporter._tcp`        | 9998  | nvme-exporter            |
+| `_hsa-snoop._tcp`            | 9488  | hsa-snoop                |
 | `_openai-exporter._tcp`      | 9185  | openai_exporter          |
 | `_cursor-exporter._tcp`      | 9788  | cursor-exporter          |
 
@@ -164,6 +175,74 @@ No such exporter ever existed: `max_over_time(up[365d])` was
 `0` for both targets across the entire retention window. The
 job, its target file, and its Avahi service definition were
 removed in favour of Lemonade's built-in endpoint above.
+
+### The amd-gpu-metrics-exporter job
+
+**This job's metric names are `amd_gpu_*` and `amd_pcie_*`,
+not bare `gpu_*`.** `MetricsFieldPrefix: "amd_"` in
+`/etc/metrics/config.json` is the exporter's own packaged
+default — the file's md5 matches dpkg's record, and
+upstream's `example/config.json` sets the same value.
+Nothing here rewrites it, so dashboards must use the
+prefixed names. The two vendored AMD dashboards set their
+`g_metrics_prefix` variable to `amd_` for this reason; see
+[grafana/vendor/manifest.yaml](../grafana/vendor/manifest.yaml).
+
+The exporter used to serve `card_model=""` on every host,
+and Prometheus drops empty labels, so the label disappeared
+entirely and GPU columns rendered blank. One
+`metric_relabel_configs` rule still hardcodes it:
+
+| Host | card_model | Why the exporter cannot |
+|---|---|---|
+| `snoc-thinkstation` | `Radeon RX 9070 XT` | `amd-smi static` knows the name; the exporter never plumbs it through |
+
+The rule matches on `hostname;card_model` with an empty
+`card_model`, so an exporter that starts populating the
+field wins automatically and the rule becomes dead weight
+rather than a wrong override.
+
+That is not a hypothetical. A matching rule for `snoc-strix`
+forced `Radeon 8060S (Strix Halo)` while amdsmi had no
+gfx1151 support ([ROCm#6035](https://github.com/ROCm/ROCm/issues/6035)).
+`amdgpu-exporter` 1.5.1 now reports
+`card_model="AMD Radeon 8060S Graphics"` and
+`card_series="Strix Halo [...]"` natively, which disabled
+the rule on its own; it was removed on 2026-09-06 and the
+LAN Overview *GPU* column shows the exporter's own string.
+`snoc-thinkstation` has been offline since before 1.5.1, so
+its rule stays until that host proves it no longer needs it.
+
+GPU *presence* is deliberately not detected from this job —
+see [the Grafana README](../grafana/README.md) for why LAN
+Overview spines its inventory on
+`node_hwmon_chip_names{chip_name="amdgpu"}` instead.
+
+### The hsa-snoop job
+
+[hsa-snoop](https://github.com/sbates130272/hsa-snoop)
+serves `hsa_*` and `ais_*` families from its own endpoint
+when built with `-DHSA_SNOOP_PROMETHEUS=ON` and run as
+`sudo hsa-snoop --all --prometheus` (default port 9488).
+The `ais_*` families additionally require `--ais-snoop`.
+
+It is a separate job from `ais-exporter`, despite the
+overlapping metric names — `ais-exporter` is a different
+process on `:9092`.
+
+The job carries a `metric_relabel_configs` rule copying
+`server_name` into `host`. hsa-snoop already stamps every
+metric with a constant `host` label from `gethostname()`,
+so the rule is a normalisation rather than a fix: it keeps
+the HSA Snoop dashboard's picker
+(`label_values(hsa_snoop_up, host)`) agreeing with the
+`server_name` every other dashboard uses, even if the box's
+kernel hostname drifts from its homelab name. Drop the rule
+if you would rather see the self-reported hostname.
+
+Note that `hsa_errors_total` and `ais_tx_errors_total` are
+declared upstream but only materialise once a labelled child
+exists, so those panels read empty on a healthy exporter.
 
 ## First-Time Migration
 
