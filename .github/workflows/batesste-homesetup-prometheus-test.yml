@@ -23,6 +23,16 @@ jobs:
         run: |
           sudo mkdir -p /etc/prometheus/targets
           sudo cp targets/*.json /etc/prometheus/targets/
+      - name: Stub scrape credential files for validation
+        run: |
+          # promtool stats every credentials_file referenced by
+          # prometheus.yml. The real secret only exists on the
+          # homelab host, so CI validates against a placeholder.
+          sudo mkdir -p /etc/prometheus/secrets
+          echo -n placeholder \
+            | sudo tee /etc/prometheus/secrets/lemonade-api-key \
+              >/dev/null
+          sudo chmod 0444 /etc/prometheus/secrets/lemonade-api-key
       - name: Validate prometheus.yml
         run: |
           promtool check config prometheus.yml
@@ -40,6 +50,22 @@ jobs:
             '.[] | select(.targets[] == "10.0.0.99:9100")' \
             targets/node.json
           git checkout targets/node.json
+      - name: Validate emvue-exporter labels.json
+        run: |
+          jq empty emvue-exporter/labels.json
+          # Every plug must carry a name: it is what the Emporia
+          # SmartPlugs dashboard legends each series on, and a plug
+          # without one renders as a blank gauge rather than an error.
+          jq -e 'to_entries | all(.value.name != null and
+                                  .value.name != "")' \
+            emvue-exporter/labels.json
+          # The dashboard's Status picker defaults to active, so a plug
+          # with no status is filtered out of the default view and looks
+          # like it stopped reporting.
+          jq -e 'to_entries | all(.value.status == "active" or
+                                  .value.status == "unused")' \
+            emvue-exporter/labels.json
       - name: Validate deploy.sh dry-run
         run: |
           ./deploy.sh --dry-run
+          ./emvue-exporter/deploy.sh --dry-run

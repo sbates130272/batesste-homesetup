@@ -1,0 +1,106 @@
+// Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+//
+// SPDX-License-Identifier: MIT
+
+// batesste-homelab Grafana Alloy config
+//
+// One file for every Linux host in the fleet. The only per-host
+// variable is where to push, which comes from LOKI_PUSH_URL in
+// /etc/default/alloy -- deploy-agent.sh picks the right value.
+// That variable has to reach Alloy's *process* environment, which
+// is why it goes in /etc/default/alloy (the unit reads it via
+// EnvironmentFile) and not a shell profile.
+//
+// Promtail would have been the obvious choice here and is what
+// most Loki documentation still shows. It is end-of-life and no
+// longer published to apt.grafana.com; Alloy is its replacement.
+
+// journald exposes its own fields with a leading underscore, so
+// _SYSTEMD_UNIT arrives as __journal__systemd_unit -- two
+// underscores after __journal. Alloy drops every __journal_*
+// label before forwarding unless a rule renames it, and a typo
+// here costs nothing visible: the component still reports
+// healthy, it just ships logs nobody can filter.
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "hostname"
+  }
+
+  // PRIORITY yields both __journal_priority (numeric 0-7) and
+  // this keyword form (emerg/crit/err/warning/info/debug). The
+  // keyword is what Grafana's log level colouring expects.
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+loki.source.journal "read" {
+  // Forwarded through a relabel stage rather than straight to
+  // the writer: loki.source.journal overwrites the `job` label
+  // in its own `labels` argument with its component ID, so
+  // setting job = "systemd-journal" there silently produces
+  // job = "loki.source.journal.read" instead. Rewriting it on
+  // the way past is the version that actually holds.
+  forward_to    = [loki.relabel.journal_job.receiver]
+  relabel_rules = loki.relabel.journal.rules
+
+  // Without this a fresh agent replays the entire persistent
+  // journal on first start. /var/log/journal holds 4GB on the
+  // beelink alone, which would blow through the ingestion rate
+  // limit and backfill 90 days of retention in one go.
+  max_age = "12h"
+
+  // LOKI_HOST_LABEL rather than constants.hostname, because a
+  // couple of machines answer to a kernel hostname that is not
+  // their homelab name -- amd-laptop reports APCAN-MQ60818VV.
+  // Prometheus already fights this: prometheus.yml rewrites
+  // hsa-snoop's host label onto server_name for exactly the same
+  // reason. Keeping the label equal to server_name is what lets
+  // one Grafana variable drive both metrics and logs.
+  labels = {
+    host = sys.env("LOKI_HOST_LABEL"),
+  }
+}
+
+loki.relabel "journal_job" {
+  forward_to = [loki.write.beelink.receiver]
+
+  rule {
+    target_label = "job"
+    replacement  = "systemd-journal"
+  }
+}
+
+// nginx logs to files, not journald, so the journal source above
+// cannot see them. On hosts without nginx this matches nothing
+// and the component simply idles -- which is why the config
+// stays identical fleet-wide.
+local.file_match "nginx" {
+  path_targets = [
+    {
+      __path__ = "/var/log/nginx/*.log",
+      job      = "nginx",
+      host     = sys.env("LOKI_HOST_LABEL"),
+    },
+  ]
+}
+
+loki.source.file "nginx" {
+  targets    = local.file_match.nginx.targets
+  forward_to = [loki.write.beelink.receiver]
+}
+
+loki.write "beelink" {
+  endpoint {
+    url = sys.env("LOKI_PUSH_URL")
+  }
+}

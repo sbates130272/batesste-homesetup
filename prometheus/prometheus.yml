@@ -15,8 +15,22 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+  # external_labels are attached only when talking to *external*
+  # systems -- Alertmanager, federation, outbound remote_write. They
+  # are NOT stored on local series: `count(up{monitor="example"})` is
+  # 0 against this very config. So this does not give homelab metrics
+  # a cluster label you can select on in a query, and adding it here
+  # to get one will not work.
+  #
+  # It is worth setting anyway. This box is a remote-write sink
+  # (--web.enable-remote-write-receiver, see prometheus.defaults) for
+  # clusters that each stamp their own `cluster` -- roughly 183k
+  # series pushed in against 10k scraped here. Without one of our own,
+  # an alert from this server arrives at Alertmanager as the only
+  # anonymous one in that crowd.
   external_labels:
     monitor: 'example'
+    cluster: 'snoc-lan'
 
 alerting:
   alertmanagers:
@@ -31,6 +45,10 @@ scrape_configs:
   - job_name: prometheus
     scrape_interval: 5s
     scrape_timeout: 5s
+    # Scrape Prometheus directly on its own listener, so a bare
+    # /metrics is correct. Port 9090 is the nginx listener that
+    # fronts it; going via nginx returns 401 because that vhost
+    # requires auth. Both flags live in prometheus.defaults.
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/prometheus.json
@@ -82,22 +100,75 @@ scrape_configs:
           - /etc/prometheus/targets/amd-gpu-metrics-exporter.json
           - /etc/prometheus/targets/discovered/amd-gpu-metrics-exporter.json
         refresh_interval: 30s
-    # Strix Halo APUs: amdsmi cannot read card_model
-    # (ROCm/ROCm#6035). Hardcode it until the library
-    # adds gfx1151 support.
+    # Order matters here. The hostname rule runs first so the
+    # card_model rule that follows can match on homelab names.
     metric_relabel_configs:
-      - source_labels: [hostname, card_model]
-        separator: ;
-        regex: 'snoc-strix;'
-        target_label: card_model
-        replacement: 'Radeon 8060S (Strix Halo)'
+      # The exporter stamps every sample with gethostname(), which
+      # on amd-laptop is APCAN-MQ60818VV. Left alone that label
+      # joins to nothing: every dashboard and every other job keys
+      # on the server_name file_sd applies. Same normalisation the
+      # hsa-snoop job does below, and the same reason Alloy ships
+      # LOKI_HOST_LABEL rather than constants.hostname.
+      - source_labels: [server_name]
+        target_label: hostname
 
-  - job_name: amd-sysfs-gpu-exporter
-    file_sd_configs:
-      - files:
-          - /etc/prometheus/targets/amd-sysfs-gpu-exporter.json
-          - /etc/prometheus/targets/discovered/amd-sysfs-gpu-exporter.json
-        refresh_interval: 30s
+      # Normalise every sample to the amd_ prefix on ingest.
+      #
+      # MetricsFieldPrefix: "amd_" is the exporter's own packaged
+      # default, but whether a given build honours it varies by
+      # version and platform, and it moves under us -- amd-laptop
+      # served bare gpu_* one morning and amd_gpu_* that evening
+      # after an exporter upgrade, with no change on this box.
+      # Deliberately no list of which hosts are prefixed today:
+      # that is a snapshot, not a rule, and the last one was wrong
+      # within a day.
+      #
+      # The AMD dashboards drive every query off one global
+      # g_metrics_prefix variable defaulted to "amd_", so an
+      # unprefixed host scrapes green and renders empty on every
+      # panel. This rule makes the prefix an invariant of the TSDB
+      # rather than a property of each remote build, which is why
+      # it stays even when every exporter happens to agree -- and
+      # keeps the fix in the repo rather than in config.json on a
+      # Windows box and a corporate laptop.
+      #
+      # The regex is fully anchored, so already-prefixed amd_* and
+      # promhttp_* cannot match and pass through untouched.
+      - source_labels: [__name__]
+        regex: '(gpu|pcie)_(.*)'
+        target_label: __name__
+        replacement: 'amd_${1}_${2}'
+
+      # No card_model override remains, deliberately. Prometheus
+      # drops empty labels, so a card_model="" does not render as
+      # blank -- the label vanishes and the GPU column has nothing
+      # to show at all, which is why hosts used to need a value
+      # hardcoded here.
+      #
+      # Every such rule was written to match an *empty* card_model
+      # so that an exporter which starts populating the field wins
+      # automatically rather than fighting a stale override, and
+      # every one of them has now retired itself that way:
+      # snoc-strix and amd-laptop when amdgpu-exporter 1.5.1 landed
+      # with gfx1151 support, then snoc-thinkstation when it was
+      # upgraded off 1.5.0 on 2026-09-08. All four hosts self-report
+      # today. If a new card turns up blank, add a rule back in that
+      # same empty-matching shape -- never an unconditional one.
+
+      # snoc-gaming runs the exporter under WSL2, not natively on
+      # Windows, and exposes a much smaller set: ~88 families,
+      # almost all gpu_ecc_*, plus VRAM/GTT, gpu_health, XGMI and
+      # pcie_speed. It has NO gfx_activity, power, temp or clock,
+      # so its GPU Inventory row shows Node, GPU and Exporter and
+      # leaves Temp/Power/Busy blank. That is what the passthrough
+      # exposes, not a broken scrape -- do not "fix" the blank
+      # columns by repointing them at something that resolves.
+      #
+      # It is also the last host serving bare gpu_*, and not for a
+      # version reason: it runs the same 1.5.1 package as everyone
+      # else, but its /etc/metrics/config.json was hand-trimmed to
+      # {"ServerPort": 5000}, which discards the packaged
+      # MetricsFieldPrefix. The __name__ rule above covers it.
 
   - job_name: ais-exporter
     file_sd_configs:
@@ -120,6 +191,23 @@ scrape_configs:
           - /etc/prometheus/targets/discovered/nvme-exporter.json
         refresh_interval: 30s
 
+  - job_name: hsa-snoop
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/hsa-snoop.json
+          - /etc/prometheus/targets/discovered/hsa-snoop.json
+        refresh_interval: 30s
+    # hsa-snoop stamps every metric with a constant `host`
+    # label taken from gethostname(), and the HSA Snoop
+    # dashboard drives its picker from
+    # label_values(hsa_snoop_up, host). Normalise it to the
+    # server_name file_sd applies, so the picker agrees with
+    # every other dashboard even when the box's kernel
+    # hostname differs from its homelab name.
+    metric_relabel_configs:
+      - source_labels: [server_name]
+        target_label: host
+
   - job_name: openai_exporter
     scrape_interval: 60s
     file_sd_configs:
@@ -136,9 +224,48 @@ scrape_configs:
           - /etc/prometheus/targets/discovered/cursor-exporter.json
         refresh_interval: 30s
 
-  - job_name: lemonade-exporter
+  # Loki serves its own metrics on the same port it ingests on.
+  # Worth scraping for more than tidiness: retention is enforced
+  # by time, not size, so ingestion rate is the only advance
+  # warning that /var/lib/loki is about to hit its 12G volume.
+  - job_name: loki
     file_sd_configs:
       - files:
-          - /etc/prometheus/targets/lemonade-exporter.json
-          - /etc/prometheus/targets/discovered/lemonade-exporter.json
+          - /etc/prometheus/targets/loki.json
         refresh_interval: 30s
+
+  # amd-laptop is absent from alloy.json. It ships logs to Loki
+  # fine, but its Alloy metrics port is not reachable from here:
+  # Alloy listens on *:12345 and the INPUT policy is ACCEPT with
+  # no rules, yet 12345 and 12346 both time out from the beelink.
+  #
+  # This is a host firewall allowlist below iptables, not a
+  # blanket block -- 9100 (node-exporter) and 5000 (the GPU
+  # exporter, added to amd-gpu-metrics-exporter.json above) both
+  # answer from the same source. So the fix is an explicit
+  # inbound rule for 12345 on that machine, the same shape as the
+  # node_exporter rules in snoc-gaming.md. Re-add the target once
+  # that rule exists; until then a permanently red target would
+  # only train us to ignore the light.
+  - job_name: alloy
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/alloy.json
+          - /etc/prometheus/targets/discovered/alloy.json
+        refresh_interval: 30s
+
+  # Lemonade exposes its own metrics endpoint over Tailscale
+  # (TLS, token auth). Static rather than file_sd because
+  # there is one such endpoint, not a discoverable fleet.
+  # server_name matches the label file_sd applies to other
+  # jobs; the Lemonade dashboard keys its instance variable
+  # on it.
+  - job_name: lemonade-snoc-strix
+    scheme: https
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/lemonade-api-key
+    static_configs:
+      - targets: ['snoc-strix.fold-leaffish.ts.net:13305']
+        labels:
+          server_name: snoc-strix

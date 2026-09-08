@@ -134,6 +134,7 @@
       "type": "table"
     },
     {
+      "description": "Static text panel recording the ROCm stack this dashboard was built against. Nothing updates it automatically -- edit it when the host is upgraded.",
       "gridPos": {
         "h": 4,
         "w": 12,
@@ -159,7 +160,7 @@
         "type": "prometheus",
         "uid": "ae8pyuqoyonpca"
       },
-      "description": "Power consumption of the snoc-thinkstation server and the GPU in it.",
+      "description": "Wall power for $hostname, measured by the Emporia smart plug whose `computer` label names that host, plotted against the GPU package power reported by the AMD SMI exporter. The gap between them is everything that is not the GPU.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -246,8 +247,8 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "snoc_pinewood_plug_d_power{}",
-          "legendFormat": "snoc-thinkstation",
+          "expr": "{__name__=~\"snoc_pinewood_plug_._power\", computer=\"$hostname\"}",
+          "legendFormat": "{{computer}} (at the wall)",
           "range": true,
           "refId": "A"
         },
@@ -259,7 +260,7 @@
           "editorMode": "code",
           "expr": "amd_gpu_average_package_power{gpu_id=\"$gpu_id\",server_name=\"${hostname}\"}",
           "instant": false,
-          "legendFormat": "GPU",
+          "legendFormat": "GPU $gpu_id (package)",
           "range": true,
           "refId": "B"
         }
@@ -375,7 +376,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "amd_gpu_used_vram{gpu_id=\"$gpu_id\"}/amd_gpu_total_vram{gpu_id=\"$gpu_id\"}",
+          "expr": "amd_gpu_used_vram{gpu_id=\"$gpu_id\"} / amd_gpu_total_vram{gpu_id=\"$gpu_id\"} * 100",
           "instant": false,
           "legendFormat": "VRAM {{gpu_id}}",
           "range": true,
@@ -592,7 +593,7 @@
           "editorMode": "code",
           "expr": "rate(rdma_port_xmit_data_total{device=~\"$rdma\"}[$__rate_interval])",
           "fromExploreMetrics": false,
-          "legendFormat": "{{device}} rx",
+          "legendFormat": "{{device}} tx",
           "range": true,
           "refId": "rdma_rx_bytes_total-sum(rate)"
         },
@@ -604,7 +605,7 @@
           "editorMode": "code",
           "expr": "rate(rdma_port_rcv_data_total{device=~\"$rdma\"}[$__rate_interval])",
           "instant": false,
-          "legendFormat": "{{device}} tx",
+          "legendFormat": "{{device}} rx",
           "range": true,
           "refId": "A"
         }
@@ -726,6 +727,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Per-core busy time for $hostname, as 100 minus the idle rate. One line per logical CPU, so a single saturated core is visible even when the average looks idle.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -831,6 +833,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Lifetime count of entries in each drive's error information log. Flat is healthy; any step up means the controller logged a new error.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -888,7 +891,7 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -938,6 +941,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Edge and junction temperatures for the selected GPU. Junction is the hottest on-die sensor and is what throttling acts on, so it leads edge by some margin under load. AMD also calls it \"hotspot\" -- the exporter name is amd_gpu_junction_temperature.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1032,7 +1036,7 @@
           "editorMode": "code",
           "expr": "amd_gpu_edge_temperature{gpu_id=\"$gpu_id\"}",
           "format": "time_series",
-          "legendFormat": "{{card_series}}: Edge Temperature",
+          "legendFormat": "{{card_model}}: Edge Temperature",
           "refId": "A"
         },
         {
@@ -1041,9 +1045,9 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "amd_gpu_hotspot_temperature{gpu_id=\"$gpu_id\"}",
+          "expr": "amd_gpu_junction_temperature{gpu_id=\"$gpu_id\"}",
           "format": "time_series",
-          "legendFormat": "{{card_series}} hotspot",
+          "legendFormat": "{{card_model}}: Junction Temperature",
           "refId": "B"
         }
       ],
@@ -1155,7 +1159,120 @@
           "refId": "A"
         }
       ],
-      "title": "NVMe Temperature (oC)",
+      "title": "NVMe Temperature",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "RDMA port packet rate (IO operations per second) sourced from sysfs hw_counters.\n\n**Type:** *counter*\n\n",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          },
+          "unit": "iops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 36
+      },
+      "id": 104,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.4.1",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(rdma_port_xmit_packets_total{device=~\"$rdma\"}[$__rate_interval])",
+          "format": "time_series",
+          "legendFormat": "{{device}} tx",
+          "range": true,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "rate(rdma_port_rcv_packets_total{device=~\"$rdma\"}[$__rate_interval])",
+          "format": "time_series",
+          "legendFormat": "{{device}} rx",
+          "range": true,
+          "refId": "B"
+        }
+      ],
+      "title": "RDMA IO Operations",
       "type": "timeseries"
     }
   ],

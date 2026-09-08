@@ -26,6 +26,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "WAN download throughput, measured by speedtest_exporter against the nearest Ookla server. The exporter reports bytes/s; multiplied by 8 here so the axis reads in the bits/s the ISP quotes.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -70,8 +71,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -130,6 +130,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "WAN upload throughput from the same speedtest run, likewise converted from bytes/s to bits/s.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -174,8 +175,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -232,7 +232,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "Variation in round-trip latency during the speedtest run. The metric name carries the exporter's own typo, speedtest_jittter_seconds -- three t's. Do not \"correct\" it.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -277,8 +277,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -322,7 +321,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "speedtest_jitter_seconds",
+          "expr": "speedtest_jittter_seconds",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -338,6 +337,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Idle round-trip latency to the speedtest server. Spikes here without a matching throughput drop usually mean congestion upstream of the modem rather than a link problem.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -382,8 +382,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -438,7 +437,7 @@
   ],
   "preload": false,
   "refresh": "auto",
-  "schemaVersion": 40,
+  "schemaVersion": 42,
   "tags": [
     "shaw",
     "linux",

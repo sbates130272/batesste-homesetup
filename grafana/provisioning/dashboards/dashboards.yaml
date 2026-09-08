@@ -2,12 +2,35 @@
 #
 # SPDX-License-Identifier: MIT
 
+# One provider per Grafana folder. The provider name matches the
+# directory name under grafana/dashboards/ (first-party) or
+# grafana/vendor/dashboards/ (adopted third-party), and deploy.sh
+# asserts that mapping holds -- adding a directory without a provider
+# here is a deploy-time error, not a silent no-op.
+#
+# First-party providers set allowUiUpdates: true so dashboards can be
+# tweaked in the UI and pulled back with ./sync-dashboards.sh --pull.
+#
+# vendor-* providers set allowUiUpdates: false on purpose. Those
+# dashboards came from elsewhere; making them read-only on the server is
+# what keeps "sync" meaningful -- to change one, edit the JSON in the
+# repo (or re-fetch it from the upstream recorded in vendor/manifest.yaml)
+# and run ./deploy.sh.
+#
+# folderUid is pinned and matters. Provisioning matches folders by title
+# alone, and will happily create a *second* folder with the same name
+# rather than adopt one that already exists -- which is exactly what
+# happened when the ROCm XIO/AIC providers were first added. Pinning the
+# uid binds each provider to the intended folder, and makes folder
+# identity reproducible if the server is ever rebuilt from scratch.
+
 apiVersion: 1
 
 providers:
   - name: home-network-related
     orgId: 1
     folder: Home Network Related
+    folderUid: ee8pz914edpfkf
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
@@ -27,24 +50,65 @@ providers:
       path: /var/lib/grafana/dashboards/general
       foldersFromFilesStructure: false
 
-  - name: amd-related
-    orgId: 1
-    folder: AMD Related
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /var/lib/grafana/dashboards/amd-related
-      foldersFromFilesStructure: false
-
   - name: personal-finance
     orgId: 1
     folder: Personal Finance
+    folderUid: afhq8ikpf5iiod
     type: file
     disableDeletion: false
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
       path: /var/lib/grafana/dashboards/personal-finance
+      foldersFromFilesStructure: false
+
+  - name: rocm-xio-related
+    orgId: 1
+    folder: ROCm XIO Related
+    folderUid: bfo21p2etpce8a
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/rocm-xio-related
+      foldersFromFilesStructure: false
+
+  # ── Adopted third-party dashboards ─────────────────────────────
+
+  # This one *does* pin folderUid, unlike its sibling below. Retiring
+  # cursor-usage emptied dashboards/amd-related/ and took the first-party
+  # amd-related provider with it, which had been the sole claimant of
+  # bfhho76dk60hsf. Leaving it unpinned would mean nothing binds AMD
+  # Related to that uid, so a rebuild would match on title, find no
+  # provisioned folder of that name, and create a fresh one. Grafana only
+  # rejects a folderUid claimed *twice*; now that it is claimed once, this
+  # provider should hold it.
+  - name: vendor-amd-related
+    orgId: 1
+    folder: AMD Related
+    folderUid: bfhho76dk60hsf
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/vendor/amd-related
+      foldersFromFilesStructure: false
+
+  # No folderUid here, for the opposite reason: home-network-related above
+  # is still alive and already claims ee8pz914edpfkf, and Grafana rejects
+  # two providers claiming one uid. Matching on title alone is safe while
+  # that provider exists, because title matching only spawns a duplicate
+  # when no provisioned folder of that name does. If it is ever retired,
+  # move the uid here the way it was moved onto vendor-amd-related.
+  - name: vendor-home-network-related
+    orgId: 1
+    folder: Home Network Related
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/vendor/home-network-related
       foldersFromFilesStructure: false

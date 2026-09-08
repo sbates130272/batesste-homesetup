@@ -1,7 +1,15 @@
 [
   {
     "targets": [
-      "10.0.0.131:9091"
+      "localhost:12345"
+    ],
+    "labels": {
+      "server_name": "snoc-beelink"
+    }
+  },
+  {
+    "targets": [
+      "10.0.0.131:12345"
     ],
     "labels": {
       "server_name": "snoc-thinkstation"
@@ -9,7 +17,7 @@
   },
   {
     "targets": [
-      "10.0.0.70:9091"
+      "10.0.0.70:12345"
     ],
     "labels": {
       "server_name": "snoc-strix"

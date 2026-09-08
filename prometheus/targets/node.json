@@ -1,6 +1,8 @@
 [
   {
-    "targets": ["localhost:9100"],
+    "targets": [
+      "localhost:9100"
+    ],
     "labels": {
       "server_name": "snoc-beelink"
     }
@@ -17,23 +19,34 @@
   },
   {
     "targets": [
-      "10.0.0.2:9100",
-      "10.0.0.108:9100"
+      "10.0.0.247:9100"
     ],
     "labels": {
-      "server_name": "snoc-gamingpc"
+      "server_name": "snoc-gaming"
     }
   },
   {
-    "targets": ["10.0.0.131:9100"],
+    "targets": [
+      "10.0.0.131:9100"
+    ],
     "labels": {
       "server_name": "snoc-thinkstation"
     }
   },
   {
-    "targets": ["10.0.0.70:9100"],
+    "targets": [
+      "10.0.0.70:9100"
+    ],
     "labels": {
       "server_name": "snoc-strix"
+    }
+  },
+  {
+    "targets": [
+      "10.0.0.107:9100"
+    ],
+    "labels": {
+      "server_name": "amd-laptop"
     }
   }
 ]

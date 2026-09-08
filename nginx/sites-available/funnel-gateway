@@ -1,0 +1,36 @@
+# Public Tailscale funnel mux — funnel :443 → 127.0.0.1:8080
+server {
+    listen 127.0.0.1:8080;
+    server_name snoc-beelink.fold-leaffish.ts.net;
+
+    absolute_redirect off;
+
+    location = /grafana {
+        return 301 /grafana/;
+    }
+
+    location = /prometheus {
+        return 301 /prometheus/;
+    }
+
+    location /grafana/ {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /prometheus/ {
+        auth_basic "Prometheus";
+        auth_basic_user_file /etc/nginx/prometheus.htpasswd;
+        proxy_pass http://127.0.0.1:9092/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+}

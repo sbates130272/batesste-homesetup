@@ -4,6 +4,9 @@ on:
     paths:
       - 'grafana/**'
       - '!grafana/README.md'
+      # A plug renamed here silently drops its fixed color on the
+      # Emporia dashboard, so a labels.json edit runs this job too.
+      - 'prometheus/emvue-exporter/labels.json'
 
 jobs:
   grafana-test:
@@ -43,6 +46,36 @@ jobs:
               yaml.safe_load(fh)
           "
           done
+
+      - name: Check emporia plug colors cover every plug
+        run: |
+          python3 - <<'PY'
+          import json, sys
+
+          dash = json.load(open(
+              "dashboards/home-network-related/"
+              "emporia-smartplugs-dashboard.json"))
+          labels = json.load(open("../prometheus/emvue-exporter/labels.json"))
+
+          want = {p["name"] for p in labels.values()}
+          bad = []
+          for panel in dash["panels"]:
+              if panel["type"] != "timeseries":
+                  continue
+              have = {o["matcher"]["options"]
+                      for o in panel["fieldConfig"]["overrides"]
+                      if o["matcher"]["id"] == "byName"}
+              for missing in sorted(want - have):
+                  bad.append(f"{panel['title']}: no color for {missing!r}")
+              for extra in sorted(have - want):
+                  bad.append(f"{panel['title']}: color for unknown "
+                             f"plug {extra!r}")
+
+          if bad:
+              print("\n".join(bad))
+              sys.exit(1)
+          print(f"Every timeseries panel colors all {len(want)} plugs.")
+          PY
 
       - name: Validate deploy.sh dry-run
         run: |

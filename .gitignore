@@ -1,3 +1,7 @@
 *~
 *.secrets
 .aws.creds.env
+
+# Certain agent markdown files
+snoc-gaming.md
+

@@ -69,9 +69,10 @@ SERVICE_MAP=(
     ["_ais-exporter._tcp"]="ais-exporter"
     ["_rdma-exporter._tcp"]="rdma-exporter"
     ["_nvme-exporter._tcp"]="nvme-exporter"
+    ["_hsa-snoop._tcp"]="hsa-snoop"
     ["_openai-exporter._tcp"]="openai_exporter"
     ["_cursor-exporter._tcp"]="cursor-exporter"
-    ["_lemonade-exporter._tcp"]="lemonade-exporter"
+    ["_alloy._tcp"]="alloy"
 )
 
 browse_service() {

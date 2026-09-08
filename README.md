@@ -22,6 +22,14 @@ more information.
 
 # SSL Certificate
 
+Note that this is no longer in use. Remote access to the homelab now
+goes through [Tailscale][ref-tailscale], which terminates TLS itself
+with a certificate it manages, so there is nothing to renew by hand.
+The `homelab.raithlin.com` vhosts have been removed from the nginx
+configuration — see [the nginx README.md](./nginx/README.md). The
+steps below are kept for reference in case a public hostname is ever
+wanted again.
+
 In order to connect to http-based services inside my home setup I want
 to deploy [SSL certificates][ref-ssl-certs] that have been
 authenticated. There is an easy command line way to do this based on
@@ -130,6 +138,21 @@ Each scrape job has a corresponding JSON file in `targets/`:
 | `openai_exporter.json`           | openai_exporter           |
 | `cursor-exporter.json`           | cursor-exporter           |
 | `lemonade-exporter.json`         | lemonade-exporter         |
+| `loki.json`                      | loki                      |
+| `alloy.json`                     | alloy                     |
+
+### Emporia smartplug labels
+
+The smartplugs are scraped from [emvue-exporter][ref-emvue], which
+runs on the home server and is its own repository. What is specific to
+this house is the plug names, so those live here in
+`prometheus/emvue-exporter/labels.json` and are installed with:
+```bash
+cd prometheus/emvue-exporter
+./deploy.sh
+```
+The Emporia SmartPlugs dashboard names every plug from that file, so
+renaming a plug or adding one is a change to it alone.
 
 ### Avahi auto-discovery
 
@@ -147,6 +170,60 @@ Or install the systemd timer for continuous discovery
 every five minutes. See the
 [prometheus README.md](./prometheus/README.md) for full
 details.
+
+# Loki
+
+Prometheus and Grafana cover metrics; [Loki](./loki) covers
+logs. It runs on the home server and every Linux box in the fleet
+ships its systemd journal there with [Grafana Alloy][ref-alloy], so
+"why did that exporter die" is a Grafana query rather than an ssh
+session on whichever machine is suspect.
+
+Both packages come from the Grafana apt repository that Grafana
+itself already uses. Retention is 90 days, and `/var/lib/loki` is
+its own logical volume because Loki caps retention by time and has
+no size limit — the volume boundary is the only thing standing
+between a runaway log source and a full root filesystem. See [the
+README.md](./loki/README.md) for the config, the agent rollout, and
+the handful of ways Alloy fails without saying anything.
+
+# nginx
+
+The [nginx](./nginx) folder holds the reverse proxy configuration for
+the home server. nginx publishes a few container UIs on their own LAN
+ports and provides the loopback mux that [Tailscale][ref-tailscale]
+Funnel points at. Configuration is deployed with a script that
+validates the whole tree with `nginx -t` before touching `/etc/nginx`.
+
+Which address a `listen` directive binds is what separates LAN traffic
+from Tailscale traffic — the unauthenticated Prometheus vhost is bound
+to the LAN address only, while the basic-auth one sits on loopback for
+`tailscale serve` to proxy to. These must not be collapsed into
+wildcard binds.
+
+That does mean nginx binds an address belonging to the WiFi interface,
+which is not present that early in boot, so nginx used to lose the race
+and die with `bind() to 10.0.0.15:80 failed (99: Cannot assign
+requested address)`. `network-online.target` does not help here because
+nothing on this machine gates it. The fix is
+`net.ipv4.ip_nonlocal_bind=1`. See [the README.md](./nginx/README.md)
+for the full analysis and the deploy instructions.
+
+# Hermes
+
+The [hermes](./hermes) folder covers the Hermes agent running on the
+home server. It runs as a pair of *user* systemd units rather than
+system ones, which matters because `Linger` has to be enabled for the
+account or nothing starts at boot.
+
+The folder holds a drop-in that binds the dashboard to loopback
+instead of all interfaces. The old bind was taking port 9119 on every
+address, including the one tailscaled needs for its own `serve` entry,
+which left tailscaled retrying in a loop forever — and left the
+dashboard reachable from the LAN with no authentication in front of
+it. Reaching it over the tailnet now goes through an nginx shim. See
+[the README.md](./hermes/README.md) for the details and for the
+duplicate system unit that was disabled alongside it.
 
 # Firefly III
 
@@ -169,9 +246,15 @@ config and the Grafana dashboard.
 
 # Backups
 
-We enable a full disk backup of servers to AWS S3 buckets using
-[mountpoint][ref-mountpoint] and a systemd service. See the
-[backup README.md](./backup/README.md) for more information.
+We enable backups of homelab data to AWS S3 buckets. See the
+[backup README.md](./backup/README.md) for details:
+
+- **Disk images** — [mountpoint-s3][ref-mountpoint] and a system
+  systemd timer (`batesste-s3-backup`, daily).
+- **Hermes agent** — `hermes backup` plus AWS CLI upload
+  (`batesste-hermes-s3-backup`, weekly user timer).
+- **Docker volumes** — [offen/docker-volume-backup][ref-dvb] for
+  Firefly III and Time Machine (see project compose files).
 
 # Time Machine
 
@@ -205,8 +288,12 @@ link to the server via the instructions in main repo.
 [ref-firefly]: https://docs.firefly-iii.org/
 [ref-batesste-ff]:https://github.com/sbates130272/batesste-firefly-iii
 [ref-speedtest]:https://github.com/billimek/prometheus-speedtest-exporter
+[ref-emvue]: https://github.com/sbates130272/emvue-exporter
 [ref-mountpoint]: https://github.com/awslabs/mountpoint-s3
+[ref-dvb]: https://github.com/offen/docker-volume-backup
 [ref-time-machine]: https://github.com/mbentley/docker-timemachine
 [ref-file-sd]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config
 [ref-homekit]: https://www.apple.com/home-app/
 [ref-avahi]: https://avahi.org/
+[ref-alloy]: https://grafana.com/docs/alloy/latest/
+[ref-tailscale]: https://tailscale.com/

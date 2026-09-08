@@ -1,0 +1,93 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# batesste-homelab Loki Config
+#
+# Single-binary Loki with filesystem storage, fed by Grafana
+# Alloy agents on each Linux host in the fleet. Deployed to
+# /etc/loki/config.yml by ./deploy.sh.
+#
+# This replaces the config shipped by the deb wholesale. That
+# one stores everything under /tmp/loki, which the system wipes
+# on reboot.
+
+auth_enabled: false
+
+server:
+  # Bound to all interfaces deliberately: the fleet agents push
+  # here over the LAN, and amd-laptop pushes over the tailnet
+  # when it is away. That also means the push and delete APIs
+  # are unauthenticated to anything that can route here -- the
+  # same trade already made for the LAN Prometheus vhost in
+  # nginx/sites-available/prometheus.
+  http_listen_address: 0.0.0.0
+  http_listen_port: 3100
+  # Nothing else speaks gRPC to this instance; there is no
+  # reason for it to leave the box. Keeping it on loopback only
+  # works because common.instance_addr below matches -- see the
+  # note there before changing either.
+  grpc_listen_address: 127.0.0.1
+  grpc_listen_port: 9096
+  log_level: info
+
+common:
+  path_prefix: /var/lib/loki
+  # Even as a single binary, Loki's components find each other
+  # over gRPC through the ring rather than in-process, and by
+  # default they register the address of the outbound interface
+  # -- 10.0.0.15 here. With grpc_listen_address on loopback that
+  # is a dead address: every query hangs and the journal fills
+  # with "connection refused" dialling 10.0.0.15:9096. Pin the
+  # advertised address to match what the gRPC server is actually
+  # bound to. These two settings have to agree.
+  instance_addr: 127.0.0.1
+  storage:
+    filesystem:
+      chunks_directory: /var/lib/loki/chunks
+      rules_directory: /var/lib/loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    # Do not edit this entry once data has been ingested under
+    # it -- every chunk written against it becomes unreadable.
+    # Changing schema later means *appending* a new entry with a
+    # future `from` date, never rewriting this one.
+    - from: 2026-09-01
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        # Single-store tsdb requires exactly 24h. Loki refuses
+        # to start with anything else.
+        period: 24h
+
+limits_config:
+  retention_period: 2160h    # 90d
+  # The beelink has 7.5GB of RAM shared with Grafana, Prometheus,
+  # Firefly and Time Machine. These caps are what stops one
+  # chatty host from pushing the box into swap.
+  ingestion_rate_mb: 8
+  ingestion_burst_size_mb: 16
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  volume_enabled: true       # Grafana's log-volume histogram
+
+compactor:
+  working_directory: /var/lib/loki/compactor
+  compaction_interval: 10m
+  # Both of the next two are load-bearing. Without
+  # retention_enabled the compactor only compacts and logs are
+  # kept forever regardless of retention_period above; without
+  # delete_request_store Loki refuses to start with retention on.
+  retention_enabled: true
+  retention_delete_delay: 2h
+  delete_request_store: filesystem
+
+analytics:
+  reporting_enabled: false

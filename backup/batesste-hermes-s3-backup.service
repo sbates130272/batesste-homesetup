@@ -1,0 +1,10 @@
+[Unit]
+Description=Weekly Hermes backup to AWS S3
+
+[Service]
+Type=oneshot
+# The user manager's PATH omits ~/.local/bin, where hermes lives.
+Environment="PATH=%h/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=/usr/local/bin/batesste-hermes-s3-backup
+EnvironmentFile=%h/.config/batesste-hermes-s3-backup/batesste-hermes-s3-backup.conf
+EnvironmentFile=%h/.secrets.env

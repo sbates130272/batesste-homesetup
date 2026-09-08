@@ -1,0 +1,19 @@
+<?xml version="1.0" standalone='no'?>
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  Avahi service definition for the Grafana Alloy log shipper.
+  Copy to /etc/avahi/services/ on each host running Alloy so
+  Prometheus picks up its metrics endpoint automatically.
+  The %h token is replaced with the local hostname.
+-->
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">%h alloy</name>
+  <service>
+    <type>_alloy._tcp</type>
+    <port>12345</port>
+  </service>
+</service-group>

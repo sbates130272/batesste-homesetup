@@ -1,0 +1,31 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Periodically refresh the Windows host WiFi textfile metric
+ConditionVirtualization=wsl
+
+[Timer]
+# Five minutes, not one, because WSL interop is not uniformly cheap.
+# One netsh.exe call, measured over four consecutive runs:
+#
+#     snoc-gaming   0.06s
+#     amd-laptop    8-16s
+#
+# Same command, same Windows build. amd-laptop is corporate-managed
+# and its security stack inspects every process launch crossing the
+# interop boundary, so the cost is per-invocation and does not warm
+# up. At a one-minute tick that host would spend a sixth of its life
+# inside netsh, which is a poor trade on a laptop that runs on
+# battery -- and this feeds a fleet overview panel, not a wifi survey.
+#
+# The same measurement is why the collector parses netsh output
+# rather than calling Get-NetAdapter, which is more authoritative and
+# takes 32 seconds there.
+OnBootSec=1min
+OnUnitActiveSec=5min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

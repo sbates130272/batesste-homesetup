@@ -1,0 +1,425 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# Provenance for third-party dashboards adopted into this repo.
+#
+# These were running on snoc-beelink but tracked nowhere, so a rebuild
+# would have lost them. Fill in a real URL as you identify where each one
+# came from; that upgrades its refresh path from "export what is running"
+# to "re-fetch and diff".
+#
+# Do not read a missing `gnetId` as "not from grafana.com". Every file
+# here lacks one, and that was originally taken as evidence they were all
+# hand-authored -- wrong for two of them. `gnetId` is only recorded when a
+# dashboard is imported *by ID*; pasting the same JSON by hand produces an
+# identical dashboard with no gnetId and no trace of its origin.
+#
+# The signal that does survive a paste is a `DS_*` datasource template
+# variable. grafana.com requires published dashboards to parameterise
+# their datasource, so `DS_PROMETHEUS` with `query: prometheus` is the
+# fingerprint of that publishing flow. It picks out exactly the two
+# entries below with a grafana.com upstream and nothing else, which is
+# why the remaining `local-import` entries are believed genuine rather
+# than merely unidentified.
+#
+# Fields:
+#   uid        Grafana dashboard UID. The sync script keys on this, so
+#              it must match the `uid` inside the JSON file.
+#   folder     Grafana folder the dashboard appears in.
+#   upstream   Source URL, or `local-import` if unknown.
+#   upstream_ref
+#              The exact upstream revision our copy corresponds to, where
+#              that has been established by diff. Its absence means the
+#              upstream is identified but the revision is not.
+#   upstream_confidence
+#              Present, and `probable`, where the upstream was matched by
+#              circumstantial evidence rather than a JSON diff. Treat a
+#              refresh from one of these as a change, not a no-op.
+#   retrieved  Date the JSON in this repo was captured.
+#   created    Date the dashboard first appeared in Grafana.
+#
+# To refresh one with a known upstream: fetch it, overwrite the file,
+# `git diff` to see what changed upstream, then ./deploy.sh.
+# For `local-import` entries: ./sync-dashboards.sh --pull.
+
+dashboards:
+  - uid: hsa-snoop
+    title: HSA Snoop
+    file: dashboards/amd-related/hsa-snoop.json
+    folder: AMD Related
+    upstream: https://github.com/sbates130272/hsa-snoop/blob/main/grafana/hsa-snoop-dashboard.json
+    upstream_ref: 6fe51004
+    retrieved: 2026-09-03
+    created: 2026-07-17
+    notes: >-
+      Kept in preference to the near-identical hsa-snoop-v1, which was
+      the older copy despite its name and is archived under retired/.
+
+      Our copy is upstream commit 6fe51004 (2026-07-17) exactly: same 39
+      panels, same titles, byte-identical queries. The only differences
+      are regenerated panel uids and Grafana's own normalisation on read
+      (dropped `"value": null` threshold steps and `gnetId`, materialised
+      `weekStart` and the default annotation).
+
+      Four panels query hsa_errors_total and ais_tx_errors_total, neither of
+      which resolves against live Prometheus. This is CORRECT and must not be
+      "fixed". Both families are declared upstream (src/prometheus_exporter.cpp
+      lines 199 and 315) and prometheus-cpp does not materialise a family until
+      a labelled child is added, so they appear on /metrics only once an error
+      has actually occurred. Repointing them at something that resolves today
+      would silently disable the error reporting.
+
+      Do NOT refresh from main without checking Loki first. Upstream
+      85c6b424 (2026-09-01, NDJSON dispatch log) took it to 48 panels,
+      and 7 of the 9 new ones query a `loki` datasource. This server has
+      only prometheus and mysql provisioned, so those panels would render
+      as datasource errors. Either provision Loki first, or cherry-pick
+      the prometheus-only additions (the AIS Ops/Bytes/Snoop panels,
+      which upstream also renamed from AIS Status/AIS Total Bytes).
+
+  - uid: WwP1Px4Mz
+    title: NVMe Exporter Device Metrics
+    file: dashboards/home-network-related/nvme-exporter-device-metrics.json
+    folder: Home Network Related
+    upstream: https://grafana.com/grafana/dashboards/12736-nvme-exporter/
+    upstream_confidence: probable
+    retrieved: 2026-09-03
+    created: 2026-03-04
+    notes: >-
+      Identified as grafana.com 12736 (exporter:
+      github.com/yongseokoh/nvme_exporter) by its description, which
+      matches 12736's verbatim, by panel count, and by the DS_PROMETHEUS
+      variable that marks a grafana.com publication. Not confirmed against
+      the upstream JSON -- this host has no direct egress to grafana.com.
+      The near-identical 14983 "NVMe Exporter All Device" was ruled out:
+      it collapses every metric into one panel and ours has 20.
+
+      Diverged further in the 2026-09-03 scrub, so a re-fetch from 12736 is a
+      merge rather than an overwrite. Error Log Entries queried
+      nvme_num_error_log_entries, which does not exist -- the metric is
+      nvme_num_err_log_entries. Data Unit Read/Write multiplied by
+      512 * 1024/1024/1024/1024, which reduces to 512/2^20; the NVMe spec
+      defines a data unit as a *thousand* 512-byte blocks, so both it and the
+      rate panel now scale by 512000 and carry byte units. Temperature moved
+      off `nvme_temperature - 273.15` to nvme_temperature_celsius. Controller
+      Busy Time and Warning Temperature scale by 60, because those SMART
+      counters are in minutes. The six critical-warning stats carried unit
+      "Misc", which is not a Grafana unit id, and now use `none` with
+      0=OK/1=WARN mappings. The dashboard also opened on an absolute time
+      range frozen at 2026-03-04T16:26Z-16:46Z; it is now now-6h.
+
+      Imported without binding its ${DS_PROMETHEUS} input, so its panels
+      pointed at either a literal unresolved variable or a datasource uid
+      (afbhhnhhmsttsb) that does not exist on this server. All 48 real
+      datasource references across the 20 panels were repointed to
+      snoc-beelink-prometheus on adoption; the 49th is the built-in
+      "-- Grafana --" annotation source and was left alone.
+
+  # ── AMD device-metrics-exporter ─────────────────────────────────
+  # Both files come from the same upstream tag, carry the same six
+  # local edits, and hit the same gfx1151 gaps. The long note is on
+  # the GPU entry; the Overview entry records only what differs.
+
+  - uid: ae0aj8euc43r4b
+    title: AMD GPU (device-metrics-exporter)
+    file: dashboards/amd-related/amd-device-metrics-gpu.json
+    folder: AMD Related
+    upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json
+    upstream_ref: v1.5.1
+    upstream_metrics: https://github.com/ROCm/device-metrics-exporter
+    retrieved: 2026-09-06
+    created: 2026-09-06
+    notes: >-
+      Pinned to v1.5.1 because that is exactly what snoc-strix runs:
+      amdgpu-exporter 1.5.1-3~24.04, reporting v1.5.1-3 / GitCommit
+      66196fa73. Refresh by moving the tag when the package moves, not
+      from main. snoc-beelink has no egress to GitHub, so fetch through
+      snoc-strix:
+
+        ssh snoc-strix 'curl -sS https://raw.githubusercontent.com/\
+        ROCm/device-metrics-exporter/v1.5.1/grafana/dashboard_gpu.json'
+
+      Six local edits. The first two are adoption boilerplate and a
+      re-fetch must redo them; the last four are real divergence and a
+      re-fetch would revert them:
+
+        (a) Dropped the __inputs / __elements / __requires import
+            wrapper and bound the 60 ${DS_PROMETHEUS} references to
+            ae8pyuqoyonpca plus the 3 ${DS_EXPRESSION} ones to
+            __expr__. Provisioning cannot answer import prompts --
+            skipping this is exactly how the NVMe dashboard ended up
+            pointing at a datasource uid that does not exist here.
+
+        (b) g_metrics_prefix defaulted to "amd_" (current, options and
+            query). This is a supported upstream knob, not a hack: its
+            own description reads "string to prefix names of metrics
+            queries (e.g. gpu_gfx_activity -> amd_gpu_gfx_activity)".
+
+        (c) Every gpu_gfx_busy_instantaneous selector gained an
+            `or ${g_metrics_prefix}gpu_gfx_activity{...}` fallback with
+            a byte-identical label selector -- 3 sites here (GPU Usage
+            B and C, GPU Compute Core Usage A). See the card_model note
+            below. On CDNA the first operand still wins, so upstream
+            behaviour is unchanged.
+
+        (d) The GPU Power Usage gauge queried
+            {"${g_metrics_prefix}gpu_average_package_power", hostname=...},
+            a quoted metric name inside the selector. That is the
+            Prometheus 3.0 UTF-8 name syntax and this server runs
+            2.45.3, which rejects it outright -- the panel showed a
+            parse error, not empty data. Rewritten to the classic
+            ${g_metrics_prefix}gpu_average_package_power{hostname=...}
+            form, which is semantically identical and parses on both.
+
+        (e) Retitled from "GPU", too generic for a folder shared with
+            HSA Snoop and Lemonade Metrics Dashboard.
+
+        (f) Retagged from ["version: main"], which was untrue the
+            moment we pinned to v1.5.1.
+
+      MetricsFieldPrefix: "amd_" is the exporter's *pristine* packaged
+      default -- /etc/metrics/config.json on snoc-strix has the md5
+      dpkg recorded, and upstream's own example/config.json sets the
+      same value at this tag. Yet upstream's dashboards default
+      g_metrics_prefix to "" and query bare gpu_*, so they do not work
+      against their own exporter out of the box. One panel in this file
+      even hardcodes amd_gpu_gfx_activity, which reads like a
+      half-finished fix. Keep (b) across upgrades.
+
+      The card_model regexes are a CDNA board-SKU allowlist. Panels
+      branch on card_model=~"102-D65208-0C|102-D67305-00|102-D65209-0C"
+      (and a longer MI-series list elsewhere), sending anything that
+      does not match into a !~ branch that queries
+      gpu_gfx_busy_instantaneous. Our card_model is "AMD Radeon 8060S
+      Graphics", so it always lands in that branch -- and amdsmi does
+      not supply gfx_busy_instantaneous on gfx1151. The result was
+      empty GPU-usage panels while amd_gpu_gfx_activity sat right there
+      populated. That is what (c) fixes.
+
+      EIGHT PANELS ARE DEAD ON gfx1151 AND MUST NOT BE "FIXED": PCIe
+      Max Speed, PCIe Counts, both PCIe Bandwidth panels, Energy
+      Consumed, GPU Temperature, Memory Temperature and Temperature
+      Sensors. amdsmi supplies no amd_pcie_*, no amd_gpu_*_temperature
+      and no amd_gpu_energy_consumed on Strix Halo -- the families are
+      absent from /metrics entirely, despite GPUConfig.Fields asking
+      for them. These are not dead for the fleet: snoc-thinkstation's
+      Navi 48 will populate them when that host returns. Repointing
+      them at something that resolves today would break them for the
+      only card that can answer, the same trap the hsa-snoop entry
+      above describes.
+
+      Verified 2026-09-06 against live Prometheus with the template
+      variables substituted: 0 of 31 targets fail to parse and 13
+      return data. The 18 empty ones are the CDNA =~ branches and the
+      absent families above.
+
+      `./sync-dashboards.sh --check` reports both AMD files as DRIFTED,
+      and that is expected and permanent. Unlike the three entries
+      around them, these were fetched from upstream rather than pulled
+      out of Grafana, so they still carry upstream's byte layout. The
+      whole diff is Grafana's normalisation on read: 16 threshold steps
+      losing `"value": null` and schemaVersion 39 -> 42. **Do not run
+      --pull to silence it.** That would replace these files with
+      Grafana's rendering and make the next `git diff` against v1.5.2
+      unreadable, which is the entire reason for pinning a tag.
+
+  - uid: fe0ayyeeoxvy8f
+    title: AMD GPU Fleet Overview
+    file: dashboards/amd-related/amd-device-metrics-overview.json
+    folder: AMD Related
+    upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json
+    upstream_ref: v1.5.1
+    upstream_metrics: https://github.com/ROCm/device-metrics-exporter
+    retrieved: 2026-09-06
+    created: 2026-09-06
+    notes: >-
+      Companion to the GPU dashboard above; read its notes first. Same
+      tag, same fetch path, same edits (a), (b), (c), (e) and (f) --
+      here that is 68 ${DS_PROMETHEUS} and 5 ${DS_EXPRESSION}
+      references and 9 gpu_gfx_busy_instantaneous fallback sites. Edit
+      (d) does not apply; this file has no quoted-metric selectors.
+
+      One extra edit, (g): the g_gpu_uuids variable queried
+      label_values(GPU_UUID) in both its `query` and its `definition`.
+      The label is lowercase gpu_uuid, so the picker was permanently
+      empty. Upstream typo, fixed here. Nothing references the
+      variable, so this only removes UI noise.
+
+      Retitled from "Overview", which in our folder tree reads as a
+      sibling of the first-party Home LAN Overview and is not.
+
+      THREE PANELS READ ZERO BY DESIGN and must not be "fixed": Jobs,
+      Allocated GPUs, and Average GPU Usage of Allocated GPUs all
+      filter on job_id!="" or pod!="". Those labels come from a SLURM
+      or Kubernetes integration this homelab does not run, so there is
+      nothing to allocate GPUs to. Eight further panels are dead for
+      the gfx1151 telemetry reason described above.
+
+      Verified 2026-09-06 the same way: 0 of 44 targets fail to parse,
+      15 return data. It reports DRIFTED for the same harmless reason
+      as the GPU entry above, and must not be --pulled either.
+
+  # ── Recovered from v2 storage ───────────────────────────────────
+  # lemonade-built-in-metrics was stored in Grafana as a v2 dashboard
+  # (elements/layout rather than panels), so it could only be captured in
+  # the v1 schema this repo tracks by reading it back through the v1beta1
+  # API. The file below is that rendering, not the stored bytes.
+
+  - uid: lemonade-built-in-metrics
+    title: Lemonade Metrics Dashboard
+    file: dashboards/amd-related/lemonade-built-in-metrics.json
+    folder: AMD Related
+    upstream: https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/
+    upstream_ref: revision 1
+    upstream_metrics: https://github.com/lemonade-sdk/lemonade
+    retrieved: 2026-09-03
+    created: 2026-06-05
+    notes: >-
+      grafana.com 25422, confirmed by diffing revision 1: same uid, same
+      19 panels, same panel titles, byte-identical queries, and the
+      download carries `gnetId: 25422`. Our copy dropped that field
+      because it was imported by pasting the JSON rather than by ID.
+
+      Not in the lemonade-sdk/lemonade repo -- that ships no Grafana JSON
+      at all, the dashboard is published only to grafana.com.
+      `upstream_metrics` records where the metric *contract* lives
+      (src/cpp/server/prometheus_metrics.cpp), which is what the queries
+      have to stay valid against.
+
+      We have diverged from revision 1 in three ways, all deliberate
+      looking: the title was changed from "Lemonade Built-In Metrics" to
+      "Lemonade Metrics Dashboard"; the layout was reworked, most visibly
+      the three External AMD GPU panels widened from w=8 to w=12 and
+      moved off their shared row, plus "Loaded Model Metadata" grown from
+      h=7 to h=11; and a `min: 0` axis floor was added to two panels.
+      Everything else in the 609-line raw diff is Grafana's schemaVersion
+      39 -> 42 migration (threshold `"value": null` becoming 0, dropped
+      empty `mappings`, materialised `annotations` and
+      `percentChangeColorMode`), not a change anyone made.
+
+      So a refresh is a merge, not an overwrite. Re-fetching would revert
+      the relayout and the title.
+
+      ${DS_PROMETHEUS} is bound here to snoc-beelink-prometheus -- a real
+      template variable, unlike the NVMe dashboard above where the same
+      name was left as an unresolved import input.
+
+      Two panels were dead when this was adopted, both querying a
+      lemonade_model_decode_token_time_* family that does not exist in
+      Lemonade at all -- `decode_token_time` has no hits anywhere in
+      lemonade-sdk/lemonade, and upstream revision 1 queries the same
+      three names, so the breakage is upstream's and a refresh would not
+      have fixed it. Repointed locally on 2026-09-03 to metrics Lemonade
+      does export, preserving each panel's unit and stated meaning:
+
+        Streaming Decode Token Timing
+          was lemonade_model_decode_token_time_avg_seconds and
+          _max_seconds; now 1 / lemonade_model_tokens_per_second, which
+          is the mean decode interval in seconds. Lemonade exposes no
+          maximum, so that series was dropped rather than approximated.
+
+        Streaming Decode Token Samples
+          was lemonade_model_decode_token_time_count; now
+          lemonade_model_output_tokens, the token count of the latest
+          streamed response -- which is precisely the number of per-token
+          decode intervals it contained.
+
+      All 25 metric names the dashboard references now resolve against
+      live Prometheus. This divergence is intentional: do not let a
+      refresh from 25422 revert it.
+
+      The 2026-09-03 scrub added descriptions to the twelve panels that
+      lacked them. Cosmetic, but it widens the diff against 25422 further.
+
+# Dashboards deleted from the server. hsa-snoop-v1 and rocm-aic-dashboard
+# are archived under retired/ so they can be restored by hand --
+# deliberately outside vendor/dashboards/ so no provider picks them up and
+# re-creates them. The 2026-09-03 removals below were deleted outright and
+# are recoverable only from git history.
+retired:
+  - uid: hsa-snoop-v1
+    title: HSA Snoop
+    file: retired/hsa-snoop-v1.json
+    deleted: 2026-09-03
+    reason: >-
+      Duplicate title of hsa-snoop. Created 2026-07-11, last updated
+      2026-07-17T20:26Z; hsa-snoop was updated an hour later at 21:27Z
+      and is the copy in use.
+
+  # ── Removed 2026-09-03 as out of date, no file kept ─────────────
+  # Deleted outright rather than archived. All four had upstream:
+  # local-import, meaning nothing recorded where they came from, and none
+  # had a refresh path better than "export whatever is running".
+
+  - uid: 6cfbc0e1-5316-4cb3-82ed-65ffcb3a2b37
+    title: OpenAI Exporter
+    was: vendor/dashboards/home-network-related/openai-exporter.json
+    deleted: 2026-09-03
+    reason: Out of date.
+
+  - uid: b281712d-8bff-41ef-9f3f-71ad43c05e9b
+    title: AMD vLLM Inference Dashboard
+    was: vendor/dashboards/general/amd-vllm-inference.json
+    deleted: 2026-09-03
+    reason: Out of date.
+
+  - uid: llamacpp-server-prometheus
+    title: llama.cpp server (Prometheus /metrics)
+    was: vendor/dashboards/general/llamacpp-server-prometheus.json
+    deleted: 2026-09-03
+    reason: Out of date.
+
+  - uid: rocm-aic-vllm-lmcache
+    title: ROCm(tm) AMD Infinity Context Dashboard
+    was: vendor/dashboards/rocm-aic-related/rocm-aic-vllm-lmcache.json
+    deleted: 2026-09-03
+    reason: >-
+      Out of date. Was the last dashboard in ROCm AIC Related, so the
+      vendor-rocm-aic-related provider and the folder itself
+      (uid efo21m3zdy6tcd) went with it.
+
+  # cpu-gpu-monitoring was first-party rather than vendor, so it never had
+  # a manifest entry, but it was removed in the same pass:
+  # dashboards/amd-related/cpu-gpu-monitoring.json, "Lemonade: CPU & GPU
+  # Monitoring". Out of date -- 14 of its 21 metric names no longer
+  # existed, breaking 12 of its 46 panels, because it was written against
+  # a Lemonade naming scheme predating the lemonade_model_* rename.
+
+  - uid: rocm-aic-dashboard
+    title: ROCm(tm) AMD Infinity Context Dashboard
+    file: retired/rocm-aic-dashboard.json
+    deleted: 2026-09-03
+    reason: >-
+      Duplicate title of rocm-aic-vllm-lmcache. 5 revisions and last
+      touched 2026-06-04, against 64 revisions and 2026-07-01.
+
+  # ── Removed 2026-09-03 in the dashboard scrub ───────────────────
+  # These two were first-party rather than vendor, so neither had a manifest
+  # entry before. They are recorded here anyway because the reason matters and
+  # is easy to get wrong on a future audit: the queries were fine. Both feeds
+  # died on the exporter side, so re-adding the dashboards would not bring
+  # them back -- fix the exporter first, then restore from git.
+
+  - uid: cursor-usage
+    title: Cursor IDE Usage
+    was: dashboards/amd-related/cursor-usage.json
+    deleted: 2026-09-03
+    reason: >-
+      24 of 28 panels dead for 30+ days. cursor-exporter is up and answers
+      scrapes, but its Cursor API calls fail, so it emits only the four
+      cursor_subscription_* gauges -- the cursor_model_* and
+      cursor_usage_events_* families have HELP lines and no samples. Removing
+      it emptied dashboards/amd-related/, which took the first-party
+      amd-related provider with it; folderUid bfhho76dk60hsf moved onto
+      vendor-amd-related, now its sole claimant. The up{job="cursor-exporter"}
+      tile on LAN Overview was kept, since the job is still scraped.
+
+  - uid: febsqrm0j5v5sa
+    title: iCloud
+    was: dashboards/home-network-related/icloud-dashboard.json
+    deleted: 2026-09-03
+    reason: >-
+      6 of 6 panels dead for 30+ days. The iCloud exporter on localhost:9948
+      is not running and the scrape is connection-refused. The
+      up{job="icloud"} tile on LAN Overview was kept.
