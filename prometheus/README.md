@@ -26,6 +26,9 @@ prometheus/
     rocm-version.sh           Publishes rocm_version_info
     rocm-version.service      systemd oneshot unit
     rocm-version.timer        systemd timer (hourly + on boot)
+    wsl-wifi.sh               Publishes wsl_wifi_* (WSL hosts only)
+    wsl-wifi.service          systemd oneshot unit
+    wsl-wifi.timer            systemd timer (every 5min)
     deploy-agent.sh           Run on each GPU host
   targets/
     node.json                 Manual targets per job
@@ -313,7 +316,7 @@ exists, so those panels read empty on a healthy exporter.
 
 ## The ROCm version textfile collector
 
-`textfile-collectors/` publishes `rocm_version_info{version=...}`
+`textfile-collectors/rocm-version.sh` publishes `rocm_version_info{version=...}`
 via node-exporter's textfile collector, feeding the ROCm column
 on the LAN Overview GPU Inventory table. Run
 `deploy-agent.sh` on each GPU host; it is the same "copy it to
@@ -379,6 +382,70 @@ arrives from the `rocm-aic-core42-mi300` cluster carrying
 `server_name="g04u07"`. GPU Inventory joins its columns on
 `server_name`, so an unscoped version query injects a phantom
 row for a machine that is not on this LAN.
+
+## The WSL WiFi collector
+
+`wsl-wifi.sh` publishes the *Windows host's* WiFi state on
+`amd-laptop` and `snoc-gaming`, feeding the **WiFi (dBm)** and
+**Link** columns on Node Fleet. `deploy-agent.sh` installs it
+only where `systemd-detect-virt` reports `wsl`, and both units
+also carry `ConditionVirtualization=wsl`.
+
+**node-exporter cannot do this, and neither can
+windows_exporter.** `--collector.wifi` is already in `ARGS` on
+both hosts and yields zero series: there is no wireless device
+inside the VM. `/proc/net/wireless` has only its header, and
+although both run `networkingMode=Mirrored`, mirrored mode
+presents the Windows adapters as plain Ethernet with no nl80211
+behind them. windows_exporter has no wireless collector at all
+— its `net` collector is perf-counter bytes, packets and
+errors. Either way the number has to come from Windows, so it
+comes via WSL interop and needs nothing installed on the
+Windows side.
+
+**The RSSI is measured, not derived.** Windows historically
+exposed only a 0–100 quality percentage, which the WLAN API
+documents as linear against −100…−50 dBm. Both hosts are on
+Windows 11 build 26200, which reports `Rssi` directly, and the
+collector prefers it. The conversion is kept as a fallback but
+flagged by `wsl_wifi_signal_dbm_derived`, because it is bad:
+
+| Host | Quality | Derived | Measured |
+| ---- | ------- | ------- | -------- |
+| `amd-laptop`  | 85% | −57.5 | **−50** |
+| `snoc-gaming` | 75% | −62.5 | **−69** |
+
+Wrong by 6–8 dB, in opposite directions. A column mixing the
+two silently would be worse than no column.
+
+**Interop is not uniformly cheap, and that shapes the design.**
+One `netsh.exe` call, four consecutive runs:
+
+| Host | Per call |
+| ---- | -------- |
+| `snoc-gaming` | 0.06s |
+| `amd-laptop`  | 8–16s |
+
+Same command, same Windows build. `amd-laptop` is
+corporate-managed and its security stack inspects every process
+launch crossing the interop boundary; the cost is
+per-invocation and does not warm up. Hence the five-minute
+timer rather than one minute, and hence parsing `netsh` rather
+than calling `Get-NetAdapter -Physical` — which is more
+authoritative, needs no MAC matching, and takes **32 seconds**
+on that host.
+
+**`wsl_wifi_adapter` exists to fix the Link column.** Mirrored
+adapters keep their real MACs inside the VM, so a radio is
+indistinguishable from a cable by interface name. Publishing
+the WiFi adapter's MAC lets the dashboard join it against
+`node_network_info`'s `address` label and subtract exactly the
+right interface, with no name-based denylist.
+
+**SSID and BSSID are deliberately not exported.** They feed no
+panel, and one of these two hosts is a corporate laptop that
+roams onto networks whose names have no business being written
+into a homelab TSDB with 90-day retention.
 
 ## Things prometheus.yml cannot express
 

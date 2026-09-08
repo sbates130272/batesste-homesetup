@@ -15,13 +15,15 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [--dry-run]
 
-Install the ROCm version textfile collector on the host this
+Install the node-exporter textfile collectors on the host this
 script is run from. Run it on each GPU machine -- the same "copy
 it to the target machine" model the repo already uses for
 prometheus/avahi-services/ and loki/alloy/deploy-agent.sh.
 
-It installs rocm-version.sh plus its timer, and -- on hosts that
-do not already have one -- adds
+It installs rocm-version.sh plus its timer everywhere, and
+wsl-wifi.sh plus its timer on WSL hosts only, where it is the
+only way to get a WiFi signal reading at all. And -- on hosts
+that do not already have one -- adds
 --collector.textfile.directory to the node-exporter ARGS and
 restarts the unit. snoc-thinkstation and snoc-strix already carry
 that flag; snoc-gaming and amd-laptop do not, and without it
@@ -58,18 +60,28 @@ if [[ ! -f "${NE_DEFAULTS}" ]]; then
     exit 1
 fi
 
-echo "==> Installing rocm-version.sh..."
-run sudo install -m 0755 -o root -g root \
-    "${SCRIPT_DIR}/rocm-version.sh" "${BIN_DIR}/rocm-version.sh"
+# wsl-wifi is gated on the host actually being WSL. Its units also
+# carry ConditionVirtualization=wsl, but that only makes systemd skip
+# them silently -- not installing them at all keeps `systemctl
+# list-timers` on the Linux boxes honest.
+COLLECTORS=(rocm-version)
+if [[ "$(systemd-detect-virt 2>/dev/null)" == "wsl" ]]; then
+    echo "==> WSL detected; including the Windows WiFi collector."
+    COLLECTORS+=(wsl-wifi)
+fi
 
 echo "==> Ensuring ${TEXTFILE_DIR} exists..."
 run sudo install -d -m 0755 -o root -g root "${TEXTFILE_DIR}"
 
-echo "==> Installing systemd units..."
-for u in rocm-version.service rocm-version.timer; do
-    echo "    ${u}"
-    run sudo install -m 0644 -o root -g root \
-        "${SCRIPT_DIR}/${u}" "${UNIT_DIR}/${u}"
+for c in "${COLLECTORS[@]}"; do
+    echo "==> Installing ${c}..."
+    run sudo install -m 0755 -o root -g root \
+        "${SCRIPT_DIR}/${c}.sh" "${BIN_DIR}/${c}.sh"
+    for u in "${c}.service" "${c}.timer"; do
+        echo "    ${u}"
+        run sudo install -m 0644 -o root -g root \
+            "${SCRIPT_DIR}/${u}" "${UNIT_DIR}/${u}"
+    done
 done
 
 # The flag is appended to the existing ARGS rather than the line
@@ -95,10 +107,12 @@ else
     NEED_NE_RESTART=true
 fi
 
-echo "==> Enabling the timer and running once..."
+echo "==> Enabling the timers and running each once..."
 run sudo systemctl daemon-reload
-run sudo systemctl enable --now rocm-version.timer
-run sudo systemctl start rocm-version.service
+for c in "${COLLECTORS[@]}"; do
+    run sudo systemctl enable --now "${c}.timer"
+    run sudo systemctl start "${c}.service"
+done
 
 # EnvironmentFile is not re-read on reload, same trap as
 # /etc/default/prometheus on the beelink. This must be a restart.
@@ -113,12 +127,22 @@ if $DRY_RUN; then
 fi
 
 echo "==> Result:"
-if [[ -f "${TEXTFILE_DIR}/rocm-version.prom" ]]; then
-    sed 's/^/    /' "${TEXTFILE_DIR}/rocm-version.prom"
-else
-    echo "    ERROR: ${TEXTFILE_DIR}/rocm-version.prom was not written" >&2
+FAILED=false
+for c in "${COLLECTORS[@]}"; do
+    if [[ -f "${TEXTFILE_DIR}/${c}.prom" ]]; then
+        grep -v '^#' "${TEXTFILE_DIR}/${c}.prom" | sed 's/^/    /'
+    else
+        echo "    ERROR: ${TEXTFILE_DIR}/${c}.prom was not written" >&2
+        FAILED=true
+    fi
+done
+# An `if`, not `$FAILED && exit 1`. The latter is the last command in
+# the script, so under `set -e` a clean run exits 1 on the false.
+if $FAILED; then
     exit 1
 fi
 
-echo "==> Verify the metric is actually served:"
-echo "    curl -s localhost:9100/metrics | grep rocm_version"
+echo "==> Verify the metrics are actually served:"
+for c in "${COLLECTORS[@]}"; do
+    echo "    curl -s localhost:9100/metrics | grep ${c//-/_}"
+done

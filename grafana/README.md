@@ -189,6 +189,7 @@ responses:
 | Exporter alive, collector not enabled | `node_processes_pids` | Enable the collector |
 | Feed gone | all `icloud_*`, all `cursor_usage_events_*` | Retire |
 | Hardware does not have the sensor | `amd_gpu_hbm_temperature` | **Leave alone** |
+| Collector enabled, nothing to read | `node_wifi_*` on the WSL hosts | Source it elsewhere |
 
 The second row is the trap. prometheus-cpp does not
 materialise a metric family until a labelled child exists,
@@ -207,10 +208,24 @@ fleet-wide while the scrape stays green. Same shape as
 [prometheus/node-exporter-override.conf](../prometheus/node-exporter-override.conf)
 already carries for exactly this reason.
 
-The last row covers the two vendor AMD panels that read
+The fifth row covers the two vendor AMD panels that read
 `amd_gpu_hbm_temperature`. Navi 48 and Strix Halo use GDDR6
 and unified LPDDR5X respectively; neither has HBM, so the
 sensor does not exist and never will on this fleet.
+
+The last row is the nastiest of the five, because it looks
+like the third and is fixed like the fourth. `--collector.wifi`
+is enabled in `ARGS` on `amd-laptop` and `snoc-gaming` and
+produces zero series on both — so "enable the collector", the
+response that fixes row three, has already been done and
+changed nothing. There is no wireless device inside a WSL VM
+to read: `/proc/net/wireless` holds only its header, and
+mirrored networking presents the Windows adapters as plain
+Ethernet with no nl80211 behind them. No node-exporter build
+can populate it, and windows_exporter ships no wireless
+collector either. The signal has to come from Windows itself —
+see the WSL WiFi collector in
+[prometheus/README.md](../prometheus/README.md).
 
 Two dashboards were retired: **Cursor IDE Usage** (24 of 28
 panels dead) and **iCloud** (6 of 6). Both were exporter
@@ -370,15 +385,28 @@ at 0, instead of dropping out of the `+` join and losing every
 other column with it.
 
 `tailscale0` is excluded by the `operstate="up"` filter — it
-reports `unknown`, not `up`. The WSL hosts (`snoc-gaming`,
-`amd-laptop`) show **Wired** for their `eth*` virtual NICs,
-which is the honest answer for how the traffic leaves the VM
-even though the physical link underneath may be wireless.
+reports `unknown`, not `up`.
 
-`snoc-thinkstation` currently reads **WiFi**, not
-**Wired+WiFi**: both `eno1` and `eno2` report
-`operstate="down"`. The column is working — the ports are
-simply not up.
+The two WSL hosts need more than that. Under
+`networkingMode=Mirrored` the Windows adapters are mirrored into
+the VM as `eth*` carrying their real MACs, so a wireless adapter
+is indistinguishable from a cable by interface name — which is
+why this column originally called both of them **Wired**. Two
+exclusions fix it without a name-based denylist:
+
+- `address!~"00:15:5d:.*"` drops Hyper-V's synthetic NICs. That
+  OUI is Microsoft's and is always virtual, so this is a fixed
+  rule rather than a guess. It is what `eth1` is on
+  `snoc-gaming`.
+- `unless on (instance, address) wsl_wifi_adapter` drops the
+  mirrored radio itself. `node_network_info` carries the MAC in
+  an `address` label and the collector publishes the Windows
+  WiFi adapter's MAC, so the two join exactly. It is what `eth1`
+  is on `amd-laptop` and `eth2` on `snoc-gaming`.
+
+The wireless term then picks up `wsl_wifi_connected` where
+`node_network_info{device=~"wl.*"}` finds nothing, and both
+hosts read **WiFi**.
 
 ### The OS column is derived, because nothing reports it
 

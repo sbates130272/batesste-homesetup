@@ -453,7 +453,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (instance) (node_wifi_station_signal_dbm)",
+          "expr": "max by (instance) (node_wifi_station_signal_dbm)\nor\nmax by (instance) (wsl_wifi_signal_dbm)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -465,7 +465,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(\n    (max by (instance) (node_network_info{operstate=\"up\", device=~\"(en|eth).*\"})\n     or (max by (instance) (node_network_info) * 0)) * 2\n)\n+\n(\n    max by (instance) (node_network_info{operstate=\"up\", device=~\"wl.*\"})\n    or (max by (instance) (node_network_info) * 0)\n)",
+          "expr": "(\n    (\n        max by (instance) (\n            node_network_info{operstate=\"up\", device=~\"(en|eth).*\", address!~\"00:15:5d:.*\"}\n            unless on (instance, address) wsl_wifi_adapter\n        )\n        or (max by (instance) (node_network_info) * 0)\n    ) * 2\n)\n+\n(\n    max by (instance) (node_network_info{operstate=\"up\", device=~\"wl.*\"})\n    or max by (instance) (wsl_wifi_connected)\n    or (max by (instance) (node_network_info) * 0)\n)",
           "format": "table",
           "hide": false,
           "instant": true,
