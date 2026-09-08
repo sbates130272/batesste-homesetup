@@ -15,8 +15,22 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+  # external_labels are attached only when talking to *external*
+  # systems -- Alertmanager, federation, outbound remote_write. They
+  # are NOT stored on local series: `count(up{monitor="example"})` is
+  # 0 against this very config. So this does not give homelab metrics
+  # a cluster label you can select on in a query, and adding it here
+  # to get one will not work.
+  #
+  # It is worth setting anyway. This box is a remote-write sink
+  # (--web.enable-remote-write-receiver, see prometheus.defaults) for
+  # clusters that each stamp their own `cluster` -- roughly 183k
+  # series pushed in against 10k scraped here. Without one of our own,
+  # an alert from this server arrives at Alertmanager as the only
+  # anonymous one in that crowd.
   external_labels:
     monitor: 'example'
+    cluster: 'snoc-lan'
 
 alerting:
   alertmanagers:
@@ -31,11 +45,10 @@ scrape_configs:
   - job_name: prometheus
     scrape_interval: 5s
     scrape_timeout: 5s
-    # Scrape Prometheus directly on its own listener
-    # (--web.listen-address=127.0.0.1:9092,
-    # --web.route-prefix=/), so a bare /metrics is correct.
-    # Port 9090 is the nginx listener that fronts it; going
-    # via nginx returns 401 because that vhost requires auth.
+    # Scrape Prometheus directly on its own listener, so a bare
+    # /metrics is correct. Port 9090 is the nginx listener that
+    # fronts it; going via nginx returns 401 because that vhost
+    # requires auth. Both flags live in prometheus.defaults.
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/prometheus.json
@@ -87,32 +100,8 @@ scrape_configs:
           - /etc/prometheus/targets/amd-gpu-metrics-exporter.json
           - /etc/prometheus/targets/discovered/amd-gpu-metrics-exporter.json
         refresh_interval: 30s
-    # The exporter used to serve card_model="" on both hosts, and
-    # Prometheus drops empty labels, so the label vanished and
-    # dashboards rendered a blank GPU column. The rule below
-    # hardcodes it for the one host where that is still true.
-    #
-    # It matches on an *empty* card_model, so an exporter that
-    # starts populating the field wins automatically rather than
-    # fighting a stale override. That is not theoretical: the
-    # matching rule for snoc-strix went dead on its own when
-    # amdgpu-exporter 1.5.1 landed with gfx1151 support and began
-    # reporting "AMD Radeon 8060S Graphics", so it was removed.
-    # ROCm/ROCm#6035 no longer applies.
-    #
-    # snoc-thinkstation is still pending: amd-smi static knows the
-    # name, but that host has been offline since before 1.5.1 and
-    # its exporter has never been observed populating the field.
-    # Leave the rule until it comes back and proves otherwise.
-    #
-    # Note the metric names this job produces are amd_gpu_* and
-    # amd_pcie_*, not bare gpu_*. MetricsFieldPrefix: "amd_" is
-    # the exporter's own packaged default, not a local choice --
-    # but see the __name__ rule below for the two hosts that do
-    # not honour it.
-    #
     # Order matters here. The hostname rule runs first so the
-    # card_model rules that follow can match on homelab names.
+    # card_model rule that follows can match on homelab names.
     metric_relabel_configs:
       # The exporter stamps every sample with gethostname(), which
       # on amd-laptop is APCAN-MQ60818VV. Left alone that label
@@ -123,46 +112,60 @@ scrape_configs:
       - source_labels: [server_name]
         target_label: hostname
 
-      # amd-laptop and snoc-gaming run an exporter build that
-      # leaves MetricsFieldPrefix empty, so they serve bare gpu_*
-      # and pcie_* while snoc-strix and snoc-thinkstation serve
-      # amd_gpu_* and amd_pcie_*. The AMD dashboards drive every
-      # query off one global g_metrics_prefix variable, defaulted
-      # to "amd_", so without this rule those two hosts scrape
-      # green and render empty on every panel.
+      # Normalise every sample to the amd_ prefix on ingest.
       #
-      # Renaming on ingest rather than fixing config.json on each
-      # box keeps the fix in the repo and off a Windows machine
-      # and a corporate laptop. The regex is fully anchored, so
-      # already-prefixed amd_* and promhttp_* cannot match and the
-      # other two hosts pass through untouched.
+      # MetricsFieldPrefix: "amd_" is the exporter's own packaged
+      # default, but whether a given build honours it varies by
+      # version and platform, and it moves under us -- amd-laptop
+      # served bare gpu_* one morning and amd_gpu_* that evening
+      # after an exporter upgrade, with no change on this box.
+      # Deliberately no list of which hosts are prefixed today:
+      # that is a snapshot, not a rule, and the last one was wrong
+      # within a day.
+      #
+      # The AMD dashboards drive every query off one global
+      # g_metrics_prefix variable defaulted to "amd_", so an
+      # unprefixed host scrapes green and renders empty on every
+      # panel. This rule makes the prefix an invariant of the TSDB
+      # rather than a property of each remote build, which is why
+      # it stays even when every exporter happens to agree -- and
+      # keeps the fix in the repo rather than in config.json on a
+      # Windows box and a corporate laptop.
+      #
+      # The regex is fully anchored, so already-prefixed amd_* and
+      # promhttp_* cannot match and pass through untouched.
       - source_labels: [__name__]
         regex: '(gpu|pcie)_(.*)'
         target_label: __name__
         replacement: 'amd_${1}_${2}'
 
+      # Prometheus drops empty labels, so card_model="" does not
+      # render as blank -- the label vanishes and the GPU column
+      # has nothing to show. This hardcodes it for the one host
+      # still serving "".
+      #
+      # It matches on an *empty* card_model, so an exporter that
+      # starts populating the field wins automatically instead of
+      # fighting a stale override. That is not theoretical: the
+      # equivalent rules for snoc-strix and amd-laptop both went
+      # dead on their own once their exporters began reporting the
+      # part, and were removed. snoc-thinkstation is the last one
+      # left; amd-smi static there knows the name but the exporter
+      # never plumbs it through.
       - source_labels: [hostname, card_model]
         separator: ;
         regex: 'snoc-thinkstation;'
         target_label: card_model
         replacement: 'Radeon RX 9070 XT'
 
-      # snoc-gaming's Windows build exports a much smaller set: 89
-      # families, almost all gpu_ecc_*, plus VRAM/GTT, gpu_health,
-      # XGMI and pcie_speed. It has NO gfx_activity, power, temp or
-      # clock, so its GPU Inventory row shows Node, GPU and Exporter
-      # and leaves Temp/Power/Busy blank. That is the exporter's
-      # coverage on Windows, not a broken scrape -- do not "fix" the
-      # blank columns by repointing them at something that resolves.
-      #
-      # amd-laptop also reports card_model="", which Prometheus
-      # drops, blanking the GPU column exactly as it did for
-      # snoc-thinkstation above. No rule for it yet because the
-      # card is unidentified: its exporter predates the version
-      # that populates the field, it exposes no card_series, and
-      # its journal in Loki does not reach back to the amdgpu boot
-      # lines. Add a rule here once `amd-smi static` on that host
-      # says what the part actually is.
+      # snoc-gaming's Windows build exports a much smaller set:
+      # ~88 families, almost all gpu_ecc_*, plus VRAM/GTT,
+      # gpu_health, XGMI and pcie_speed. It has NO gfx_activity,
+      # power, temp or clock, so its GPU Inventory row shows Node,
+      # GPU and Exporter and leaves Temp/Power/Busy blank. That is
+      # the exporter's coverage on Windows, not a broken scrape --
+      # do not "fix" the blank columns by repointing them at
+      # something that resolves.
 
   - job_name: ais-exporter
     file_sd_configs:

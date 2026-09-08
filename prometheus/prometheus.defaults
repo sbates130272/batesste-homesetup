@@ -1,0 +1,38 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# /etc/default/prometheus
+#
+# Consumed by the prometheus systemd unit via EnvironmentFile=, whose
+# ExecStart is literally `/usr/bin/prometheus $ARGS`. Every setting
+# below is a process flag with no equivalent in prometheus.yml, so a
+# server rebuilt from this repo without this file comes up looking
+# healthy while quietly missing all of it.
+#
+#   --storage.tsdb.retention.size=20GB
+#       The only size cap that exists. global.retention in the YAML
+#       is time-based and does not bound disk.
+#
+#   --web.listen-address=127.0.0.1:9092
+#   --web.route-prefix=/
+#       Prometheus serves on 9092 behind nginx, which owns 9090 and
+#       fronts it at /prometheus. route-prefix stays / so the app
+#       still answers a bare /metrics; see the prometheus job in
+#       prometheus.yml, which scrapes this listener directly rather
+#       than going through nginx (that vhost requires auth and would
+#       return 401).
+#
+#   --web.external-url=...
+#       What Prometheus puts in generated links and alert URLs. Wrong
+#       or absent, the UI works but every link it emits is unusable
+#       from outside the box.
+#
+#   --web.enable-remote-write-receiver
+#       The load-bearing one. This box is a remote-write sink for
+#       external clusters, and that traffic is the bulk of the TSDB
+#       (~183k series against ~10k scraped locally). Nothing in
+#       prometheus.yml references it, so losing this flag drops all
+#       of it with no config diff to explain why.
+
+ARGS="--storage.tsdb.retention.size=20GB --web.listen-address=127.0.0.1:9092 --web.enable-remote-write-receiver --web.external-url=https://snoc-beelink.fold-leaffish.ts.net/prometheus --web.route-prefix=/"

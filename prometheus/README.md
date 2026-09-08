@@ -12,6 +12,8 @@ Avahi/mDNS.
 ```
 prometheus/
   prometheus.yml              Main Prometheus config
+  prometheus.defaults         $ARGS -> /etc/default/prometheus
+  node-exporter-override.conf systemd drop-in for node-exporter
   deploy.sh                   Deploy config to /etc
   add-target.sh               Add a target manually
   discover-targets.sh         Discover targets via Avahi
@@ -179,15 +181,32 @@ removed in favour of Lemonade's built-in endpoint above.
 
 ### The amd-gpu-metrics-exporter job
 
-**This job's metric names are `amd_gpu_*` and `amd_pcie_*`,
-not bare `gpu_*`.** `MetricsFieldPrefix: "amd_"` in
-`/etc/metrics/config.json` is the exporter's own packaged
-default — the file's md5 matches dpkg's record, and
-upstream's `example/config.json` sets the same value.
-Nothing here rewrites it, so dashboards must use the
-prefixed names. The two vendored AMD dashboards set their
-`g_metrics_prefix` variable to `amd_` for this reason; see
+**In the TSDB this job's metric names are always `amd_gpu_*`
+and `amd_pcie_*`, never bare `gpu_*` — but that is enforced
+here, not upstream.** `MetricsFieldPrefix: "amd_"` is the
+exporter's own packaged default, yet whether a given build
+honours it varies by version and platform. At the time of
+writing `snoc-strix` and `amd-laptop` serve prefixed names
+while `snoc-thinkstation` and `snoc-gaming` serve bare ones,
+and that split is not stable: `amd-laptop` moved from bare to
+prefixed inside a single day after an exporter upgrade, with
+no change on this box.
+
+So a `metric_relabel_configs` rule rewrites `__name__` on
+ingest, making the prefix an invariant of the TSDB rather
+than a property of whatever each host happens to be running.
+It is fully anchored, so already-prefixed samples pass
+through untouched and the rule is a no-op on hosts that
+already agree — which is why it stays even if they all do.
+Without it an unprefixed host scrapes green and renders
+empty on every panel, because the two vendored AMD
+dashboards drive every query off a single `g_metrics_prefix`
+variable set to `amd_`; see
 [grafana/vendor/manifest.yaml](../grafana/vendor/manifest.yaml).
+
+Do not chase this by editing `config.json` on each machine.
+Two of the four are a Windows box and a corporate laptop,
+and a fix applied there is a fix that is not in this repo.
 
 The exporter used to serve `card_model=""` on every host,
 and Prometheus drops empty labels, so the label disappeared
@@ -203,16 +222,17 @@ The rule matches on `hostname;card_model` with an empty
 field wins automatically and the rule becomes dead weight
 rather than a wrong override.
 
-That is not a hypothetical. A matching rule for `snoc-strix`
-forced `Radeon 8060S (Strix Halo)` while amdsmi had no
-gfx1151 support ([ROCm#6035](https://github.com/ROCm/ROCm/issues/6035)).
-`amdgpu-exporter` 1.5.1 now reports
-`card_model="AMD Radeon 8060S Graphics"` and
-`card_series="Strix Halo [...]"` natively, which disabled
-the rule on its own; it was removed on 2026-09-06 and the
-LAN Overview *GPU* column shows the exporter's own string.
-`snoc-thinkstation` has been offline since before 1.5.1, so
-its rule stays until that host proves it no longer needs it.
+That is not a hypothetical. Matching rules for `snoc-strix`
+and `amd-laptop` both forced `Radeon 8060S (Strix Halo)`
+while amdsmi had no gfx1151 support
+([ROCm#6035](https://github.com/ROCm/ROCm/issues/6035)).
+`amdgpu-exporter` 1.5.1 reports the part natively —
+`AMD Radeon 8060S Graphics` on `snoc-strix`,
+`AMD Radeon(TM) 8060S Graphics` on `amd-laptop` — which
+disabled both rules on their own, and both were removed.
+`snoc-gaming` likewise self-reports `AMD Radeon RX 9070 XT`
+and never needed one. `snoc-thinkstation` is the last host
+still serving `""`.
 
 GPU *presence* is deliberately not detected from this job —
 see [the Grafana README](../grafana/README.md) for why LAN
@@ -244,6 +264,59 @@ if you would rather see the self-reported hostname.
 Note that `hsa_errors_total` and `ais_tx_errors_total` are
 declared upstream but only materialise once a labelled child
 exists, so those panels read empty on a healthy exporter.
+
+## Things prometheus.yml cannot express
+
+Two files here configure the *processes* rather than the
+scrape config. Neither has any representation in
+`prometheus.yml`, which is exactly why they are easy to lose:
+a server rebuilt without them comes up healthy, with a
+config that diffs clean against this repo, and is quietly
+missing all of it.
+
+`prometheus.defaults` → `/etc/default/prometheus` supplies
+`$ARGS`, which the unit expands into `ExecStart`:
+
+| Flag | Lost without it |
+|---|---|
+| `--web.enable-remote-write-receiver` | Every series pushed in from external clusters — the bulk of the TSDB |
+| `--storage.tsdb.retention.size=20GB` | The only size cap; `retention` in the YAML bounds time, not disk |
+| `--web.listen-address=127.0.0.1:9092` | nginx owns 9090 and fronts this listener |
+| `--web.route-prefix=/` | A bare `/metrics`, which the `prometheus` job scrapes |
+| `--web.external-url=...` | Usable links in the UI and in alerts |
+
+`node-exporter-override.conf` →
+`/etc/systemd/system/prometheus-node-exporter.service.d/override.conf`
+adds `--collector.wifi`, which LAN Overview's *WiFi (dBm)*
+column depends on. Its empty `ExecStart=` line is load-bearing:
+systemd treats `ExecStart` as a list, so a drop-in that
+appends without first clearing the packaged entry fails the
+unit at `daemon-reload`.
+
+`deploy.sh` handles both, and only acts when they actually
+change — `$ARGS` needs a **restart** rather than a reload
+(EnvironmentFile is not re-read on reload), and a restart
+drops remote-write for as long as TSDB replay takes.
+
+## Retired jobs
+
+Removed on 2026-09-08, recorded here for the same reason
+[grafana/vendor/manifest.yaml](../grafana/vendor/manifest.yaml)
+records retired dashboards — so a future reader finds an
+answer rather than an absence:
+
+| Job | Was | Why |
+|---|---|---|
+| `amd-sysfs-gpu-exporter` | `:9401`, a local Python exporter reading amdgpu sysfs | Superseded by `amd-gpu-metrics-exporter`; not running on any host |
+| `vllm-exporter` | `:8000` on thinkstation and strix | Inference stack no longer resident |
+| `lmcache-exporter` | `:6990`/`:6991` on thinkstation and strix | Ditto; panels lived on the retired `rocm-aic-dashboard` |
+| `llama-cpp-exporter` | `:8081` on amd-laptop | Ditto |
+
+None had a `targets/` file or an Avahi service — they were
+`static_configs` that predated the `file_sd` migration and
+were dropped by it, surviving only in an editor backup under
+`/etc`. `deploy.sh` now prunes `*.yml~` from `/etc/prometheus`
+so no stray copy outlives the repo again.
 
 ## First-Time Migration
 

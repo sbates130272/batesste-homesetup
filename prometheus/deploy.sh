@@ -9,18 +9,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROM_ETC="/etc/prometheus"
 PROM_TARGETS="${PROM_ETC}/targets"
 PROM_YML="${SCRIPT_DIR}/prometheus.yml"
+PROM_DEFAULTS="${SCRIPT_DIR}/prometheus.defaults"
+NODE_DROPIN="${SCRIPT_DIR}/node-exporter-override.conf"
+NODE_DROPIN_DIR="/etc/systemd/system/prometheus-node-exporter.service.d"
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [--targets-only] [--dry-run]
 
 Deploy Prometheus configuration and target files to
-${PROM_ETC}.
+${PROM_ETC}, plus /etc/default/prometheus and the
+prometheus-node-exporter systemd drop-in.
 
 Options:
   --targets-only  Only deploy target JSON files (no reload
                   needed; Prometheus watches these via
-                  file_sd_configs).
+                  file_sd_configs). Skips the unit config.
   --dry-run       Show what would be done without changing
                   anything.
   -h, --help      Show this help message.
@@ -161,8 +165,54 @@ run sudo cp "${PROM_YML}" "${PROM_ETC}/prometheus.yml"
 run sudo chown prometheus:prometheus \
     "${PROM_ETC}/prometheus.yml"
 
-echo "==> Reloading Prometheus..."
-run sudo systemctl reload prometheus
+# $ARGS carries the flags that have no prometheus.yml equivalent --
+# remote-write receive, the size cap, the nginx listener. A reload
+# does not re-read EnvironmentFile, so this needs a restart, and only
+# when it actually changed: restarting drops the remote-write
+# receiver for as long as the TSDB takes to replay.
+echo "==> Deploying /etc/default/prometheus..."
+NEED_RESTART=false
+if ! sudo cmp -s "${PROM_DEFAULTS}" /etc/default/prometheus; then
+    run sudo cp "${PROM_DEFAULTS}" /etc/default/prometheus
+    run sudo chown root:root /etc/default/prometheus
+    run sudo chmod 644 /etc/default/prometheus
+    NEED_RESTART=true
+    echo "    changed (will restart, not reload)"
+else
+    echo "    unchanged"
+fi
+
+# node-exporter is a separate unit, so it needs its own reload/restart
+# and never a prometheus one. Editor backups in the drop-in directory
+# are removed rather than left: systemd ignores a *~ suffix, but the
+# one found here was a copy missing the `ExecStart=` reset line, which
+# fails the unit outright if it is ever renamed into place.
+echo "==> Deploying node-exporter drop-in..."
+run sudo mkdir -p "${NODE_DROPIN_DIR}"
+run sudo rm -f "${NODE_DROPIN_DIR}"/*~
+if ! sudo cmp -s "${NODE_DROPIN}" "${NODE_DROPIN_DIR}/override.conf"; then
+    run sudo cp "${NODE_DROPIN}" "${NODE_DROPIN_DIR}/override.conf"
+    run sudo chown root:root "${NODE_DROPIN_DIR}/override.conf"
+    run sudo chmod 644 "${NODE_DROPIN_DIR}/override.conf"
+    run sudo systemctl daemon-reload
+    run sudo systemctl restart prometheus-node-exporter
+    echo "    changed (node-exporter restarted)"
+else
+    echo "    unchanged"
+fi
+
+# Same rationale as the target-file pruning above: /etc is managed
+# from here, and a stray prometheus.yml~ is a config that looks
+# authoritative and is not.
+run sudo rm -f "${PROM_ETC}"/*.yml~
+
+if $NEED_RESTART; then
+    echo "==> Restarting Prometheus (\$ARGS changed)..."
+    run sudo systemctl restart prometheus
+else
+    echo "==> Reloading Prometheus..."
+    run sudo systemctl reload prometheus
+fi
 
 echo "==> Done. Verify with:"
 echo "    systemctl status prometheus"
