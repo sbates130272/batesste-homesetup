@@ -76,7 +76,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 190
+                "value": 170
               }
             ]
           },
@@ -190,7 +190,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 80
+                "value": 90
               }
             ]
           },
@@ -202,7 +202,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 60
+                "value": 70
               }
             ]
           },
@@ -218,7 +218,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 110
+                "value": 130
               }
             ]
           },
@@ -234,7 +234,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 90
+                "value": 105
               },
               {
                 "id": "thresholds",
@@ -273,7 +273,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 120
+                "value": 115
               },
               {
                 "id": "custom.cellOptions",
@@ -321,7 +321,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 130
+                "value": 140
               },
               {
                 "id": "custom.cellOptions",
@@ -526,14 +526,14 @@
             },
             "indexByName": {
               "server_name": 0,
-              "Value #B": 1,
-              "Value #C": 2,
+              "Value #I": 1,
+              "Value #E": 2,
               "Value #D": 3,
-              "Value #E": 4,
-              "Value #F": 5,
+              "Value #B": 4,
+              "Value #C": 5,
               "Value #H": 6,
               "Value #G": 7,
-              "Value #I": 8,
+              "Value #F": 8,
               "release": 9,
               "Time 1": 10,
               "Time 2": 11,
@@ -591,7 +591,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 190
+                "value": 170
               }
             ]
           },
@@ -603,7 +603,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 230
+                "value": 250
               }
             ]
           },
@@ -615,7 +615,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 150
+                "value": 130
               }
             ]
           },
@@ -757,18 +757,6 @@
                 "value": 110
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ROCm"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 170
-              }
-            ]
           }
         ]
       },
@@ -900,11 +888,11 @@
               "server_name": 0,
               "card_model": 1,
               "pcie": 2,
-              "Value #B": 3,
-              "Value #C": 4,
-              "Value #D": 5,
-              "version": 6,
-              "Value #F": 7,
+              "Value #F": 3,
+              "Value #B": 4,
+              "Value #C": 5,
+              "Value #D": 6,
+              "version": 7,
               "Time 1": 8,
               "Time 2": 9,
               "Time 3": 10,
@@ -1028,7 +1016,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Lemonade instances reporting themselves up. Counts lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here.",
+      "description": "Whether Lemonade reports itself up. Reads lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here. The or vector(0) is what makes DOWN reachable: when the tailnet drops the metric is absent rather than 0, and without a fallback the tile renders No data instead of going red. The max() is not cosmetic -- vector(0) carries no labels, so without it the or matches nothing and the panel gets two series.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1041,6 +1029,11 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -1094,7 +1087,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(lemonade_server_up == 1)",
+          "expr": "max(lemonade_server_up) or vector(0)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -1281,6 +1274,11 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -1361,6 +1359,11 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -2642,7 +2645,7 @@
           "expr": "lemonade_model_time_to_first_token_seconds",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{model_name}}",
+          "legendFormat": "{{model_name}} ({{device}})",
           "refId": "A"
         }
       ],
@@ -2708,7 +2711,7 @@
           "expr": "lemonade_model_tokens_per_second",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{model_name}}",
+          "legendFormat": "{{model_name}} ({{device}})",
           "refId": "A"
         }
       ],
