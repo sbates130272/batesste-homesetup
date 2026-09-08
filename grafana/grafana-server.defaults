@@ -42,3 +42,17 @@ GF_SERVER_SERVE_FROM_SUB_PATH=true
 # Password for the firefly MySQL user that the firefly-mysql
 # provisioned datasource connects with.
 FIREFLY_DB_PASSWORD=thishastochange
+
+# ── Alerting ────────────────────────────────────────────────
+# ntfy topic URL for the batesste-ntfy contact point in
+# provisioning/alerting/contact-points.yaml. On ntfy.sh the topic
+# URL is the credential -- anyone holding it can read and publish
+# to the topic -- so use an unguessable topic name and do not
+# commit the real one. Set it on the host and keep the placeholder
+# here.
+#
+# Verify delivery after changing it. A wrong URL does not error;
+# ntfy accepts a POST to any topic, including one nobody is
+# subscribed to, so a typo is indistinguishable from silence:
+#   curl -d "test" "$NTFY_TOPIC_URL"
+NTFY_TOPIC_URL=thishastochange

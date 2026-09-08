@@ -1,0 +1,41 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# Alert delivery for the homelab. ntfy rather than email because the
+# thing being watched here is a credential that went stale and took
+# fifteen months of backups with it -- an SMTP password is one more
+# credential with the same failure mode, and it would be watching the
+# watchman with the watchman.
+#
+# NTFY_TOPIC_URL is expanded from the grafana-server environment, the
+# same mechanism datasources.yaml uses for $FIREFLY_DB_PASSWORD. The
+# topic URL *is* the secret on ntfy.sh: anyone who knows it can read
+# and publish. Pick an unguessable one and treat it accordingly.
+
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: batesste-ntfy
+    receivers:
+      - uid: batesste-ntfy-webhook
+        type: webhook
+        disableResolveMessage: false
+        settings:
+          url: $NTFY_TOPIC_URL
+          httpMethod: POST
+          # ntfy reads these headers off a plain POST body, so the
+          # generic webhook receiver is enough and no ntfy-specific
+          # integration is needed.
+          #
+          # Grafana sends its own JSON body by default, which ntfy
+          # would publish verbatim as an unreadable wall of text. The
+          # message template replaces it with something legible on a
+          # phone lock screen.
+          message: |
+            {{ len .Alerts.Firing }} firing, {{ len .Alerts.Resolved }} resolved.
+            {{ range .Alerts.Firing }}
+            {{ .Labels.alertname }}
+            {{ .Annotations.summary }}
+            {{ end }}

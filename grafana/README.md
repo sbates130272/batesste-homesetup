@@ -17,6 +17,10 @@ grafana/
       dashboards.yaml         # dashboard provider config
     datasources/
       datasources.yaml        # Prometheus + MySQL datasources
+    alerting/
+      contact-points.yaml     # ntfy webhook
+      notification-policies.yaml
+      rules.yaml              # backup alert rules
   dashboards/                 # first-party, one dir per Grafana folder
     general/                  # folder: (root)
       lan-overview.json
@@ -88,6 +92,87 @@ user. The password is stored in the
 `grafana-server.defaults` (deployed to
 `/etc/default/grafana-server`). See
 `firefly-db-init.sql` for the one-time view setup.
+
+## Alerting
+
+`provisioning/alerting/` carries the whole alerting
+configuration: one contact point, one notification tree, and
+the backup rules. All three are deployed by `deploy.sh`.
+
+### Why this exists
+
+The homelab had no alerting of any kind until 8 Sep 2026. That
+is how the disk backup managed to fail every night from June
+2025 to September 2026 — roughly fifteen months, every run
+rejected with `InvalidAccessKeyId` — with nothing anywhere
+saying so. It was found by reading the bucket by hand. The
+rules below are the answer to "why did nobody notice", not a
+general-purpose monitoring build-out.
+
+### Contact point
+
+One webhook receiver, `batesste-ntfy`, posting to
+[ntfy.sh](https://ntfy.sh). The URL comes from `$NTFY_TOPIC_URL` in
+`grafana-server.defaults`, the same environment-expansion
+mechanism `datasources.yaml` uses for `$FIREFLY_DB_PASSWORD`.
+
+ntfy rather than email on purpose. The thing being watched here
+is a credential that went stale; an SMTP password is another
+credential with exactly the same failure mode, and pointing the
+backup alarm at it means the alarm can rot the same way the
+backup did.
+
+**The topic URL is the credential.** On ntfy.sh anyone holding
+it can read and publish to the topic, so pick an unguessable
+name, keep the placeholder in the repo, and set the real value
+on the host. `deploy.sh` fails if the variable is missing
+entirely and warns if it is still `thishastochange`, because
+Grafana expands an unset variable to the empty string rather
+than refusing to start — which would silently drop every
+notification.
+
+Verify delivery after any change. A wrong URL does not error;
+ntfy accepts a POST to any topic, including one nobody is
+subscribed to, so a typo looks exactly like silence:
+
+```bash
+curl -d "test" "$NTFY_TOPIC_URL"
+```
+
+### Rules
+
+Four rules over the `batesste_s3_backup_*` metrics published by
+`prometheus/textfile-collectors/s3-backup-age.sh`, one per
+failure mode so each alert names its own cause:
+
+| Rule | Fires when | `for` |
+|---|---|---|
+| `BackupCheckFailing` | S3 listing fails, or the checker stops reporting | 2h |
+| `BackupMissing` | Bucket reachable, zero backup objects | 10m |
+| `BackupStale` | Newest object older than 48h | 10m |
+| `BackupTooSmall` | Newest object under 5 GB | 10m |
+
+`BackupCheckFailing` is the only one with
+`noDataState: Alerting`, and it owns every "the answer is
+unknown" case: `query_success` is written on every collector
+run whatever the outcome, so its absence means the collector,
+node-exporter, or the host is gone. The other three set
+`noDataState: OK` so that one root cause produces one
+notification — two alerts for a single failure is the fastest
+way to train yourself to ignore both.
+
+The thresholds are loose on purpose. 48h rather than 24h means
+a single missed nightly run is not a page; the 5 GB floor sits
+well under the 11.7–33.3 GB range of every real backup, because
+it exists to catch a truncated `dd`, not normal growth. `for:
+2h` on `BackupCheckFailing` means two consecutive failed hourly
+checks, which rides out a transient S3 blip.
+
+Only the disk backup is covered. The Hermes backup is disabled
+and its bucket does not exist, so a rule for it would fire on
+deploy and never stop — and a permanently firing alert gets
+muted, which is the state this whole exercise exists to escape.
+Add it when the bucket exists and the timer is enabled.
 
 ## Dashboards (11 total)
 
