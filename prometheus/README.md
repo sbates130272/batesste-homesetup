@@ -320,15 +320,26 @@ on the LAN Overview GPU Inventory table. Run
 the target machine" model as `avahi-services/` and
 `loki/alloy/deploy-agent.sh`.
 
-This does not reuse `rocm_aic_rocm_version_info`, which carries
-the same number on `snoc-thinkstation`. That series comes from
-the `rocm-aic-exporter` timer — a large bespoke LMCache/NIXL/AIS
-package tied to that host's vLLM work, which should not be
-installed on three other machines to read one version string.
-It is also why the value had gone stale on `snoc-strix`: the
-timer is installed there but **inactive**, so the series simply
-stopped. A dashboard column backed by that metric would have
-shown a blank cell with nothing visibly broken.
+This does not reuse `rocm_aic_rocm_version_info`, which used to
+carry the same number on `snoc-thinkstation`. That series came
+from the `rocm-aic-exporter` timer — a large bespoke
+LMCache/NIXL/AIS package tied to that host's vLLM work, which
+had no business being installed on three other machines just to
+read one version string. It ran on `snoc-thinkstation` alone;
+`snoc-strix` never had it, only a stale series left over from
+July. Either way it was a version column that would have gone
+blank without anything visibly breaking.
+
+`rocm-aic-exporter` has since been removed from
+`snoc-thinkstation` — timer, units, `/opt/rocm-aic-exporter/`,
+and the 42-family `rocm_aic_exporter.prom` it left in the
+textfile directory, which node-exporter would otherwise have
+served forever. Nothing in `grafana/dashboards/` referenced
+`rocm_aic_*`; the only consumer was
+`grafana/vendor/retired/rocm-aic-dashboard.json`, which is not
+provisioned. **Its unit files were headed "Managed by Ansible
+(host_setup)", so a future Ansible run on that host may
+reinstate them.**
 
 Three things about this are worth keeping:
 

@@ -8,15 +8,14 @@
 # dashboard's GPU Inventory table.
 #
 # This exists as its own collector rather than reusing
-# rocm_aic_rocm_version_info, which reports the same number on
-# snoc-thinkstation today. That metric is emitted by the
+# rocm_aic_rocm_version_info, which used to report the same
+# number on snoc-thinkstation. That metric came from the
 # rocm-aic-exporter timer -- a large bespoke LMCache/NIXL/AIS
 # instrumentation package tied to that host's vLLM work, which
-# has no business being installed on the other three GPU boxes
-# just to read one version string. It is also why the value went
-# stale on snoc-strix: the timer there is installed but inactive,
-# so the series simply stopped and the dashboard would have shown
-# a blank cell with nothing obviously wrong.
+# had no business being installed on the other three GPU boxes
+# just to read one version string. It ran on snoc-thinkstation
+# alone, and has since been removed from there too, so nothing
+# emits that series on this fleet any more.
 
 set -euo pipefail
 
@@ -66,9 +65,8 @@ if HIPCONFIG="$(find_hipconfig)"; then
     # (amd-laptop reports 7.15.26333-0000000 and 7.2.4
     # respectively). The HIP runtime version is the one that
     # matters for "will this kernel build and run here", and it is
-    # what rocm_aic_rocm_version_info already reports, so the
-    # column stays consistent with the value snoc-thinkstation has
-    # been showing.
+    # what rocm_aic_rocm_version_info used to report, so the column
+    # kept showing the same value snoc-thinkstation always had.
     VERSION="$("$HIPCONFIG" --version 2>/dev/null | tr -d '[:space:]')" || VERSION=""
 fi
 ALT="$(alt_version "$VERSION")"

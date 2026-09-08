@@ -375,6 +375,57 @@ reports `unknown`, not `up`. The WSL hosts (`snoc-gaming`,
 which is the honest answer for how the traffic leaves the VM
 even though the physical link underneath may be wireless.
 
+`snoc-thinkstation` currently reads **WiFi**, not
+**Wired+WiFi**: both `eno1` and `eno2` report
+`operstate="down"`. The column is working — the ports are
+simply not up.
+
+### The OS column is derived, because nothing reports it
+
+Every host on this fleet reports `sysname="Linux"` except
+`snoc-shannon`, which reports `Darwin`. There is no metric
+that distinguishes a native Linux box from WSL, so the **OS**
+column derives it from the kernel release string and encodes
+the answer the same way **Link** does:
+
+| Value | Renders | Derived from |
+|---|---|---|
+| 1 | Linux | `sysname="Linux"`, release without `microsoft`/`WSL` |
+| 2 | Windows (WSL) | `sysname="Linux"`, release matching `microsoft`/`WSL` |
+| 3 | Mac OS | `sysname="Darwin"` |
+| 4 | Windows | `windows_os_info` (windows_exporter) |
+
+The branches are `or`-ed rather than summed, so unlike **Link**
+they need no zeroed default: `or` is a set union and each host
+matches exactly one branch. A host that matched none — some
+other `sysname` — would show an empty cell rather than
+disappearing from the table.
+
+Row 4 has no data behind it today. Nothing on this LAN runs
+windows_exporter; `snoc-gaming` and `amd-laptop` are Windows
+machines reached through their WSL node-exporters, which is
+exactly the distinction row 2 exists to make. The branch is
+there so that adding a native Windows target is a targets-file
+change and not a dashboard change.
+
+Row 3 *is* live, despite `snoc-shannon` looking dead. Of its
+three targets only `10.0.0.80` responds, and it flaps — around
+24% up over 24h. When it answers it reports `Darwin 24.6.0 /
+arm64`, so the cell fills in and empties as the Mac sleeps.
+Its **Memory %**, **RAM** and **Link** cells stay blank even
+when it is up: the Darwin node-exporter has a much smaller
+collector set and emits neither `node_memory_MemAvailable_bytes`
+nor `node_network_info`.
+
+That flapping is also why **CPU %** is `and on (instance)
+node_uname_info`. It is the panel's only range query, so when
+a target drops it keeps returning a value from inside the
+`[5m]` window while every instant-selector column goes blank
+under the staleness marker — leaving a nameless row carrying
+nothing but a CPU percentage. Spining it on the same series as
+the rest of the table makes the host either fully present or
+fully absent.
+
 ## Investment Accounts
 
 The Firefly III Overview dashboard includes an

@@ -312,6 +312,54 @@
                 ]
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "OS"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 130
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "1": {
+                        "text": "Linux",
+                        "color": "blue",
+                        "index": 0
+                      },
+                      "2": {
+                        "text": "Windows (WSL)",
+                        "color": "purple",
+                        "index": 1
+                      },
+                      "3": {
+                        "text": "Mac OS",
+                        "color": "text",
+                        "index": 2
+                      },
+                      "4": {
+                        "text": "Windows",
+                        "color": "orange",
+                        "index": 3
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
           }
         ]
       },
@@ -350,7 +398,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)) * 100",
+          "expr": "(\n    (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[5m])) by (instance)) * 100\n)\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -424,6 +472,20 @@
           "legendFormat": "",
           "range": false,
           "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "  max by (instance) (node_uname_info{job=\"node\", sysname=\"Linux\", release!~\".*(microsoft|WSL).*\"})\nor\n  max by (instance) (node_uname_info{job=\"node\", sysname=\"Linux\", release=~\".*(microsoft|WSL).*\"}) * 2\nor\n  max by (instance) (node_uname_info{job=\"node\", sysname=\"Darwin\"}) * 3\nor\n  max by (instance) (windows_os_info) * 4",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "I"
         }
       ],
       "title": "Node Fleet",
@@ -447,7 +509,8 @@
               "Time 7": true,
               "Value #A": true,
               "instance": true,
-              "Time 8": true
+              "Time 8": true,
+              "Time 9": true
             },
             "renameByName": {
               "Value #B": "CPU %",
@@ -458,7 +521,8 @@
               "Value #G": "WiFi (dBm)",
               "release": "Kernel",
               "server_name": "Node",
-              "Value #H": "Link"
+              "Value #H": "Link",
+              "Value #I": "OS"
             },
             "indexByName": {
               "server_name": 0,
@@ -469,17 +533,19 @@
               "Value #F": 5,
               "Value #H": 6,
               "Value #G": 7,
-              "release": 8,
-              "Time 1": 9,
-              "Time 2": 10,
-              "Time 3": 11,
-              "Time 4": 12,
-              "Time 5": 13,
-              "Time 6": 14,
-              "Time 7": 15,
-              "Time 8": 16,
-              "Value #A": 17,
-              "instance": 18
+              "Value #I": 8,
+              "release": 9,
+              "Time 1": 10,
+              "Time 2": 11,
+              "Time 3": 12,
+              "Time 4": 13,
+              "Time 5": 14,
+              "Time 6": 15,
+              "Time 7": 16,
+              "Time 8": 17,
+              "Time 9": 18,
+              "Value #A": 19,
+              "instance": 20
             }
           }
         }
