@@ -1,0 +1,163 @@
+name: batesste-homesetup
+on:
+  # The point of this job is to answer a question nothing else in the
+  # repo answers: can the backups actually be read back? Every other
+  # check -- the systemd unit's exit status, the s3-backup-age
+  # collector, the Grafana rules -- confirms that an object of a
+  # plausible size arrived in the bucket. None of them opens it. A
+  # backup nobody has restored is a hypothesis, and this repo has
+  # already found one fifteen-month outage by looking rather than
+  # assuming.
+  #
+  # Off the hour, and on a different day from backup-test, so the two
+  # scheduled jobs do not queue against each other: GitHub stacks
+  # scheduled workflows at :00 across the whole platform and routinely
+  # delays or drops them there.
+  schedule:
+    - cron: '43 6 * * 2'
+  workflow_dispatch:
+    inputs:
+      key:
+        description: 'Object key to verify (default: newest in the bucket)'
+        required: false
+        type: string
+  # The verifier is a few hundred lines of loop devices, offset
+  # arithmetic and LVM metadata parsing. Editing it without running it
+  # is how it quietly stops verifying anything, so a PR that touches
+  # it exercises it for real.
+  pull_request:
+    paths:
+      - 'backup/verify-backup-image.sh'
+      - '.github/workflows/batesste-homesetup-backup-restore-test.yml'
+
+jobs:
+  backup-restore-test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./backup
+    env:
+      AWS_REGION: us-west-2
+      BACKUP_BUCKET: batesste-homelab-backups
+      # hostname + BLK_DEVICE with slashes as dashes, which is what
+      # batesste-s3-backup names its objects and what the
+      # s3-backup-age collector queries.
+      BACKUP_PREFIX: snoc-beelink-dev-sda
+      # snoc-beelink's /dev/sda. Both the gzip-trailer check and the
+      # sparse image depend on it, and a real disk swap will fail this
+      # job loudly rather than silently verifying the wrong shape.
+      EXPECTED_DISK_BYTES: '256060514304'
+      MAX_AGE_DAYS: '7'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+
+      # e2fsprogs and util-linux are already on the runner; dosfstools
+      # is not, and without it the EFI partition goes unchecked.
+      - name: Install filesystem tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dosfstools
+
+      # Read-only credentials, deliberately a third set. AWS_KEY /
+      # AWS_SECRET can write to the CI bucket and ~/.secrets.env on
+      # snoc-beelink can write to this one; neither belongs in a job
+      # whose entire purpose is to read the backups. Scope
+      # RESTORE_AWS_KEY to s3:GetObject and s3:ListBucket on
+      # batesste-homelab-backups and nothing else.
+      - name: Check whether the restore credentials still work
+        id: creds
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.RESTORE_AWS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.RESTORE_AWS_SECRET }}
+          IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          fail() {
+            echo "::error title=Backup restore test failed::$1"
+            exit 1
+          }
+
+          if [ -z "${AWS_ACCESS_KEY_ID}" ] || [ -z "${AWS_SECRET_ACCESS_KEY}" ]; then
+            if [ "${IS_FORK}" = "true" ]; then
+              echo "usable=false" >> "${GITHUB_OUTPUT}"
+              echo "::warning title=Restore test skipped::Pull requests from forks cannot access repository secrets. A maintainer must re-run this on a branch in the repository to exercise the restore."
+              exit 0
+            fi
+            fail "No restore credentials are configured. Set the RESTORE_AWS_KEY and RESTORE_AWS_SECRET repository secrets to a read-only IAM key scoped to s3://${BACKUP_BUCKET}."
+          fi
+
+          if err=$(aws sts get-caller-identity --output text 2>&1 >/dev/null); then
+            echo "usable=true" >> "${GITHUB_OUTPUT}"
+          else
+            fail "AWS rejected the restore credentials: ${err##*: } Rotate RESTORE_AWS_KEY and RESTORE_AWS_SECRET. These are a separate store from AWS_KEY/AWS_SECRET and from ~/.secrets.env on snoc-beelink -- rotating one does not rotate the others, and they have drifted apart before."
+          fi
+
+      # Age is checked here rather than left to the verifier because a
+      # bucket whose newest object is three weeks old is a failure of
+      # the backup, not of the image, and the two deserve different
+      # error messages. This also overlaps the BackupStale Grafana rule
+      # on purpose: that rule depends on the collector, node-exporter
+      # and Grafana all being alive on snoc-beelink, and this one does
+      # not depend on snoc-beelink at all.
+      - name: Pick a recent backup
+        id: pick
+        if: steps.creds.outputs.usable == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.RESTORE_AWS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.RESTORE_AWS_SECRET }}
+          OVERRIDE_KEY: ${{ inputs.key }}
+        run: |
+          fail() {
+            echo "::error title=Backup restore test failed::$1"
+            exit 1
+          }
+
+          if [ -n "${OVERRIDE_KEY}" ]; then
+            echo "key=${OVERRIDE_KEY}" >> "${GITHUB_OUTPUT}"
+            echo "Verifying ${OVERRIDE_KEY} (requested by hand)."
+            exit 0
+          fi
+
+          read -r key modified size < <(aws s3api list-objects-v2 \
+            --bucket "${BACKUP_BUCKET}" --prefix "${BACKUP_PREFIX}" \
+            --output text \
+            --query 'sort_by(Contents || `[]`, &LastModified)[-1].[Key, LastModified, Size]')
+
+          if [ -z "${key}" ] || [ "${key}" = "None" ]; then
+            fail "s3://${BACKUP_BUCKET} contains no objects under the prefix '${BACKUP_PREFIX}'. Either the backup has never run against this bucket, or the prefix has drifted from what batesste-s3-backup writes."
+          fi
+
+          age=$(( ( $(date -u +%s) - $(date -u -d "${modified}" +%s) ) / 86400 ))
+          if [ "${age}" -gt "${MAX_AGE_DAYS}" ]; then
+            fail "The newest backup in s3://${BACKUP_BUCKET} is ${key}, ${age} days old. Nothing has been written in the last ${MAX_AGE_DAYS} days -- check batesste-s3-backup.timer on snoc-beelink before worrying about this image."
+          fi
+
+          echo "key=${key}" >> "${GITHUB_OUTPUT}"
+          echo "Verifying ${key} (${size} bytes, ${age} day(s) old)."
+
+      # Roughly a gigabyte of transfer: the verifier streams the
+      # compressed object only until 4 GiB has decompressed, then lets
+      # the pipe break. That window covers the GPT, the EFI partition,
+      # /boot, the LVM label and metadata, and the root filesystem's
+      # superblock -- everything structural -- for a few cents rather
+      # than the ~$3 of egress a full 33 GB stream would cost.
+      - name: Restore and verify the image
+        if: steps.creds.outputs.usable == 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.RESTORE_AWS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.RESTORE_AWS_SECRET }}
+          WORKDIR: ${{ runner.temp }}/restore-test
+        run: |
+          if ! ./verify-backup-image.sh \
+              --bucket "${BACKUP_BUCKET}" \
+              --key "${{ steps.pick.outputs.key }}" \
+              --region "${AWS_REGION}"; then
+            echo "::error title=Backup restore test failed::${{ steps.pick.outputs.key }} did not verify. The object exists and is the right age, but its contents are not a sound disk image -- see the log above for which check failed. Treat the backups as unrestorable until this is understood."
+            exit 1
+          fi
+
+      - name: Note the skipped restore test
+        if: steps.creds.outputs.usable != 'true'
+        run: |
+          echo "Restore test was skipped because repository secrets are unavailable to fork pull requests."
