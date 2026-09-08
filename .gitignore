@@ -2,6 +2,9 @@
 *.secrets
 .aws.creds.env
 
+# Compiled aspell dictionary, produced by a local pyspelling run
+dictionary.dic
+
 # Certain agent markdown files
 snoc-gaming.md
 
