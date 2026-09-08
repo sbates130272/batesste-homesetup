@@ -23,7 +23,6 @@ grafana/
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
       node-exporter-full.json
-      node-exporter-overview.json
       node-exporter-wifi.json
       speedtest-wan-testing.json
     personal-finance/         # folder: Personal Finance
@@ -34,6 +33,8 @@ grafana/
     manifest.yaml             # provenance for each one
     dashboards/
       amd-related/
+        amd-device-metrics-gpu.json
+        amd-device-metrics-overview.json
         hsa-snoop.json
         lemonade-built-in-metrics.json
       home-network-related/
@@ -112,7 +113,6 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
-| Home Network | Node Exporter Overview | Fleet summary table |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
 | Personal Finance | Firefly III Overview | Income, spending, investments, category breakdown |
