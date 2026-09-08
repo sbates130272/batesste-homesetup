@@ -21,6 +21,15 @@ datasources:
     isDefault: true
     editable: false
 
+  - name: snoc-beelink-loki
+    uid: snoc-beelink-loki
+    type: loki
+    access: proxy
+    url: http://10.0.0.15:3100
+    jsonData:
+      maxLines: 5000
+    editable: false
+
   - name: firefly-mysql
     uid: P382BE89091B0B8E6
     type: mysql

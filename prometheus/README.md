@@ -121,6 +121,7 @@ Each exporter type uses a distinct DNS-SD service type:
 | `_hsa-snoop._tcp`            | 9488  | hsa-snoop                |
 | `_openai-exporter._tcp`      | 9185  | openai_exporter          |
 | `_cursor-exporter._tcp`      | 9788  | cursor-exporter          |
+| `_alloy._tcp`                | 12345 | alloy                    |
 
 The `server_name` label is derived automatically from the
 Avahi hostname (e.g. `snoc-thinkstation.local` becomes

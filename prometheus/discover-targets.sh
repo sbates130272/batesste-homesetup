@@ -72,6 +72,7 @@ SERVICE_MAP=(
     ["_hsa-snoop._tcp"]="hsa-snoop"
     ["_openai-exporter._tcp"]="openai_exporter"
     ["_cursor-exporter._tcp"]="cursor-exporter"
+    ["_alloy._tcp"]="alloy"
 )
 
 browse_service() {

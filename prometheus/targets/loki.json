@@ -1,0 +1,10 @@
+[
+  {
+    "targets": [
+      "localhost:3100"
+    ],
+    "labels": {
+      "server_name": "snoc-beelink"
+    }
+  }
+]

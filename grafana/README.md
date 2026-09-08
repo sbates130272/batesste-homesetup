@@ -53,23 +53,31 @@ silent no-op.
 
 ## Datasources
 
-Two datasources are configured via the provisioning YAML
+Three datasources are configured via the provisioning YAML
 under `provisioning/datasources/`:
 
 | Name | Type | UID | URL |
 |------|------|-----|-----|
 | `snoc-beelink-prometheus` | Prometheus | `ae8pyuqoyonpca` | `http://10.0.0.15:9090/prometheus` |
+| `snoc-beelink-loki` | Loki | `snoc-beelink-loki` | `http://10.0.0.15:3100` |
 | `firefly-mysql` | MySQL | `P382BE89091B0B8E6` | `127.0.0.1:3306` |
 
-Both UIDs are **pinned deliberately**. Every dashboard
+All three UIDs are **pinned deliberately**. Every dashboard
 JSON in this repo hardcodes them; if Grafana were left to
 generate its own on a rebuild, every panel would lose its
 datasource. Don't change them without rewriting the
 dashboards to match.
 
-Both are also `editable: false`. Prometheus previously
+They are also all `editable: false`. Prometheus previously
 drifted from this file because the URL had been edited in
 the UI — change it here and run `./deploy.sh` instead.
+
+Loki is the fleet log store. `snoc-beelink`,
+`snoc-thinkstation`, `snoc-strix` and `amd-laptop` ship their
+journals to it through Grafana Alloy, and it is
+unauthenticated on the LAN and the tailnet for the same
+reason the LAN Prometheus vhost is. Its config, retention and
+agent rollout live in [loki/README.md](../loki/README.md).
 
 The Firefly III MySQL datasource connects to the
 MariaDB container on the Docker bridge network

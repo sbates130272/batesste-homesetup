@@ -107,13 +107,62 @@ scrape_configs:
     #
     # Note the metric names this job produces are amd_gpu_* and
     # amd_pcie_*, not bare gpu_*. MetricsFieldPrefix: "amd_" is
-    # the exporter's own packaged default, not a local choice.
+    # the exporter's own packaged default, not a local choice --
+    # but see the __name__ rule below for the two hosts that do
+    # not honour it.
+    #
+    # Order matters here. The hostname rule runs first so the
+    # card_model rules that follow can match on homelab names.
     metric_relabel_configs:
+      # The exporter stamps every sample with gethostname(), which
+      # on amd-laptop is APCAN-MQ60818VV. Left alone that label
+      # joins to nothing: every dashboard and every other job keys
+      # on the server_name file_sd applies. Same normalisation the
+      # hsa-snoop job does below, and the same reason Alloy ships
+      # LOKI_HOST_LABEL rather than constants.hostname.
+      - source_labels: [server_name]
+        target_label: hostname
+
+      # amd-laptop and snoc-gaming run an exporter build that
+      # leaves MetricsFieldPrefix empty, so they serve bare gpu_*
+      # and pcie_* while snoc-strix and snoc-thinkstation serve
+      # amd_gpu_* and amd_pcie_*. The AMD dashboards drive every
+      # query off one global g_metrics_prefix variable, defaulted
+      # to "amd_", so without this rule those two hosts scrape
+      # green and render empty on every panel.
+      #
+      # Renaming on ingest rather than fixing config.json on each
+      # box keeps the fix in the repo and off a Windows machine
+      # and a corporate laptop. The regex is fully anchored, so
+      # already-prefixed amd_* and promhttp_* cannot match and the
+      # other two hosts pass through untouched.
+      - source_labels: [__name__]
+        regex: '(gpu|pcie)_(.*)'
+        target_label: __name__
+        replacement: 'amd_${1}_${2}'
+
       - source_labels: [hostname, card_model]
         separator: ;
         regex: 'snoc-thinkstation;'
         target_label: card_model
         replacement: 'Radeon RX 9070 XT'
+
+      # snoc-gaming's Windows build exports a much smaller set: 89
+      # families, almost all gpu_ecc_*, plus VRAM/GTT, gpu_health,
+      # XGMI and pcie_speed. It has NO gfx_activity, power, temp or
+      # clock, so its GPU Inventory row shows Node, GPU and Exporter
+      # and leaves Temp/Power/Busy blank. That is the exporter's
+      # coverage on Windows, not a broken scrape -- do not "fix" the
+      # blank columns by repointing them at something that resolves.
+      #
+      # amd-laptop also reports card_model="", which Prometheus
+      # drops, blanking the GPU column exactly as it did for
+      # snoc-thinkstation above. No rule for it yet because the
+      # card is unidentified: its exporter predates the version
+      # that populates the field, it exposes no card_series, and
+      # its journal in Loki does not reach back to the amdgpu boot
+      # lines. Add a rule here once `amd-smi static` on that host
+      # says what the part actually is.
 
   - job_name: ais-exporter
     file_sd_configs:
@@ -167,6 +216,36 @@ scrape_configs:
       - files:
           - /etc/prometheus/targets/cursor-exporter.json
           - /etc/prometheus/targets/discovered/cursor-exporter.json
+        refresh_interval: 30s
+
+  # Loki serves its own metrics on the same port it ingests on.
+  # Worth scraping for more than tidiness: retention is enforced
+  # by time, not size, so ingestion rate is the only advance
+  # warning that /var/lib/loki is about to hit its 12G volume.
+  - job_name: loki
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/loki.json
+        refresh_interval: 30s
+
+  # amd-laptop is absent from alloy.json. It ships logs to Loki
+  # fine, but its Alloy metrics port is not reachable from here:
+  # Alloy listens on *:12345 and the INPUT policy is ACCEPT with
+  # no rules, yet 12345 and 12346 both time out from the beelink.
+  #
+  # This is a host firewall allowlist below iptables, not a
+  # blanket block -- 9100 (node-exporter) and 5000 (the GPU
+  # exporter, added to amd-gpu-metrics-exporter.json above) both
+  # answer from the same source. So the fix is an explicit
+  # inbound rule for 12345 on that machine, the same shape as the
+  # node_exporter rules in snoc-gaming.md. Re-add the target once
+  # that rule exists; until then a permanently red target would
+  # only train us to ignore the light.
+  - job_name: alloy
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/alloy.json
+          - /etc/prometheus/targets/discovered/alloy.json
         refresh_interval: 30s
 
   # Lemonade exposes its own metrics endpoint over Tailscale

@@ -138,6 +138,8 @@ Each scrape job has a corresponding JSON file in `targets/`:
 | `openai_exporter.json`           | openai_exporter           |
 | `cursor-exporter.json`           | cursor-exporter           |
 | `lemonade-exporter.json`         | lemonade-exporter         |
+| `loki.json`                      | loki                      |
+| `alloy.json`                     | alloy                     |
 
 ### Avahi auto-discovery
 
@@ -155,6 +157,22 @@ Or install the systemd timer for continuous discovery
 every five minutes. See the
 [prometheus README.md](./prometheus/README.md) for full
 details.
+
+# Loki
+
+Prometheus and Grafana cover metrics; [Loki](./loki) covers
+logs. It runs on the home server and every Linux box in the fleet
+ships its systemd journal there with [Grafana Alloy][ref-alloy], so
+"why did that exporter die" is a Grafana query rather than an ssh
+session on whichever machine is suspect.
+
+Both packages come from the Grafana apt repository that Grafana
+itself already uses. Retention is 90 days, and `/var/lib/loki` is
+its own logical volume because Loki caps retention by time and has
+no size limit — the volume boundary is the only thing standing
+between a runaway log source and a full root filesystem. See [the
+README.md](./loki/README.md) for the config, the agent rollout, and
+the handful of ways Alloy fails without saying anything.
 
 # nginx
 
@@ -263,4 +281,5 @@ link to the server via the instructions in main repo.
 [ref-file-sd]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config
 [ref-homekit]: https://www.apple.com/home-app/
 [ref-avahi]: https://avahi.org/
+[ref-alloy]: https://grafana.com/docs/alloy/latest/
 [ref-tailscale]: https://tailscale.com/
