@@ -1,0 +1,25 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Publish the age of the newest S3 backup object as a node-exporter textfile metric
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/s3-backup-age.sh
+User=root
+
+# The same two files batesste-s3-backup.service reads, in the same
+# order, and for the same reason: the bucket this watches must be the
+# bucket the backup writes to, and the key it checks with must be the
+# key the backup uses. Pointing this at its own copy of either would
+# let the monitor pass while the backup fails.
+#
+# The trailing "-" on the secrets file is the one difference. The
+# backup unit should refuse to start without credentials; this one
+# should still run and publish query_success 0, because "there are no
+# credentials here" is a fact worth alerting on rather than a reason
+# to go quiet.
+EnvironmentFile=/usr/local/share/batesste-s3-backup/batesste-s3-backup.conf
+EnvironmentFile=-/home/batesste/.secrets.env
