@@ -184,13 +184,17 @@ removed in favour of Lemonade's built-in endpoint above.
 **In the TSDB this job's metric names are always `amd_gpu_*`
 and `amd_pcie_*`, never bare `gpu_*` — but that is enforced
 here, not upstream.** `MetricsFieldPrefix: "amd_"` is the
-exporter's own packaged default, yet whether a given build
-honours it varies by version and platform. At the time of
-writing `snoc-strix` and `amd-laptop` serve prefixed names
-while `snoc-thinkstation` and `snoc-gaming` serve bare ones,
-and that split is not stable: `amd-laptop` moved from bare to
-prefixed inside a single day after an exporter upgrade, with
-no change on this box.
+exporter's own packaged default, but it only holds if the
+host actually uses the packaged config. At the time of
+writing `snoc-gaming` is the last host serving bare names,
+and not because of its version — it runs the same 1.5.1 as
+everyone else, with `/etc/metrics/config.json` hand-trimmed
+to `{"ServerPort": 5000}`, which discards the prefix along
+with everything else in `CommonConfig`.
+
+The split is not stable either way. `amd-laptop` moved from
+bare to prefixed inside a single day after an exporter
+upgrade, with no change on this box.
 
 So a `metric_relabel_configs` rule rewrites `__name__` on
 ingest, making the prefix an invariant of the TSDB rather
@@ -204,35 +208,72 @@ dashboards drive every query off a single `g_metrics_prefix`
 variable set to `amd_`; see
 [grafana/vendor/manifest.yaml](../grafana/vendor/manifest.yaml).
 
-Do not chase this by editing `config.json` on each machine.
-Two of the four are a Windows box and a corporate laptop,
-and a fix applied there is a fix that is not in this repo.
+Fixing `config.json` on a host is worth doing, but it is not
+a substitute for the rule: `amd-laptop` is a corporate
+laptop, and a fix applied only there is a fix that is not in
+this repo. Do both — the rule costs nothing once a host
+agrees.
 
 The exporter used to serve `card_model=""` on every host,
 and Prometheus drops empty labels, so the label disappeared
-entirely and GPU columns rendered blank. One
-`metric_relabel_configs` rule still hardcodes it:
+entirely and GPU columns rendered blank. **No override
+remains** — every host now self-reports:
 
-| Host | card_model | Why the exporter cannot |
-|---|---|---|
-| `snoc-thinkstation` | `Radeon RX 9070 XT` | `amd-smi static` knows the name; the exporter never plumbs it through |
+| Host | card_model |
+|---|---|
+| `snoc-strix` | `AMD Radeon 8060S Graphics` |
+| `amd-laptop` | `AMD Radeon(TM) 8060S Graphics` |
+| `snoc-thinkstation` | `AMD Radeon RX 9070 XT` |
+| `snoc-gaming` | `AMD Radeon RX 9070 XT` |
 
-The rule matches on `hostname;card_model` with an empty
+Each rule matched on `hostname;card_model` with an *empty*
 `card_model`, so an exporter that starts populating the
 field wins automatically and the rule becomes dead weight
-rather than a wrong override.
+rather than a wrong override. Keep that shape if a new card
+ever turns up blank.
 
-That is not a hypothetical. Matching rules for `snoc-strix`
-and `amd-laptop` both forced `Radeon 8060S (Strix Halo)`
-while amdsmi had no gfx1151 support
-([ROCm#6035](https://github.com/ROCm/ROCm/issues/6035)).
-`amdgpu-exporter` 1.5.1 reports the part natively —
-`AMD Radeon 8060S Graphics` on `snoc-strix`,
-`AMD Radeon(TM) 8060S Graphics` on `amd-laptop` — which
-disabled both rules on their own, and both were removed.
-`snoc-gaming` likewise self-reports `AMD Radeon RX 9070 XT`
-and never needed one. `snoc-thinkstation` is the last host
-still serving `""`.
+That is not a hypothetical, it is how all three overrides
+died. Rules for `snoc-strix` and `amd-laptop` forced
+`Radeon 8060S (Strix Halo)` while amdsmi had no gfx1151
+support ([ROCm#6035](https://github.com/ROCm/ROCm/issues/6035));
+`amdgpu-exporter` 1.5.1 reports the part natively and
+disabled both. `snoc-gaming` self-reports and never needed
+one. `snoc-thinkstation` held out longest because it was
+pinned on 1.5.0 from a loose `.deb` with no repo behind it —
+upgrading it on 2026-09-08 retired the last rule.
+
+### Upgrading a host to 1.5.1
+
+`snoc-thinkstation` was the worked example. Its
+`/etc/apt/sources.list.d/rocm.list` had the ROCm repo but
+not the exporter one, so `apt-cache policy` showed no
+candidate beyond what was already installed:
+
+```bash
+# the second line is what snoc-strix already had
+echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] \
+https://repo.radeon.com/device-metrics-exporter/apt/1.5.1 noble main' \
+  | sudo tee -a /etc/apt/sources.list.d/rocm.list
+sudo apt-get update
+sudo apt-get install -y --only-upgrade \
+  -o Dpkg::Options::="--force-confnew" amdgpu-exporter
+sudo systemctl enable --now amd-metrics-exporter
+```
+
+`--force-confnew` is deliberate: the whole point is to take
+the packaged `config.json` back, since the local one had
+been trimmed to `{"ServerPort": 5000}`. Back it up first if
+it holds anything you want.
+
+**The last line is not optional.** The upgrade removes the
+`multi-user.target.wants` symlink and does not restore it,
+so the exporter comes back *disabled and stopped* while
+`apt` reports success and `needrestart` says no services
+need restarting. Check `systemctl is-enabled` afterwards.
+
+Cost of taking the packaged config on that host was one
+metric family, `gpu_vram_max_bandwidth` (103 → 102), which
+no dashboard queries.
 
 GPU *presence* is deliberately not detected from this job —
 see [the Grafana README](../grafana/README.md) for why LAN

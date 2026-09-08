@@ -139,33 +139,36 @@ scrape_configs:
         target_label: __name__
         replacement: 'amd_${1}_${2}'
 
-      # Prometheus drops empty labels, so card_model="" does not
-      # render as blank -- the label vanishes and the GPU column
-      # has nothing to show. This hardcodes it for the one host
-      # still serving "".
+      # No card_model override remains, deliberately. Prometheus
+      # drops empty labels, so a card_model="" does not render as
+      # blank -- the label vanishes and the GPU column has nothing
+      # to show at all, which is why hosts used to need a value
+      # hardcoded here.
       #
-      # It matches on an *empty* card_model, so an exporter that
-      # starts populating the field wins automatically instead of
-      # fighting a stale override. That is not theoretical: the
-      # equivalent rules for snoc-strix and amd-laptop both went
-      # dead on their own once their exporters began reporting the
-      # part, and were removed. snoc-thinkstation is the last one
-      # left; amd-smi static there knows the name but the exporter
-      # never plumbs it through.
-      - source_labels: [hostname, card_model]
-        separator: ;
-        regex: 'snoc-thinkstation;'
-        target_label: card_model
-        replacement: 'Radeon RX 9070 XT'
+      # Every such rule was written to match an *empty* card_model
+      # so that an exporter which starts populating the field wins
+      # automatically rather than fighting a stale override, and
+      # every one of them has now retired itself that way:
+      # snoc-strix and amd-laptop when amdgpu-exporter 1.5.1 landed
+      # with gfx1151 support, then snoc-thinkstation when it was
+      # upgraded off 1.5.0 on 2026-09-08. All four hosts self-report
+      # today. If a new card turns up blank, add a rule back in that
+      # same empty-matching shape -- never an unconditional one.
 
-      # snoc-gaming's Windows build exports a much smaller set:
-      # ~88 families, almost all gpu_ecc_*, plus VRAM/GTT,
-      # gpu_health, XGMI and pcie_speed. It has NO gfx_activity,
-      # power, temp or clock, so its GPU Inventory row shows Node,
-      # GPU and Exporter and leaves Temp/Power/Busy blank. That is
-      # the exporter's coverage on Windows, not a broken scrape --
-      # do not "fix" the blank columns by repointing them at
-      # something that resolves.
+      # snoc-gaming runs the exporter under WSL2, not natively on
+      # Windows, and exposes a much smaller set: ~88 families,
+      # almost all gpu_ecc_*, plus VRAM/GTT, gpu_health, XGMI and
+      # pcie_speed. It has NO gfx_activity, power, temp or clock,
+      # so its GPU Inventory row shows Node, GPU and Exporter and
+      # leaves Temp/Power/Busy blank. That is what the passthrough
+      # exposes, not a broken scrape -- do not "fix" the blank
+      # columns by repointing them at something that resolves.
+      #
+      # It is also the last host serving bare gpu_*, and not for a
+      # version reason: it runs the same 1.5.1 package as everyone
+      # else, but its /etc/metrics/config.json was hand-trimmed to
+      # {"ServerPort": 5000}, which discards the packaged
+      # MetricsFieldPrefix. The __name__ rule above covers it.
 
   - job_name: ais-exporter
     file_sd_configs:
