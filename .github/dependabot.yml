@@ -1,0 +1,23 @@
+#
+# dependabot.yml
+#
+
+version: 2
+updates:
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "07:00"
+      timezone: America/Toronto
+    open-pull-requests-limit: 5
+    labels:
+      - dependabot
+    commit-message:
+      prefix: "actions"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
