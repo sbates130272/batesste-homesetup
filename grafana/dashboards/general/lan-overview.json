@@ -1919,7 +1919,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(snoc_pinewood_plug_a_power or vector(0)) + sum(snoc_pinewood_plug_b_power or vector(0)) + sum(snoc_pinewood_plug_c_power or vector(0)) + sum(snoc_pinewood_plug_d_power or vector(0)) + sum(snoc_pinewood_plug_e_power or vector(0)) + sum(snoc_pinewood_plug_f_power or vector(0)) + sum(snoc_pinewood_plug_g_power or vector(0)) + sum(snoc_pinewood_plug_h_power or vector(0))",
+          "expr": "sum(emvue_plug_power_watts)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -2018,88 +2018,11 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "snoc_pinewood_plug_a_power",
+          "expr": "emvue_plug_power_watts",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "Outside Lights",
+          "legendFormat": "{{name}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_b_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Home Office",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_c_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Living Room Light",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_d_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "snoc-thinkstation",
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_e_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Playstation",
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_f_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Master Bedroom - Stevie",
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_g_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Master Bedroom - Ang",
-          "refId": "G"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_h_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "snoc-strix",
-          "refId": "H"
         }
       ],
       "title": "Power by Plug",

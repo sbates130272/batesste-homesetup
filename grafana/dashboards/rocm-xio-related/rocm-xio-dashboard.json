@@ -247,7 +247,7 @@
       "targets": [
         {
           "editorMode": "code",
-          "expr": "{__name__=~\"snoc_pinewood_plug_._power\", computer=\"$hostname\"}",
+          "expr": "emvue_plug_power_watts{computer=\"$hostname\"}",
           "legendFormat": "{{computer}} (at the wall)",
           "range": true,
           "refId": "A"
