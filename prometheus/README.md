@@ -22,6 +22,11 @@ prometheus/
   avahi-services/
     node-exporter.xml         Template per exporter type
     ...
+  textfile-collectors/
+    rocm-version.sh           Publishes rocm_version_info
+    rocm-version.service      systemd oneshot unit
+    rocm-version.timer        systemd timer (hourly + on boot)
+    deploy-agent.sh           Run on each GPU host
   targets/
     node.json                 Manual targets per job
     ...
@@ -305,6 +310,64 @@ if you would rather see the self-reported hostname.
 Note that `hsa_errors_total` and `ais_tx_errors_total` are
 declared upstream but only materialise once a labelled child
 exists, so those panels read empty on a healthy exporter.
+
+## The ROCm version textfile collector
+
+`textfile-collectors/` publishes `rocm_version_info{version=...}`
+via node-exporter's textfile collector, feeding the ROCm column
+on the LAN Overview GPU Inventory table. Run
+`deploy-agent.sh` on each GPU host; it is the same "copy it to
+the target machine" model as `avahi-services/` and
+`loki/alloy/deploy-agent.sh`.
+
+This does not reuse `rocm_aic_rocm_version_info`, which carries
+the same number on `snoc-thinkstation`. That series comes from
+the `rocm-aic-exporter` timer — a large bespoke LMCache/NIXL/AIS
+package tied to that host's vLLM work, which should not be
+installed on three other machines to read one version string.
+It is also why the value had gone stale on `snoc-strix`: the
+timer is installed there but **inactive**, so the series simply
+stopped. A dashboard column backed by that metric would have
+shown a blank cell with nothing visibly broken.
+
+Three things about this are worth keeping:
+
+**The lookup order is load-bearing.** `hipconfig` is resolved
+from `PATH` first, and only then from `/opt/rocm/bin`. The
+instinct is the reverse — systemd units get a minimal `PATH` —
+but that default *does* include `/usr/bin`, which is where the
+apt-packaged `hipconfig` lives on all four hosts.
+`/opt/rocm/bin` is the one on nobody's `PATH`. Probing it first
+reports the wrong version on `amd-laptop`, which has two ROCm
+installs:
+
+| Host | `PATH` | `/opt/rocm` |
+| ---- | ------ | ----------- |
+| `snoc-thinkstation` | 7.14.60850 | same |
+| `snoc-strix` | 7.14.60850 | same |
+| `snoc-gaming` | 7.15.26333 | same |
+| `amd-laptop` | 7.15.26333 | **7.2.53211** |
+
+`amd-laptop`'s `/opt/rocm` is a symlink to
+`/etc/alternatives/rocm` pointing at the older install, so
+`rocm_version_prefix_mismatch` is emitted whenever the two
+disagree. Without it the column shows a plausible version and
+nothing hints that the prefix resolves elsewhere.
+
+**Two hosts needed a node-exporter flag.** `snoc-gaming` and
+`amd-laptop` had no `--collector.textfile.directory` at all, so
+a collector would have written a perfectly good `.prom` that
+nothing ever read. `deploy-agent.sh` appends the flag to the
+existing `ARGS` (rather than rewriting the line, which carries
+unrelated local flags) and restarts the unit — `EnvironmentFile`
+is not re-read on reload, the same trap as `/etc/default/prometheus`.
+
+**The dashboard query is scoped to `job="node"`, deliberately.**
+A remote-written copy of the older `rocm_aic_rocm_version_info`
+arrives from the `rocm-aic-core42-mi300` cluster carrying
+`server_name="g04u07"`. GPU Inventory joins its columns on
+`server_name`, so an unscoped version query injects a phantom
+row for a machine that is not on this LAN.
 
 ## Things prometheus.yml cannot express
 

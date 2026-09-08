@@ -186,13 +186,31 @@ responses:
 |---|---|---|
 | Metric renamed or mistyped | `speedtest_jitter_seconds` → `speedtest_jittter_seconds` | Fix the query |
 | Exporter alive, family never materialised | `hsa_errors_total` | **Leave alone** |
+| Exporter alive, collector not enabled | `node_processes_pids` | Enable the collector |
 | Feed gone | all `icloud_*`, all `cursor_usage_events_*` | Retire |
+| Hardware does not have the sensor | `amd_gpu_hbm_temperature` | **Leave alone** |
 
-The middle row is the trap. prometheus-cpp does not
+The second row is the trap. prometheus-cpp does not
 materialise a metric family until a labelled child exists,
 so hsa-snoop's `hsa_errors_total` and `ais_tx_errors_total`
 are declared upstream and simply have not fired yet. Four
 working panels would have been "fixed" without that check.
+
+The third row is the one that looks like a dashboard bug and
+is not. Node Exporter Full's entire *System Processes* row —
+PIDs Number and Limit, Threads Number and Limit, Processes
+State — queries `node_processes_*`, which node-exporter emits
+only under `--collector.processes`. That flag is off by
+default and off on every host here, so the row is blank
+fleet-wide while the scrape stays green. Same shape as
+`--collector.wifi`, which
+[prometheus/node-exporter-override.conf](../prometheus/node-exporter-override.conf)
+already carries for exactly this reason.
+
+The last row covers the two vendor AMD panels that read
+`amd_gpu_hbm_temperature`. Navi 48 and Strix Halo use GDDR6
+and unified LPDDR5X respectively; neither has HBM, so the
+sensor does not exist and never will on this fleet.
 
 Two dashboards were retired: **Cursor IDE Usage** (24 of 28
 panels dead) and **iCloud** (6 of 6). Both were exporter
@@ -257,7 +275,7 @@ still supplies `card_model` and `gpu_gfx_activity`, and its
 `up` value is its own column, so the two detectors can
 disagree visibly:
 
-| PCI Chip | Exporter | Meaning |
+| PCIe | Exporter | Meaning |
 |---|---|---|
 | set | UP | healthy |
 | set | DOWN | exporter fault; card is fine |
@@ -267,6 +285,45 @@ The old *GPU Exporter Health* table was folded into this
 panel; the `up{job="amd-gpu-metrics-exporter"}` stat tile
 under *Service Health* is unchanged.
 
+The **PCIe** column is `label_replace`d out of the hwmon
+`chip` label rather than shown raw. hwmon reports the whole
+device path with the dots mangled to underscores —
+`0000:0f:00_0_0000:10:00_0` — of which only the trailing
+component is the card's own BDF. The column shows
+`0000:10:00.0`. The regex is anchored on the last two groups
+for that reason; matching the first would name the bridge,
+not the GPU.
+
+The column is blank on `snoc-gaming` and `amd-laptop` and
+will stay that way: both run under WSL2, which exposes no
+hwmon amdgpu chip. That is the same reason their Temp column
+is empty, and it is not the "driver never bound" case in the
+table above.
+
+The **GPU** column spines on `amd_gpu_health`, not on
+`amd_gpu_average_package_power`. It used to use the latter,
+which silently cost the column on both WSL hosts: neither
+exposes package power, so `card_model` came back on no series
+and the two cards showed as nameless rows despite their
+exporters being up and self-reporting the model correctly.
+`amd_gpu_health` is emitted by all four. Any column that only
+needs a *label* should spine on the metric with the widest
+coverage, not on whichever one happened to be nearby.
+
+The **ROCm** column reads `rocm_version_info`, published by
+the textfile collector in
+[prometheus/textfile-collectors/](../prometheus/textfile-collectors/)
+on all four GPU hosts. The query is scoped to `job="node"`
+because a remote-written series from the
+`rocm-aic-core42-mi300` cluster carries
+`server_name="g04u07"`, and this panel joins on
+`server_name` — unscoped, it grows a phantom row.
+
+There is deliberately no exporter-version column. The AMD
+device-metrics-exporter serves 151 `amd_*` families and no
+build-info metric of any kind; `driver_version` reads `"N/A"`
+and `vbios_version` is the card's firmware, not the exporter.
+
 The exporter's metric names are `amd_gpu_*`, not bare
 `gpu_*` — `MetricsFieldPrefix: "amd_"` is its packaged
 default. The three GPU Inventory targets that read from this
@@ -275,12 +332,48 @@ the two that spine on hwmon do not.
 
 `card_model` used to arrive empty from the exporter, and
 Prometheus drops empty labels, so `prometheus.yml` hardcoded
-it per host via `metric_relabel_configs`. `snoc-strix` no
-longer needs that — `amdgpu-exporter` 1.5.1 reports
-`AMD Radeon 8060S Graphics` natively and the **GPU** column
-now shows the exporter's own string. `snoc-thinkstation` is
-still hardcoded. See
-[prometheus/README.md](../prometheus/README.md).
+it per host via `metric_relabel_configs`. No host needs that
+any more — all four self-report since `snoc-thinkstation` was
+upgraded off 1.5.0, and the last override has been removed.
+See [prometheus/README.md](../prometheus/README.md).
+
+### Node Fleet reports the link, not just the WiFi signal
+
+`snoc-thinkstation` has both wired and wireless interfaces
+(`eno1`, `eno2`, `wlp17s0`). With only a **WiFi (dBm)**
+column, a dual-homed host reads as being on WiFi whenever
+the radio is associated, whether or not any traffic uses it
+— and reads identically to a host that has no ethernet at
+all.
+
+The **Link** column resolves that. It encodes the up
+interfaces as a number the field mappings render as text:
+
+| Value | Renders | Meaning |
+|---|---|---|
+| 0 | down | no physical interface up |
+| 1 | WiFi | wireless only |
+| 2 | Wired | ethernet only |
+| 3 | Wired+WiFi | both |
+
+The query is arithmetic rather than a label, on purpose. The
+table joins every column on `instance`, so a query returning
+one row per *interface* would duplicate the host's entire row
+the moment a second link came up — which is precisely the
+case this column exists to show. Summing a wired term worth 2
+and a wireless term worth 1 keeps it at exactly one row per
+host regardless of how many interfaces are up.
+
+Each term is `or`-ed with a zeroed copy of the whole metric so
+that a host with no matching interface still contributes a row
+at 0, instead of dropping out of the `+` join and losing every
+other column with it.
+
+`tailscale0` is excluded by the `operstate="up"` filter — it
+reports `unknown`, not `up`. The WSL hosts (`snoc-gaming`,
+`amd-laptop`) show **Wired** for their `eth*` virtual NICs,
+which is the honest answer for how the traffic leaves the VM
+even though the physical link underneath may be wireless.
 
 ## Investment Accounts
 

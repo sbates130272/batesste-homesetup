@@ -1,0 +1,11 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Publish the ROCm/HIP version as a node-exporter textfile metric
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/rocm-version.sh
+User=root
