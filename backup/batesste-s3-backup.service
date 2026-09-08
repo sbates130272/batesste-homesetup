@@ -5,4 +5,8 @@ Description=My AWS S3-based backup system
 Type=simple
 Restart=no
 ExecStart=/usr/local/bin/batesste-s3-backup
-EnvironmentFile=/usr/local/share/batesste-s3-backup/batesste-s3-backup.secrets
+EnvironmentFile=/usr/local/share/batesste-s3-backup/batesste-s3-backup.conf
+# This is a system unit, so it runs as root and %h is /root. The AWS
+# credentials live in the admin user's stow-managed dotfiles, so the
+# path to them has to be spelled out.
+EnvironmentFile=/home/batesste/.secrets.env

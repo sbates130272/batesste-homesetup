@@ -35,6 +35,7 @@ DHCP
 discoverable
 DisplayName
 DNS
+dotfiles
 Dpkg
 dyndns
 emporia
