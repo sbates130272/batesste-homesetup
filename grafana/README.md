@@ -110,7 +110,7 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
-| Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs |
+| Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
 | Home Network | Node Exporter Overview | Fleet summary table |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
@@ -453,6 +453,29 @@ under the staleness marker — leaving a nameless row carrying
 nothing but a CPU percentage. Spining it on the same series as
 the rest of the table makes the host either fully present or
 fully absent.
+
+### Emporia plug colors are pinned, not automatic
+
+Both Emporia SmartPlugs timeseries panels carry eight
+`byName` color overrides, one per plug, rather than leaving
+the panels on `palette-classic`. The classic palette hands
+out colors by the order the series arrive, so filtering with
+the Location or Status pickers repaints every survivor: the
+plug that was blue a moment ago is now orange, and any memory
+of which line is which is gone. A fixed color follows the
+plug instead of its rank.
+
+The eight hues are a colorblind-safe categorical set, checked
+for separation under protanopia and deuteranopia and for at
+least 3:1 contrast against Grafana's dark panel surface. The
+gauge panel deliberately keeps its thresholds — there the
+color means how many watts, not which plug.
+
+The overrides match on the `name` from
+`prometheus/emvue-exporter/labels.json`, which means a rename
+there silently drops that plug's color. CI checks the two
+lists against each other, and runs on a change to either
+file.
 
 ## Investment Accounts
 

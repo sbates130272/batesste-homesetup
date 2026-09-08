@@ -11,6 +11,7 @@ config
 configs
 datasource
 datasources
+deuteranopia
 DNS
 dyndns
 emporia
@@ -52,6 +53,7 @@ openai
 pigz
 prometheus
 promtool
+protanopia
 rdma
 README
 rocm
@@ -72,6 +74,7 @@ systemd
 tcp
 TFSA
 timemachine
+timeseries
 Tizen
 tsdb
 TXT

@@ -141,6 +141,19 @@ Each scrape job has a corresponding JSON file in `targets/`:
 | `loki.json`                      | loki                      |
 | `alloy.json`                     | alloy                     |
 
+### Emporia smartplug labels
+
+The smartplugs are scraped from [emvue-exporter][ref-emvue], which
+runs on the home server and is its own repository. What is specific to
+this house is the plug names, so those live here in
+`prometheus/emvue-exporter/labels.json` and are installed with:
+```bash
+cd prometheus/emvue-exporter
+./deploy.sh
+```
+The Emporia SmartPlugs dashboard names every plug from that file, so
+renaming a plug or adding one is a change to it alone.
+
 ### Avahi auto-discovery
 
 Targets can also be discovered automatically via
@@ -275,6 +288,7 @@ link to the server via the instructions in main repo.
 [ref-firefly]: https://docs.firefly-iii.org/
 [ref-batesste-ff]:https://github.com/sbates130272/batesste-firefly-iii
 [ref-speedtest]:https://github.com/billimek/prometheus-speedtest-exporter
+[ref-emvue]: https://github.com/sbates130272/emvue-exporter
 [ref-mountpoint]: https://github.com/awslabs/mountpoint-s3
 [ref-dvb]: https://github.com/offen/docker-volume-backup
 [ref-time-machine]: https://github.com/mbentley/docker-timemachine

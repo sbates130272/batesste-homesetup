@@ -30,6 +30,9 @@ prometheus/
     wsl-wifi.service          systemd oneshot unit
     wsl-wifi.timer            systemd timer (every 5min)
     deploy-agent.sh           Run on each GPU host
+  emvue-exporter/
+    labels.json               Per-plug Prometheus labels
+    deploy.sh                 Run on snoc-beelink
   targets/
     node.json                 Manual targets per job
     ...
@@ -186,6 +189,54 @@ No such exporter ever existed: `max_over_time(up[365d])` was
 `0` for both targets across the entire retention window. The
 job, its target file, and its Avahi service definition were
 removed in favour of Lemonade's built-in endpoint above.
+
+### The emporia job
+
+The Emporia smartplugs are scraped from
+[emvue-exporter](https://github.com/sbates130272/emvue-exporter)
+running on the beelink itself. It
+serves two metric families, one series per plug:
+
+```
+emvue_plug_power_watts{plug="snoc-pinewood-plug-a",name="Outside Lights",location="Outside"}
+emvue_plug_on{plug="snoc-pinewood-plug-a",name="Outside Lights",location="Outside"}
+```
+
+Everything past `plug` comes from
+`emvue-exporter/labels.json` in this directory. The exporter
+is its own repository and generic; the plug names are this
+house's, so they live here and `emvue-exporter/deploy.sh`
+installs them to `/usr/local/share/emvue-exporter/` and
+restarts the unit. The exporter reads the file once at
+startup, so a label change needs that restart — a reload
+will not do.
+
+The `name` label is load-bearing: the Emporia SmartPlugs
+dashboard is three panels driven by one query each with a
+legend format of `{{name}}`, so a plug added to the account
+shows up without touching any dashboard JSON. A plug missing
+from `labels.json` still appears, identified only by `plug`.
+
+`status` is load-bearing too, and every plug carries it —
+`active` or `unused`. The dashboard's Status picker defaults
+to `active`, so a plug that is unplugged or switched off for
+good stays out of the way while its series keeps recording;
+pick `unused` or All to see it. Giving the label to every
+plug rather than only the idle ones is what makes the picker
+offer both choices instead of one. CI enforces that a new
+plug has a status, since a plug that lacks one is filtered
+out of the default view and looks like it stopped reporting.
+
+This job deliberately has no `metric_relabel_configs`.
+Earlier the exporter emitted a separate metric *name* per
+plug (`snoc_pinewood_plug_a_power`), which no dashboard
+could group over and which pushed eight hardcoded copies of
+every panel into the JSON. That was fixed in the exporter
+rather than papered over with relabel rules here, because
+the `Enum` it used for outlet state named its label after
+the metric and no relabel rule can untangle that. Those old
+series remain in the TSDB until they age out of retention;
+nothing queries them.
 
 ### The amd-gpu-metrics-exporter job
 

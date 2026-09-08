@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "A summary dashboard for the Emporia smartplugs in my home.",
+  "description": "A summary dashboard for the Emporia smartplugs in my home. Every panel is driven by a single query against the emvue_plug_* metric families and names each plug from the `name` label the exporter attaches, so a plug added to the account appears here on its own.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -26,7 +26,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Emporia smartplug connected to outside lights.",
+      "description": "Current draw for every smartplug. One gauge per series: plugs arrive and depart with the exporter, and the name under each gauge is the `name` label from labels.json in the homesetup repo.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -57,7 +57,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 5,
+        "w": 24,
         "x": 0,
         "y": 0
       },
@@ -84,18 +84,14 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_a_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
+          "editorMode": "code",
+          "expr": "emvue_plug_power_watts{location=~\"$location\", status=~\"$status\"}",
+          "legendFormat": "{{name}}",
           "range": true,
-          "refId": "A",
-          "useBackend": false
+          "refId": "A"
         }
       ],
-      "title": "Outside Lights",
+      "title": "Power Now",
       "type": "gauge"
     },
     {
@@ -103,546 +99,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Emporia smartplug connected to computer stuff in living room.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 5,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_b_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Home Office",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Emporia smartplug connected to tall lamp in living room beside the wood-burning stove.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": -5,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 10,
-        "y": 0
-      },
-      "id": 3,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_c_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Living Room Light",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Emporia smartplug connected to snoc-thinkstation.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 15,
-        "y": 0
-      },
-      "id": 4,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_d_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "snoc-thinkstation",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Emporia smartplug connected to Oisin's PlayStation",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 0,
-        "y": 8
-      },
-      "id": 7,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_e_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Playstation",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Emporia smartplug connected to Master Bedroom outlet on Stevie's side.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 5,
-        "y": 8
-      },
-      "id": 8,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_f_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Master Bedroom - Stevie",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Emporia smartplug connected to bedside outlet on Ang's side of the bed.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 10,
-        "y": 8
-      },
-      "id": 9,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_g_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "Master Bedroom - Ang",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Emporia smartplug connected to snoc-strix.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "#EAB839",
-                "value": 100
-              },
-              {
-                "color": "red",
-                "value": 400
-              }
-            ]
-          },
-          "unit": "watt"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 5,
-        "x": 15,
-        "y": 8
-      },
-      "id": 10,
-      "options": {
-        "minVizHeight": 75,
-        "minVizWidth": 75,
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "sizing": "auto"
-      },
-      "pluginVersion": "12.2.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_h_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A",
-          "useBackend": false
-        }
-      ],
-      "title": "snoc-strix",
-      "type": "gauge"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "A time-series for all the detected Emporia smartplugs that plots power (in Watts) versus time.",
+      "description": "Power drawn by each smartplug over time, in Watts.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -704,96 +161,120 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_a_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "snoc-gaming"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Outside Lights"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_b_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "amd-laptop"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Home Office"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_c_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "Living Room Light"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Living Room Light"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#199e70",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_d_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "snoc-thinkstation"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "snoc-thinkstation"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#c98500",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_e_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "Playstation"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Playstation"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d55181",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_f_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "Master Bedroom - Stevie"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Master Bedroom - Stevie"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#008300",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_g_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "Master Bedroom - Ang"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Master Bedroom - Ang"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9085e9",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_h_power\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\"}"
+              "options": "snoc-strix"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "snoc-strix"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#e66767",
+                  "mode": "fixed"
+                }
               }
             ]
           }
@@ -801,11 +282,11 @@
       },
       "gridPos": {
         "h": 12,
-        "w": 20,
+        "w": 24,
         "x": 0,
-        "y": 16
+        "y": 8
       },
-      "id": 5,
+      "id": 2,
       "options": {
         "legend": {
           "calcs": [
@@ -819,8 +300,8 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
-          "sort": "none"
+          "mode": "multi",
+          "sort": "desc"
         }
       },
       "pluginVersion": "12.2.0",
@@ -830,134 +311,11 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_a_power",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "Outside Lights",
+          "editorMode": "code",
+          "expr": "emvue_plug_power_watts{location=~\"$location\", status=~\"$status\"}",
+          "legendFormat": "{{name}}",
           "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_b_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Home Office",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_c_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Living Room Light",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_d_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "snoc-thinkstation",
-          "range": true,
-          "refId": "D",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_e_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Playstation",
-          "range": true,
-          "refId": "E",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_f_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Master Bedroom - Stevie",
-          "range": true,
-          "refId": "F",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_g_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Master Bedroom - Ang",
-          "range": true,
-          "refId": "G",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_h_power",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "snoc-strix",
-          "range": true,
-          "refId": "H",
-          "useBackend": false
+          "refId": "A"
         }
       ],
       "title": "Energy Consumption vs Time",
@@ -968,7 +326,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "This shows when a given smartplug has been ON of OFF. Note that when ON it may draw no power depending on its load.",
+      "description": "This shows when a given smartplug has been ON or OFF. Note that when ON it may draw no power depending on its load.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -991,7 +349,7 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
+            "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -1042,96 +400,120 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_a_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_a_on=\"on\"}"
+              "options": "snoc-gaming"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Outside Lights"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_b_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_b_on=\"on\"}"
+              "options": "amd-laptop"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Home Office"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_c_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_c_on=\"on\"}"
+              "options": "Living Room Light"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Living Room Light"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#199e70",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_d_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_d_on=\"on\"}"
+              "options": "snoc-thinkstation"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "snoc-thinkstation"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#c98500",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_e_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_e_on=\"on\"}"
+              "options": "Playstation"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Playstation"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d55181",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_f_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_f_on=\"on\"}"
+              "options": "Master Bedroom - Stevie"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Master Bedroom - Stevie"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#008300",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_g_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_g_on=\"on\"}"
+              "options": "Master Bedroom - Ang"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "Master Bedroom - Ang"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9085e9",
+                  "mode": "fixed"
+                }
               }
             ]
           },
           {
             "matcher": {
               "id": "byName",
-              "options": "{__name__=\"snoc_pinewood_plug_h_on\", instance=\"localhost:9947\", job=\"emporia\", server_name=\"snoc-beelink\", snoc_pinewood_plug_h_on=\"on\"}"
+              "options": "snoc-strix"
             },
             "properties": [
               {
-                "id": "displayName",
-                "value": "snoc-strix"
+                "id": "color",
+                "value": {
+                  "fixedColor": "#e66767",
+                  "mode": "fixed"
+                }
               }
             ]
           }
@@ -1139,11 +521,11 @@
       },
       "gridPos": {
         "h": 7,
-        "w": 20,
+        "w": 24,
         "x": 0,
-        "y": 28
+        "y": 20
       },
-      "id": 6,
+      "id": 3,
       "options": {
         "legend": {
           "calcs": [
@@ -1155,7 +537,7 @@
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "single",
+          "mode": "multi",
           "sort": "none"
         }
       },
@@ -1166,134 +548,11 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_a_on{snoc_pinewood_plug_a_on=\"on\"}",
-          "fullMetaSearch": false,
-          "includeNullMetadata": true,
-          "legendFormat": "Outside Lights",
+          "editorMode": "code",
+          "expr": "emvue_plug_on{location=~\"$location\", status=~\"$status\"}",
+          "legendFormat": "{{name}}",
           "range": true,
-          "refId": "A",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_b_on{snoc_pinewood_plug_b_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Home Office",
-          "range": true,
-          "refId": "B",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_c_on{snoc_pinewood_plug_c_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Living Room Light",
-          "range": true,
-          "refId": "C",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_d_on{snoc_pinewood_plug_d_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "snoc-thinkstation",
-          "range": true,
-          "refId": "D",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_e_on{snoc_pinewood_plug_e_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Playstation",
-          "range": true,
-          "refId": "E",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_f_on{snoc_pinewood_plug_f_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Master Bedroom - Stevie",
-          "range": true,
-          "refId": "F",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_g_on{snoc_pinewood_plug_g_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "Master Bedroom - Ang",
-          "range": true,
-          "refId": "G",
-          "useBackend": false
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "disableTextWrap": false,
-          "editorMode": "builder",
-          "expr": "snoc_pinewood_plug_h_on{snoc_pinewood_plug_h_on=\"on\"}",
-          "fullMetaSearch": false,
-          "hide": false,
-          "includeNullMetadata": true,
-          "instant": false,
-          "legendFormat": "snoc-strix",
-          "range": true,
-          "refId": "H",
-          "useBackend": false
+          "refId": "A"
         }
       ],
       "title": "SmartPlug State vs Time",
@@ -1328,6 +587,72 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(emvue_plug_power_watts, location)",
+        "description": "Filter the plugs by room. allValue is .* rather than the default alternation of known rooms, so a plug with no location label still shows under All instead of vanishing.",
+        "includeAll": true,
+        "label": "Location",
+        "multi": true,
+        "name": "location",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(emvue_plug_power_watts, location)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "active"
+          ],
+          "value": [
+            "active"
+          ]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
+        },
+        "definition": "label_values(emvue_plug_power_watts, status)",
+        "description": "Which plugs to show. Defaults to active so the plugs that are currently unplugged or switched off for good stay out of the way; pick unused or All to see them.",
+        "includeAll": true,
+        "label": "Status",
+        "multi": true,
+        "name": "status",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(emvue_plug_power_watts, status)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },

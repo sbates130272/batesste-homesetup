@@ -1,0 +1,47 @@
+{
+    "snoc_pinewood_plug_a": {
+        "name": "snoc-gaming",
+        "location": "Oisin's Bedroom",
+        "computer": "snoc-gaming",
+        "status": "active"
+    },
+    "snoc_pinewood_plug_b": {
+        "name": "amd-laptop",
+        "location": "Stephen's Bedroom",
+        "computer": "amd-laptop",
+        "status": "active"
+    },
+    "snoc_pinewood_plug_c": {
+        "name": "Living Room Light",
+        "location": "Living Room",
+        "status": "unused"
+    },
+    "snoc_pinewood_plug_d": {
+        "name": "snoc-thinkstation",
+        "location": "Entryway Closet",
+        "computer": "snoc-thinkstation",
+        "status": "active"
+    },
+    "snoc_pinewood_plug_e": {
+        "name": "Playstation",
+        "location": "Living Room",
+        "status": "unused"
+    },
+    "snoc_pinewood_plug_f": {
+        "name": "Master Bedroom - Stevie",
+        "location": "Stephen's Bedroom",
+        "status": "active"
+    },
+    "snoc_pinewood_plug_g": {
+        "name": "Master Bedroom - Ang",
+        "location": "Stephen's Bedroom",
+        "device": "White Homepod",
+        "status": "active"
+    },
+    "snoc_pinewood_plug_h": {
+        "name": "snoc-strix",
+        "location": "Living Room",
+        "computer": "snoc-strix",
+        "status": "active"
+    }
+}
