@@ -12,7 +12,7 @@ jobs:
         working-directory: ./time-machine
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v7.0.1
       - name: Create .aws.creds.env file
         run: |
           echo "AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}"" > .aws.creds.env
@@ -20,7 +20,7 @@ jobs:
       - name: Create the external docker volume
         run: docker volume create batesste-time-machine
       - name: Docker Compose based smoke-test
-        uses: hoverkraft-tech/compose-action@v2.0.2
+        uses: hoverkraft-tech/compose-action@v3.1.0
         with:
           compose-file: batesste-time-machine.dc.yml
           cwd: ./time-machine
