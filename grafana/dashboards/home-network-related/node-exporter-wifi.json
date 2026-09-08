@@ -90,7 +90,7 @@
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "node_wifi_station_info",
+          "expr": "node_wifi_station_info{server_name=~\"$server_name\"}",
           "format": "table",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
@@ -163,7 +163,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "node_wifi_station_info",
+          "expr": "node_wifi_station_info{server_name=~\"$server_name\"}",
           "format": "table",
           "instant": true,
           "intervalFactor": 1,
@@ -243,7 +243,7 @@
           "disableTextWrap": false,
           "editorMode": "builder",
           "exemplar": false,
-          "expr": "node_wifi_station_info",
+          "expr": "node_wifi_station_info{server_name=~\"$server_name\"}",
           "format": "table",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
@@ -346,7 +346,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_wifi_station_signal_dbm{instance=~\"$node:$port\"}",
+          "expr": "node_wifi_station_signal_dbm{server_name=~\"$server_name\"}",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -444,7 +444,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_wifi_interface_frequency_hertz{instance=~\"$node:$port\"}",
+          "expr": "node_wifi_interface_frequency_hertz{server_name=~\"$server_name\"}",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -544,7 +544,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_wifi_station_connected_seconds_total{instance=~\"$node:$port\"}",
+          "expr": "node_wifi_station_connected_seconds_total{server_name=~\"$server_name\"}",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "connected seconds",
@@ -643,7 +643,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(node_wifi_station_beacon_loss_total{instance=~\"$node:$port\"}[$__rate_interval])",
+          "expr": "rate(node_wifi_station_beacon_loss_total{server_name=~\"$server_name\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -657,7 +657,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "rate(node_wifi_station_transmit_failed_total{instance=~\"$node:$port\"}[$__rate_interval])",
+          "expr": "rate(node_wifi_station_transmit_failed_total{server_name=~\"$server_name\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -670,7 +670,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "rate(node_wifi_station_transmit_retries_total{instance=~\"$node:$port\"}[$__rate_interval])",
+          "expr": "rate(node_wifi_station_transmit_retries_total{server_name=~\"$server_name\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "intervalFactor": 1,
@@ -769,7 +769,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "irate(node_network_receive_bytes_total{instance=~\"$node:$port\",device=~\"wl.*\"}[$__rate_interval])",
+          "expr": "irate(node_network_receive_bytes_total{server_name=~\"$server_name\",device=~\"wl.*\"}[$__rate_interval])",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -783,7 +783,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "irate(node_network_transmit_bytes_total{instance=~\"$node:$port\",device=~\"wl.*\"}[$__rate_interval])",
+          "expr": "irate(node_network_transmit_bytes_total{server_name=~\"$server_name\",device=~\"wl.*\"}[$__rate_interval])",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "tx",
@@ -883,7 +883,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "node_wifi_station_transmit_bits_per_second{instance=~\"$node:$port\"}",
+          "expr": "node_wifi_station_transmit_bits_per_second{server_name=~\"$server_name\"}",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -896,7 +896,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_wifi_station_receive_bits_per_second{instance=~\"$node:$port\"}",
+          "expr": "node_wifi_station_receive_bits_per_second{server_name=~\"$server_name\"}",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -940,41 +940,22 @@
       },
       {
         "current": {
-          "text": "localhost",
-          "value": "localhost"
+          "text": "snoc-beelink",
+          "value": "snoc-beelink"
         },
         "datasource": {
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(node_wifi_station_signal_dbm{job=\"node\"}, instance)",
+        "definition": "label_values(node_wifi_station_signal_dbm{job=\"node\"}, server_name)",
+        "description": "Replaces the upstream node/port pair, which split instance with a regex and re-joined it as \"$node:$port\". That worked, but it named hosts by address: the picker read 10.0.0.131 and localhost rather than snoc-thinkstation and snoc-beelink, and a host changing IP would have silently dropped out of it. server_name is applied by file_sd, so it survives readdressing and matches every other first-party dashboard.",
         "includeAll": false,
         "label": "Host:",
-        "name": "node",
+        "name": "server_name",
         "options": [],
-        "query": "label_values(node_wifi_station_signal_dbm{job=\"node\"}, instance)",
+        "query": "label_values(node_wifi_station_signal_dbm{job=\"node\"}, server_name)",
         "refresh": 1,
-        "regex": "/([^:]+):.*/",
-        "type": "query"
-      },
-      {
-        "current": {
-          "text": "9100",
-          "value": "9100"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${datasource}"
-        },
-        "definition": "label_values(node_wifi_station_signal_dbm, instance)",
-        "hide": 2,
-        "includeAll": false,
-        "label": "port",
-        "name": "port",
-        "options": [],
-        "query": "label_values(node_wifi_station_signal_dbm, instance)",
-        "refresh": 1,
-        "regex": "/[^:]+:(.*)/",
+        "regex": "",
         "type": "query"
       }
     ]

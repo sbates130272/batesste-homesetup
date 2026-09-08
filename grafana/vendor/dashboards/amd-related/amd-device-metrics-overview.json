@@ -2528,7 +2528,7 @@
           "value": "amd_"
         },
         "description": "string to prefix names of metrics queries (e.g. gpu_gfx_activity -> amd_gpu_gfx_activity)",
-        "hide": 0,
+        "hide": 2,
         "label": "Metrics Prefix",
         "name": "g_metrics_prefix",
         "options": [
@@ -2595,7 +2595,7 @@
           "uid": "ae8pyuqoyonpca"
         },
         "definition": "label_values(cluster_name)",
-        "hide": 0,
+        "hide": 2,
         "includeAll": false,
         "label": "Cluster",
         "multi": false,

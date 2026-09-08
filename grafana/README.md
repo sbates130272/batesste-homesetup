@@ -23,7 +23,6 @@ grafana/
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
       node-exporter-full.json
-      node-exporter-overview.json
       node-exporter-wifi.json
       speedtest-wan-testing.json
     personal-finance/         # folder: Personal Finance
@@ -34,6 +33,8 @@ grafana/
     manifest.yaml             # provenance for each one
     dashboards/
       amd-related/
+        amd-device-metrics-gpu.json
+        amd-device-metrics-overview.json
         hsa-snoop.json
         lemonade-built-in-metrics.json
       home-network-related/
@@ -112,7 +113,6 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
-| Home Network | Node Exporter Overview | Fleet summary table |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
 | Personal Finance | Firefly III Overview | Income, spending, investments, category breakdown |
@@ -456,9 +456,11 @@ fully absent.
 
 ### Emporia plug colors are pinned, not automatic
 
-Both Emporia SmartPlugs timeseries panels carry eight
-`byName` color overrides, one per plug, rather than leaving
-the panels on `palette-classic`. The classic palette hands
+Both Emporia SmartPlugs timeseries panels and LAN Overview's
+Power by Plug carry eight `byName` color overrides, one per
+plug, rather than leaving them on `palette-classic`. Same
+eight hues in all three, so a plug keeps its color when you
+move between dashboards. The classic palette hands
 out colors by the order the series arrive, so filtering with
 the Location or Status pickers repaints every survivor: the
 plug that was blue a moment ago is now orange, and any memory
@@ -473,9 +475,18 @@ color means how many watts, not which plug.
 
 The overrides match on the `name` from
 `prometheus/emvue-exporter/labels.json`, which means a rename
-there silently drops that plug's color. CI checks the two
-lists against each other, and runs on a change to either
-file.
+there silently drops that plug's color. CI checks the lists
+against each other, and runs on a change to either file.
+
+It finds the panels by looking for `emvue_plug_` in their
+queries rather than by naming a dashboard file, because the
+check was scoped to one file when Power by Plug was charting
+the same plugs unnoticed. It also requires that a plug's
+color agrees everywhere, which is the part that keeps the
+three panels in step. Panels that cannot draw the whole
+fleet are exempt from needing the full set: a stat that sums
+the plugs into one number, or a timeseries pinned to a
+single host with `computer=`.
 
 ## Investment Accounts
 

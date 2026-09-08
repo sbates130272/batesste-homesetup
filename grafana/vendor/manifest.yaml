@@ -140,8 +140,8 @@ dashboards:
         ssh snoc-strix 'curl -sS https://raw.githubusercontent.com/\
         ROCm/device-metrics-exporter/v1.5.1/grafana/dashboard_gpu.json'
 
-      Six local edits. The first two are adoption boilerplate and a
-      re-fetch must redo them; the last four are real divergence and a
+      Seven local edits. The first two are adoption boilerplate and a
+      re-fetch must redo them; the last five are real divergence and a
       re-fetch would revert them:
 
         (a) Dropped the __inputs / __elements / __requires import
@@ -177,6 +177,30 @@ dashboards:
 
         (f) Retagged from ["version: main"], which was untrue the
             moment we pinned to v1.5.1.
+
+        (h) g_metrics_prefix and g_cluster_name set to hide: 2 in both
+            files -- 2026-09-08. Lettered (h) because (g) was already
+            taken by an Overview-only edit; this one applies to both.
+            Both pickers were inert but occupied the top bar. The
+            prefix is fixed at "amd_" by edit (b) and there is no
+            second value to choose: prometheus.yml rewrites every
+            __name__ to that prefix on ingest, so it is an invariant
+            of the TSDB rather than a per-host property. Cluster has
+            exactly one option, "amdgpu-k8s-metrics-exporter", which
+            is the exporter's packaged default string and not the name
+            of any cluster.
+
+            HIDDEN, NOT REMOVED, and the reason is not just the ~118
+            query references that would have to be rewritten.
+            g_cluster_name is load-bearing despite being meaningless:
+            g_hostname queries
+            label_values({cluster_name="$g_cluster_name"},hostname).
+            This Prometheus is a remote-write sink carrying AMD
+            datacenter GPUs, and those series carry no cluster_name at
+            all -- so that selector is the only thing keeping nine
+            MI350-class hostnames out of a homelab GPU picker.
+            Deleting the variable would widen the picker to the
+            datacenter; hiding it keeps the filter and drops the noise.
 
       MetricsFieldPrefix: "amd_" is the exporter's *pristine* packaged
       default -- /etc/metrics/config.json on snoc-strix has the md5
@@ -235,8 +259,8 @@ dashboards:
     created: 2026-09-06
     notes: >-
       Companion to the GPU dashboard above; read its notes first. Same
-      tag, same fetch path, same edits (a), (b), (c), (e) and (f) --
-      here that is 68 ${DS_PROMETHEUS} and 5 ${DS_EXPRESSION}
+      tag, same fetch path, same edits (a), (b), (c), (e), (f) and (h)
+      -- here that is 68 ${DS_PROMETHEUS} and 5 ${DS_EXPRESSION}
       references and 9 gpu_gfx_busy_instantaneous fallback sites. Edit
       (d) does not apply; this file has no quoted-metric selectors.
 
@@ -423,3 +447,38 @@ retired:
       6 of 6 panels dead for 30+ days. The iCloud exporter on localhost:9948
       is not running and the scrape is connection-refused. The
       up{job="icloud"} tile on LAN Overview was kept.
+
+  # ── Removed 2026-09-08, superseded rather than broken ───────────
+  # Note the difference from the two entries above: nothing here was dead.
+  # The columns moved to LAN Overview rather than dying with the file, so
+  # "restore from git" is the wrong instinct if a column looks missing --
+  # check panels 2 and 48 of lan-overview.json first.
+
+  - uid: gbGKmy-Gz
+    title: Node Exporter Overview
+    was: dashboards/home-network-related/node-exporter-overview.json
+    deleted: 2026-09-08
+    reason: >-
+      First-party, one panel ("Node Exporter Summary"), superseded by LAN
+      Overview. Nothing linked to the uid.
+
+      It had 12 targets but only 8 columns: the organize transform set
+      excludeByName on Load, TCP estab, TCP tw and Net sock, so those four
+      queries ran on every refresh and were then thrown away. Of the 8 that
+      rendered, CPU and Memory were already columns on LAN Overview's Node
+      Fleet, and Filesystem was already the Filesystem Usage bargauge. That
+      left Disk Reads, Disk Writes, Net Recv and Net Trans as the only
+      genuine loss, and they are now the Node I/O table (panel 48).
+
+      Two defects were fixed rather than carried over. Net Recv/Trans took
+      an unfiltered max across every interface, which reported amd-laptop's
+      loopback0 as its network throughput; the ported query filters to
+      (en|eth|wl).*. And every rate is now gated on node_uname_info, without
+      which snoc-shannon returns a row despite up=0.
+
+      Also carried three pieces of dead configuration worth not resurrecting:
+      overrides matched "Disk read"/"Disk write"/"Net recv" while
+      renameByName produced "Disk Reads"/"Disk Writes"/"Net Recv", so those
+      three never applied; a "Cores" rename for a Value #E no target
+      produced; and a data link pointing at grafana.rcrtv.net, a host that
+      is not ours.

@@ -198,8 +198,8 @@ running on the beelink itself. It
 serves two metric families, one series per plug:
 
 ```
-emvue_plug_power_watts{plug="snoc-pinewood-plug-a",name="Outside Lights",location="Outside"}
-emvue_plug_on{plug="snoc-pinewood-plug-a",name="Outside Lights",location="Outside"}
+emvue_plug_power_watts{plug="snoc-pinewood-plug-c",name="Living Room Light",location="Living Room",status="unused"}
+emvue_plug_on{plug="snoc-pinewood-plug-c",name="Living Room Light",location="Living Room",status="unused"}
 ```
 
 Everything past `plug` comes from
@@ -235,8 +235,28 @@ every panel into the JSON. That was fixed in the exporter
 rather than papered over with relabel rules here, because
 the `Enum` it used for outlet state named its label after
 the metric and no relabel rule can untangle that. Those old
-series remain in the TSDB until they age out of retention;
-nothing queries them.
+series remain in the TSDB until they age out of retention.
+
+The rename shipped ahead of the dashboards, and only the
+SmartPlugs one followed it. LAN Overview and ROCm/XIO kept
+querying the old names, and the two failed differently.
+Total Home Power summed the eight old names with `or
+vector(0)` on each term, so every term fell through to its
+default and the panel reported a confident, well-formatted
+**0 W** rather than "No data" — the guard that existed to
+stop the panel looking empty is what stopped it looking
+broken. Power by Plug and the ROCm/XIO wall-power panel had
+no such guard and simply went blank. All three now query
+`emvue_plug_power_watts`, and the sum has no `or vector(0)`:
+if the exporter stops, that panel should say so.
+
+Power by Plug also carried its plug names as eight hardcoded
+legends, two of which disagreed with `labels.json` — plug
+`a` read "Outside Lights" and `b` "Home Office" against
+`snoc-gaming` and `amd-laptop`. Whether the panel or the
+physical plugs moved first is not recoverable from the
+history, which is the point: `{{name}}` leaves only one
+place for a plug's name to be wrong.
 
 ### The amd-gpu-metrics-exporter job
 

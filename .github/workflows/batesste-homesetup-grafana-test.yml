@@ -4,8 +4,9 @@ on:
     paths:
       - 'grafana/**'
       - '!grafana/README.md'
-      # A plug renamed here silently drops its fixed color on the
-      # Emporia dashboard, so a labels.json edit runs this job too.
+      # A plug renamed here silently drops its fixed color on every
+      # dashboard that charts it, so a labels.json edit runs this
+      # job too.
       - 'prometheus/emvue-exporter/labels.json'
 
 jobs:
@@ -50,31 +51,79 @@ jobs:
       - name: Check emporia plug colors cover every plug
         run: |
           python3 - <<'PY'
-          import json, sys
+          import glob, json, sys
 
-          dash = json.load(open(
-              "dashboards/home-network-related/"
-              "emporia-smartplugs-dashboard.json"))
           labels = json.load(open("../prometheus/emvue-exporter/labels.json"))
-
           want = {p["name"] for p in labels.values()}
-          bad = []
-          for panel in dash["panels"]:
-              if panel["type"] != "timeseries":
-                  continue
-              have = {o["matcher"]["options"]
-                      for o in panel["fieldConfig"]["overrides"]
-                      if o["matcher"]["id"] == "byName"}
-              for missing in sorted(want - have):
-                  bad.append(f"{panel['title']}: no color for {missing!r}")
-              for extra in sorted(have - want):
-                  bad.append(f"{panel['title']}: color for unknown "
-                             f"plug {extra!r}")
 
+          # Find the plug panels by what they query rather than by
+          # dashboard path. The colors drifted once already because
+          # this check named one file and a second dashboard charted
+          # the same plugs without anyone noticing.
+          def walk(panels):
+              for p in panels:
+                  yield p
+                  yield from walk(p.get("panels") or [])
+
+          def is_plug_panel(p):
+              return any("emvue_plug_" in (t.get("expr") or "")
+                         for t in p.get("targets") or [])
+
+          # Only panels that can draw every plug owe a full palette.
+          # A stat rolling them into one number, or a timeseries
+          # pinned to one host with computer=, legitimately has none.
+          def charts_all_plugs(p):
+              return p.get("type") == "timeseries" and not any(
+                  "computer=" in (t.get("expr") or "")
+                  for t in p.get("targets") or [])
+
+          bad = []
+          seen = {}
+          found = 0
+          for path in sorted(glob.glob("dashboards/*/*.json")):
+              dash = json.load(open(path))
+              for panel in walk(dash.get("panels") or []):
+                  if not is_plug_panel(panel):
+                      continue
+                  where = f"{path}: {panel['title']}"
+                  have = {}
+                  for o in panel["fieldConfig"]["overrides"]:
+                      if o["matcher"]["id"] != "byName":
+                          continue
+                      for prop in o["properties"]:
+                          if prop["id"] == "color":
+                              have[o["matcher"]["options"]] = \
+                                  prop["value"]["fixedColor"]
+
+                  # A name nobody recognises is wrong wherever it is.
+                  for extra in sorted(set(have) - want):
+                      bad.append(f"{where}: color for unknown "
+                                 f"plug {extra!r}")
+
+                  # One plug, one color, whichever dashboard it is on.
+                  for name, color in have.items():
+                      first_color, first_where = seen.setdefault(
+                          name, (color, where))
+                      if color != first_color:
+                          bad.append(
+                              f"{where}: {name!r} is {color}, but "
+                              f"{first_where} has it as {first_color}")
+
+                  if not charts_all_plugs(panel):
+                      continue
+                  found += 1
+                  for missing in sorted(want - set(have)):
+                      bad.append(f"{where}: no color for {missing!r}")
+
+          if not found:
+              print("Error: no plug panels found; has the metric "
+                    "name changed again?")
+              sys.exit(1)
           if bad:
               print("\n".join(bad))
               sys.exit(1)
-          print(f"Every timeseries panel colors all {len(want)} plugs.")
+          print(f"{found} plug panel(s) color all {len(want)} plugs "
+                f"identically.")
           PY
 
       - name: Validate deploy.sh dry-run

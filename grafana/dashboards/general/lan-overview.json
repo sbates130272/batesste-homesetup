@@ -39,7 +39,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "One row per host running node-exporter, joined on instance: kernel and release, CPU and memory utilisation, core count, total RAM, uptime, and wifi signal where the host is wireless. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
+      "description": "One row per host running node-exporter, joined on instance: kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -76,7 +76,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 190
+                "value": 170
               }
             ]
           },
@@ -190,7 +190,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 80
+                "value": 90
               }
             ]
           },
@@ -202,7 +202,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 60
+                "value": 70
               }
             ]
           },
@@ -218,7 +218,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 110
+                "value": 130
               }
             ]
           },
@@ -234,7 +234,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 90
+                "value": 105
               },
               {
                 "id": "thresholds",
@@ -273,7 +273,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 120
+                "value": 115
               },
               {
                 "id": "custom.cellOptions",
@@ -321,7 +321,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 130
+                "value": 140
               },
               {
                 "id": "custom.cellOptions",
@@ -358,6 +358,57 @@
                     }
                   }
                 ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Load/Core"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "max",
+                "value": 200
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 100
+                    },
+                    {
+                      "color": "red",
+                      "value": 200
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 130
               }
             ]
           }
@@ -486,6 +537,19 @@
           "legendFormat": "",
           "range": false,
           "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "(\n    max by (instance) (node_load1) * 100\n  / count by (instance) (node_cpu_seconds_total{mode=\"idle\"})\n)\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "J"
         }
       ],
       "title": "Node Fleet",
@@ -510,7 +574,8 @@
               "Value #A": true,
               "instance": true,
               "Time 8": true,
-              "Time 9": true
+              "Time 9": true,
+              "Time 10": true
             },
             "renameByName": {
               "Value #B": "CPU %",
@@ -522,30 +587,33 @@
               "release": "Kernel",
               "server_name": "Node",
               "Value #H": "Link",
-              "Value #I": "OS"
+              "Value #I": "OS",
+              "Value #J": "Load/Core"
             },
             "indexByName": {
               "server_name": 0,
-              "Value #B": 1,
-              "Value #C": 2,
+              "Value #I": 1,
+              "Value #E": 2,
               "Value #D": 3,
-              "Value #E": 4,
-              "Value #F": 5,
-              "Value #H": 6,
-              "Value #G": 7,
-              "Value #I": 8,
-              "release": 9,
-              "Time 1": 10,
-              "Time 2": 11,
-              "Time 3": 12,
-              "Time 4": 13,
-              "Time 5": 14,
-              "Time 6": 15,
-              "Time 7": 16,
-              "Time 8": 17,
-              "Time 9": 18,
-              "Value #A": 19,
-              "instance": 20
+              "Value #B": 4,
+              "Value #C": 5,
+              "Value #J": 6,
+              "Value #H": 7,
+              "Value #G": 8,
+              "Value #F": 9,
+              "release": 10,
+              "Time 1": 11,
+              "Time 2": 12,
+              "Time 3": 13,
+              "Time 4": 14,
+              "Time 5": 15,
+              "Time 6": 16,
+              "Time 7": 17,
+              "Time 8": 18,
+              "Time 9": 19,
+              "Time 10": 20,
+              "Value #A": 21,
+              "instance": 22
             }
           }
         }
@@ -591,7 +659,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 190
+                "value": 170
               }
             ]
           },
@@ -603,7 +671,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 230
+                "value": 250
               }
             ]
           },
@@ -615,7 +683,7 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 150
+                "value": 130
               }
             ]
           },
@@ -757,18 +825,6 @@
                 "value": 110
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "ROCm"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 170
-              }
-            ]
           }
         ]
       },
@@ -900,11 +956,11 @@
               "server_name": 0,
               "card_model": 1,
               "pcie": 2,
-              "Value #B": 3,
-              "Value #C": 4,
-              "Value #D": 5,
-              "version": 6,
-              "Value #F": 7,
+              "Value #F": 3,
+              "Value #B": 4,
+              "Value #C": 5,
+              "Value #D": 6,
+              "version": 7,
               "Time 1": 8,
               "Time 2": 9,
               "Time 3": 10,
@@ -932,12 +988,267 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Throughput per host, joined on instance the same way Node Fleet is. Split out of Node Fleet rather than bolted onto it because these answer a different question -- what a host is doing right now, not what it is.\n\nDisk is bytes/sec and network is bits/sec, which is why a saturated gigabit link reads ~1 Gbps here and a busy NVMe reads in MB/s; they are not on the same scale and are not meant to be compared across the table.\n\nNetwork is filtered to (en|eth|wl).* on purpose. The unfiltered max this was ported from reported amd-laptop's loopback0 at 518 kbps as the host's network throughput while its real eth1 carried 63 kbps -- loopback, docker0, veth* and tailscale0 all count traffic that never touches the LAN, and tailscale0 counts it twice. Disk is deliberately unfiltered: dm-0 reports the same bytes as the nvme0n1 beneath it, and max() collapses the pair rather than double-counting it the way sum() would.\n\nEvery rate is gated on node_uname_info. Without that guard snoc-shannon returns a sixth row with an IP and no name: its scrape has been failing for long enough that an instant selector finds nothing, but rate() still sees samples inside its window and reports throughput for a host that is down.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Node"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk R"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk W"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "Bps"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Net RX"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bps"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Net TX"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bps"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 48,
+      "options": {
+        "cellHeight": "md",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "Node"
+          }
+        ]
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance, server_name) (node_uname_info)",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance) (rate(node_disk_read_bytes_total[5m]))\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance) (rate(node_disk_written_bytes_total[5m]))\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[5m]) * 8)\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "D"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[5m]) * 8)\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "E"
+        }
+      ],
+      "title": "Node I/O",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "instance"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true,
+              "Value #A": true,
+              "instance": true
+            },
+            "renameByName": {
+              "server_name": "Node",
+              "Value #B": "Disk R",
+              "Value #C": "Disk W",
+              "Value #D": "Net RX",
+              "Value #E": "Net TX"
+            },
+            "indexByName": {
+              "server_name": 0,
+              "Value #B": 1,
+              "Value #C": 2,
+              "Value #D": 3,
+              "Value #E": 4,
+              "Time 1": 5,
+              "Time 2": 6,
+              "Time 3": 7,
+              "Time 4": 8,
+              "Time 5": 9,
+              "Value #A": 10,
+              "instance": 11
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 25
       },
       "id": 40,
       "title": "Service Health",
@@ -987,7 +1298,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 18
+        "y": 26
       },
       "id": 4,
       "options": {
@@ -1028,7 +1339,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Lemonade instances reporting themselves up. Counts lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here.",
+      "description": "Whether Lemonade reports itself up. Reads lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here. The or vector(0) is what makes DOWN reachable: when the tailnet drops the metric is absent rather than 0, and without a fallback the tile renders No data instead of going red. The max() is not cosmetic -- vector(0) carries no labels, so without it the or matches nothing and the panel gets two series.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1041,6 +1352,11 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -1067,7 +1383,7 @@
         "h": 3,
         "w": 4,
         "x": 4,
-        "y": 18
+        "y": 26
       },
       "id": 5,
       "options": {
@@ -1094,7 +1410,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(lemonade_server_up == 1)",
+          "expr": "max(lemonade_server_up) or vector(0)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -1147,7 +1463,7 @@
         "h": 3,
         "w": 4,
         "x": 8,
-        "y": 18
+        "y": 26
       },
       "id": 6,
       "options": {
@@ -1227,7 +1543,7 @@
         "h": 3,
         "w": 4,
         "x": 12,
-        "y": 18
+        "y": 26
       },
       "id": 7,
       "options": {
@@ -1281,6 +1597,11 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -1307,7 +1628,7 @@
         "h": 3,
         "w": 4,
         "x": 16,
-        "y": 18
+        "y": 26
       },
       "id": 8,
       "options": {
@@ -1361,6 +1682,11 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
                 }
               },
               "type": "value"
@@ -1387,7 +1713,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 18
+        "y": 26
       },
       "id": 9,
       "options": {
@@ -1472,7 +1798,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 21
+        "y": 29
       },
       "id": 10,
       "options": {
@@ -1557,7 +1883,7 @@
         "h": 3,
         "w": 4,
         "x": 4,
-        "y": 21
+        "y": 29
       },
       "id": 11,
       "options": {
@@ -1642,7 +1968,7 @@
         "h": 3,
         "w": 4,
         "x": 8,
-        "y": 21
+        "y": 29
       },
       "id": 12,
       "options": {
@@ -1727,7 +2053,7 @@
         "h": 3,
         "w": 4,
         "x": 12,
-        "y": 21
+        "y": 29
       },
       "id": 14,
       "options": {
@@ -1807,7 +2133,7 @@
         "h": 3,
         "w": 4,
         "x": 16,
-        "y": 21
+        "y": 29
       },
       "id": 46,
       "options": {
@@ -1849,7 +2175,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 24
+        "y": 32
       },
       "id": 41,
       "title": "Power",
@@ -1892,7 +2218,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 25
+        "y": 33
       },
       "id": 17,
       "options": {
@@ -1919,7 +2245,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(snoc_pinewood_plug_a_power or vector(0)) + sum(snoc_pinewood_plug_b_power or vector(0)) + sum(snoc_pinewood_plug_c_power or vector(0)) + sum(snoc_pinewood_plug_d_power or vector(0)) + sum(snoc_pinewood_plug_e_power or vector(0)) + sum(snoc_pinewood_plug_f_power or vector(0)) + sum(snoc_pinewood_plug_g_power or vector(0)) + sum(snoc_pinewood_plug_h_power or vector(0))",
+          "expr": "sum(emvue_plug_power_watts)",
           "instant": true,
           "legendFormat": "",
           "refId": "A"
@@ -1985,13 +2311,134 @@
           },
           "unit": "watt"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "snoc-gaming"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3987e5",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "amd-laptop"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d95926",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Living Room Light"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#199e70",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "snoc-thinkstation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#c98500",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Playstation"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#d55181",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Master Bedroom - Stevie"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#008300",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Master Bedroom - Ang"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9085e9",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "snoc-strix"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#e66767",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 6,
         "w": 20,
         "x": 4,
-        "y": 25
+        "y": 33
       },
       "id": 18,
       "options": {
@@ -2018,88 +2465,11 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "snoc_pinewood_plug_a_power",
+          "expr": "emvue_plug_power_watts",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "Outside Lights",
+          "legendFormat": "{{name}}",
           "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_b_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Home Office",
-          "refId": "B"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_c_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Living Room Light",
-          "refId": "C"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_d_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "snoc-thinkstation",
-          "refId": "D"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_e_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Playstation",
-          "refId": "E"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_f_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Master Bedroom - Stevie",
-          "refId": "F"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_g_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "Master Bedroom - Ang",
-          "refId": "G"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "snoc_pinewood_plug_h_power",
-          "format": "time_series",
-          "instant": false,
-          "legendFormat": "snoc-strix",
-          "refId": "H"
         }
       ],
       "title": "Power by Plug",
@@ -2111,7 +2481,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 39
       },
       "id": 42,
       "title": "Network & WAN",
@@ -2180,7 +2550,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 32
+        "y": 40
       },
       "id": 20,
       "options": {
@@ -2280,7 +2650,7 @@
         "h": 6,
         "w": 6,
         "x": 6,
-        "y": 32
+        "y": 40
       },
       "id": 21,
       "options": {
@@ -2380,7 +2750,7 @@
         "h": 6,
         "w": 6,
         "x": 12,
-        "y": 32
+        "y": 40
       },
       "id": 22,
       "options": {
@@ -2490,7 +2860,7 @@
         "h": 6,
         "w": 6,
         "x": 18,
-        "y": 32
+        "y": 40
       },
       "id": 23,
       "options": {
@@ -2533,7 +2903,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 46
       },
       "id": 43,
       "title": "AI & Developer Usage",
@@ -2575,7 +2945,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "id": 29,
       "options": {
@@ -2598,7 +2968,7 @@
           "expr": "lemonade_model_time_to_first_token_seconds",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{model_name}}",
+          "legendFormat": "{{model_name}} ({{device}})",
           "refId": "A"
         }
       ],
@@ -2641,7 +3011,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 39
+        "y": 47
       },
       "id": 28,
       "options": {
@@ -2664,7 +3034,7 @@
           "expr": "lemonade_model_tokens_per_second",
           "format": "time_series",
           "instant": false,
-          "legendFormat": "{{model_name}}",
+          "legendFormat": "{{model_name}} ({{device}})",
           "refId": "A"
         }
       ],
@@ -2677,7 +3047,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 53
       },
       "id": 44,
       "title": "Storage",
@@ -2840,7 +3210,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 54
       },
       "id": 31,
       "options": {
@@ -3003,7 +3373,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 60
       },
       "id": 32,
       "options": {
@@ -3043,7 +3413,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 66
       },
       "id": 45,
       "title": "System Load",
@@ -3086,7 +3456,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 59
+        "y": 67
       },
       "id": 34,
       "options": {
@@ -3153,7 +3523,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 59
+        "y": 67
       },
       "id": 35,
       "options": {
