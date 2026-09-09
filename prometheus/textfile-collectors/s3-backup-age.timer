@@ -1,0 +1,22 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=Periodically refresh the S3 backup age textfile metric
+
+[Timer]
+# Hourly is far more often than a daily backup changes, and that is
+# the point: the metric has to keep being *republished* for the
+# alert's NoData handling to mean anything. A once-a-day refresh
+# would leave a twenty-three hour window in which a dead collector
+# and a healthy one look identical.
+#
+# OnBootSec matters for the same reason it does on rocm-version: the
+# .prom under /var/lib survives a reboot, so without it a stale file
+# would be served until the first hourly tick.
+OnBootSec=3min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

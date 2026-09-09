@@ -1,0 +1,33 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# The root policy is replaced wholesale, not appended to. Grafana
+# provisions exactly one notification tree per org, so this file owns
+# where every alert in the instance goes -- including any future rule
+# that does not carry a backup label. That is why the root receiver is
+# the real contact point rather than the stock grafana-default-email,
+# which on this server points nowhere and would silently swallow
+# anything not matched below.
+
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: batesste-ntfy
+    group_by:
+      - alertname
+    routes:
+      - receiver: batesste-ntfy
+        object_matchers:
+          - ['service', '=', 'backup']
+        # A backup is a once-a-day event, so there is no burst to
+        # collect and no reason to sit on the first notification.
+        group_wait: 30s
+        group_interval: 5m
+        # Four hours between repeats of a still-firing backup alert.
+        # Short enough that it is not forgotten, long enough that a
+        # weekend away does not train the habit of swiping it away
+        # unread -- which is the way this alert most plausibly ends up
+        # as useless as the monitoring it replaces.
+        repeat_interval: 4h

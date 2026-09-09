@@ -8,7 +8,16 @@ matrix:
       wordlists:
         - .wordlist.txt
     pipeline:
+      # fenced_code is not a default Python-Markdown extension, so
+      # without it a ``` block renders as a <p> and the html filter
+      # below never sees the <pre><code> it is told to ignore. Every
+      # fenced block in the repo was being spellchecked as prose; it
+      # only looked fine because the commands in them happened to be
+      # English-ish. The first block containing an S3 action name --
+      # AbortMultipartUpload, ListBucket -- failed the build.
       - pyspelling.filters.markdown:
+          markdown_extensions:
+            - markdown.extensions.fenced_code:
       - pyspelling.filters.html:
           comments: false
           ignores:

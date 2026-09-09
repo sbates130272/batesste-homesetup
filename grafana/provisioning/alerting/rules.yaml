@@ -1,0 +1,248 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+# Alert rules for the S3 disk backup, fed by the s3-backup-age
+# node-exporter textfile collector in
+# prometheus/textfile-collectors/.
+#
+# Four rules for four distinct failure modes, deliberately kept
+# separate so each one names its own cause rather than firing a single
+# vague "backup unhealthy":
+#
+#   BackupCheckFailing  the check itself cannot reach S3
+#   BackupMissing       S3 is reachable and holds no backups at all
+#   BackupStale         S3 holds backups and the newest one is old
+#   BackupTooSmall      an object arrived on time but is implausible
+#
+# All four carry service=backup, which is what
+# notification-policies.yaml routes on.
+#
+# Scoped to the disk backup only. The Hermes backup is disabled, its
+# bucket does not exist, and a rule for it would fire from the moment
+# it was deployed and stay firing indefinitely -- which is how an
+# alert gets muted, and a muted alert is the state this whole exercise
+# exists to get out of. Add it when the bucket exists and the timer is
+# enabled.
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: backups
+    folder: Alerts
+    # Evaluated far more often than a daily backup changes, because
+    # the evaluation interval is also what bounds how long a NoData
+    # condition takes to be noticed.
+    interval: 5m
+    rules:
+
+      # ── Can we even check? ─────────────────────────────────────
+      #
+      # This rule owns every "the answer is unknown" case, which is
+      # why it is the only one of the three with noDataState:
+      # Alerting. query_success is written on every collector run
+      # whatever the outcome, so its absence means the collector, the
+      # node-exporter, or the host is gone -- and each of those hides
+      # a backup just as effectively as a failed upload.
+      #
+      # This is the rule that would have caught the actual outage.
+      # From June 2025 the key was rejected with InvalidAccessKeyId on
+      # every single run, and nothing anywhere said so.
+      - uid: batesste-backup-check-failing
+        title: BackupCheckFailing
+        condition: C
+        for: 2h
+        labels:
+          service: backup
+          severity: critical
+        annotations:
+          summary: >-
+            Cannot verify the homelab disk backup: listing
+            s3://batesste-homelab-backups failed, or the checker has
+            stopped reporting. Backups may be silently failing.
+          runbook: >-
+            Check `journalctl -u s3-backup-age.service` on
+            snoc-beelink. An InvalidAccessKeyId means the key in
+            ~/.secrets.env needs rotating -- and remember the CI
+            AWS_KEY/AWS_SECRET repository secrets are a separate
+            store that has to be rotated with it.
+        noDataState: Alerting
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: batesste_s3_backup_query_success{bucket="batesste-homelab-backups"}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+
+      # ── Are there any backups at all? ──────────────────────────
+      #
+      # Its own rule because an empty result is a successful query,
+      # not a failed one: query_success stays 1, no timestamp series
+      # is published, and BackupStale below therefore sees NoData and
+      # resolves to OK. Without this rule, a bucket emptied by a
+      # misfiring prune or pointed at the wrong name would be the one
+      # state that alerts on nothing whatsoever.
+      - uid: batesste-backup-missing
+        title: BackupMissing
+        condition: C
+        for: 10m
+        labels:
+          service: backup
+          severity: critical
+        annotations:
+          summary: >-
+            s3://batesste-homelab-backups contains no backup objects
+            for this host at all. The bucket is reachable and empty.
+          runbook: >-
+            Confirm the prefix still matches what batesste-s3-backup
+            writes (hostname + BLK_DEVICE with slashes as dashes), and
+            check PRUNE_DAYS/EXCEPT_DAY in batesste-s3-backup.conf
+            before assuming data loss.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: batesste_s3_backup_objects{bucket="batesste-homelab-backups"}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+
+      # ── Is the newest backup recent? ───────────────────────────
+      #
+      # noDataState is OK rather than Alerting, and that is
+      # intentional. Every no-data cause is already owned by
+      # BackupCheckFailing above; repeating it here would mean two
+      # notifications for one root cause, which is the fastest way to
+      # teach yourself to ignore both.
+      #
+      # 48h, not 24h, so a single missed nightly run is not a page.
+      # The timer runs at 01:00 daily and the run itself takes about
+      # 40 minutes.
+      - uid: batesste-backup-stale
+        title: BackupStale
+        condition: C
+        for: 10m
+        labels:
+          service: backup
+          severity: critical
+        annotations:
+          summary: >-
+            No new homelab disk backup in over 48 hours. The newest
+            object in s3://batesste-homelab-backups is older than two
+            nightly runs.
+          runbook: >-
+            Check `systemctl status batesste-s3-backup.service` and
+            `journalctl -u batesste-s3-backup.service` on
+            snoc-beelink.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                time() -
+                batesste_s3_backup_last_object_timestamp_seconds{bucket="batesste-homelab-backups"}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [172800]
+
+      # ── Is the newest backup plausible? ────────────────────────
+      #
+      # Age alone trusts the backup script further than it has earned.
+      # batesste-s3-backup runs `dd | pigz > file` without
+      # `set -o pipefail`, so only pigz's exit status reaches the
+      # shell: a dd that dies a hundred megabytes in still produces a
+      # complete, valid, tiny .gz, and the unit exits 0. A fresh
+      # timestamp on a truncated image is the worst outcome available
+      # here, because it is the one that looks healthy right up until
+      # a restore is attempted.
+      #
+      # 5 GB against a historical range of 11.7-33.3 GB. Set well
+      # below the smallest real backup on purpose -- this is a floor
+      # for catching truncation, not a tripwire for normal growth.
+      - uid: batesste-backup-too-small
+        title: BackupTooSmall
+        condition: C
+        for: 10m
+        labels:
+          service: backup
+          severity: warning
+        annotations:
+          summary: >-
+            The newest homelab disk backup is under 5 GB, well below
+            the 11.7-33.3 GB range of every previous backup. It may be
+            a truncated dd that still compressed and uploaded cleanly.
+          runbook: >-
+            Compare against `aws s3 ls s3://batesste-homelab-backups`.
+            If it is truncated, the run that produced it exited 0 --
+            check the dd record counts in `journalctl -u
+            batesste-s3-backup.service`.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 10800
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: batesste_s3_backup_last_object_bytes{bucket="batesste-homelab-backups"}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [5000000000]

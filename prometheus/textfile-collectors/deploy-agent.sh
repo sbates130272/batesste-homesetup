@@ -16,19 +16,27 @@ usage() {
 Usage: $(basename "$0") [--dry-run]
 
 Install the node-exporter textfile collectors on the host this
-script is run from. Run it on each GPU machine -- the same "copy
-it to the target machine" model the repo already uses for
-prometheus/avahi-services/ and loki/alloy/deploy-agent.sh.
+script is run from. Run it on each GPU machine, and on the backup
+host -- the same "copy it to the target machine" model the repo
+already uses for prometheus/avahi-services/ and
+loki/alloy/deploy-agent.sh.
 
-It installs rocm-version.sh plus its timer everywhere, and
-wsl-wifi.sh plus its timer on WSL hosts only, where it is the
-only way to get a WiFi signal reading at all. And -- on hosts
-that do not already have one -- adds
+It installs rocm-version.sh plus its timer everywhere, wsl-wifi.sh
+plus its timer on WSL hosts only, where it is the only way to get
+a WiFi signal reading at all, and s3-backup-age.sh plus its timer
+on whichever host carries batesste-s3-backup.service. And -- on
+hosts that do not already have one -- adds
 --collector.textfile.directory to the node-exporter ARGS and
 restarts the unit. snoc-thinkstation and snoc-strix already carry
-that flag; snoc-gaming and amd-laptop do not, and without it
-node-exporter reads no textfiles at all, so the collector would
-write a perfectly good .prom that nothing ever scrapes.
+that flag; snoc-gaming, amd-laptop and snoc-beelink do not, and
+without it node-exporter reads no textfiles at all, so the
+collector would write a perfectly good .prom that nothing ever
+scrapes.
+
+Note that snoc-beelink gets rocm-version too, where it will report
+rocm_version_present 0 forever. That is the collector's documented
+"absent" case rather than a malfunction, and gating it on ROCm
+being present would defeat the reason it emits that value at all.
 
 Options:
   --dry-run   Show what would be done without changing anything.
@@ -68,6 +76,29 @@ COLLECTORS=(rocm-version)
 if [[ "$(systemd-detect-virt 2>/dev/null)" == "wsl" ]]; then
     echo "==> WSL detected; including the Windows WiFi collector."
     COLLECTORS+=(wsl-wifi)
+fi
+
+# s3-backup-age is gated on this host actually running the backup,
+# which today means snoc-beelink alone. The gate is the presence of
+# the backup unit rather than a hostname match, so moving the backup
+# to another box brings its monitoring along instead of leaving the
+# alert pointed at a machine that no longer backs anything up.
+#
+# Its unit reads batesste-s3-backup.conf for the bucket, so the config
+# has to be installed too -- that file is deployed by hand per
+# backup/README.md, and the collector cannot substitute a default for
+# it without inventing a bucket name.
+BACKUP_UNIT="/etc/systemd/system/batesste-s3-backup.service"
+BACKUP_CONF="/usr/local/share/batesste-s3-backup/batesste-s3-backup.conf"
+if [[ -f "${BACKUP_UNIT}" ]]; then
+    if [[ -f "${BACKUP_CONF}" ]]; then
+        echo "==> Backup host detected; including the S3 backup age collector."
+        COLLECTORS+=(s3-backup-age)
+    else
+        echo "    WARNING: ${BACKUP_UNIT} exists but ${BACKUP_CONF} does not;" >&2
+        echo "             skipping s3-backup-age. Install the backup config" >&2
+        echo "             first (see backup/README.md), then re-run this." >&2
+    fi
 fi
 
 echo "==> Ensuring ${TEXTFILE_DIR} exists..."
@@ -142,7 +173,18 @@ if $FAILED; then
     exit 1
 fi
 
+# The grep pattern is not always the collector name with dashes
+# swapped for underscores. s3-backup-age publishes batesste_s3_backup_*,
+# so the derived pattern would match nothing and the verification step
+# would report a healthy install as broken.
+metric_prefix() {
+    case "$1" in
+        s3-backup-age) echo "batesste_s3_backup" ;;
+        *)             echo "${1//-/_}" ;;
+    esac
+}
+
 echo "==> Verify the metrics are actually served:"
 for c in "${COLLECTORS[@]}"; do
-    echo "    curl -s localhost:9100/metrics | grep ${c//-/_}"
+    echo "    curl -s localhost:9100/metrics | grep $(metric_prefix "$c")"
 done

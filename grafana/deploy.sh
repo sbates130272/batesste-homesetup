@@ -130,6 +130,32 @@ run sudo chown root:grafana \
 run sudo chmod 640 \
     "${GF_PROV}/dashboards/dashboards.yaml"
 
+echo "==> Deploying alerting provisioning..."
+run sudo mkdir -p "${GF_PROV}/alerting"
+for f in contact-points notification-policies rules; do
+    echo "    ${f}.yaml"
+    run sudo cp \
+        "${SCRIPT_DIR}/provisioning/alerting/${f}.yaml" \
+        "${GF_PROV}/alerting/${f}.yaml"
+    run sudo chown root:grafana "${GF_PROV}/alerting/${f}.yaml"
+    run sudo chmod 640 "${GF_PROV}/alerting/${f}.yaml"
+done
+
+# contact-points.yaml expands $NTFY_TOPIC_URL from the grafana-server
+# environment. Grafana substitutes an unset variable with the empty
+# string rather than refusing to start, so the failure is a contact
+# point that resolves to no URL and drops every notification silently
+# -- the same class of quiet failure the backup alerts exist to catch,
+# and it would take out the alerting instead of the backup.
+if ! grep -q '^NTFY_TOPIC_URL=' "${SCRIPT_DIR}/grafana-server.defaults"; then
+    echo "    ERROR: NTFY_TOPIC_URL is not set in grafana-server.defaults." >&2
+    exit 1
+fi
+if grep -q '^NTFY_TOPIC_URL=thishastochange$' "${SCRIPT_DIR}/grafana-server.defaults"; then
+    echo "    WARNING: NTFY_TOPIC_URL is still the placeholder; alerts" >&2
+    echo "             will be delivered nowhere. Set a real topic URL." >&2
+fi
+
 echo "==> Deploying dashboard JSON files..."
 RSYNC_OPTS=(-r --delete --checksum --chown=grafana:grafana
             --chmod=F644,D755 --include='*/' --include='*.json'

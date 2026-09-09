@@ -29,7 +29,10 @@ prometheus/
     wsl-wifi.sh               Publishes wsl_wifi_* (WSL hosts only)
     wsl-wifi.service          systemd oneshot unit
     wsl-wifi.timer            systemd timer (every 5min)
-    deploy-agent.sh           Run on each GPU host
+    s3-backup-age.sh          Publishes batesste_s3_backup_* (backup host)
+    s3-backup-age.service     systemd oneshot unit
+    s3-backup-age.timer       systemd timer (hourly + on boot)
+    deploy-agent.sh           Run on each GPU host and the backup host
   emvue-exporter/
     labels.json               Per-plug Prometheus labels
     deploy.sh                 Run on snoc-beelink
@@ -384,6 +387,51 @@ if you would rather see the self-reported hostname.
 Note that `hsa_errors_total` and `ais_tx_errors_total` are
 declared upstream but only materialise once a labelled child
 exists, so those panels read empty on a healthy exporter.
+
+## The S3 backup age textfile collector
+
+`textfile-collectors/s3-backup-age.sh` publishes
+`batesste_s3_backup_*` for the host that runs
+`batesste-s3-backup.service` — today `snoc-beelink` alone. It
+feeds the four backup alert rules in
+`grafana/provisioning/alerting/rules.yaml`. `deploy-agent.sh`
+installs it wherever it finds the backup unit, so moving the
+backup to another box brings its monitoring along instead of
+leaving the alert watching a machine that stopped backing
+anything up.
+
+| Metric | Meaning |
+|---|---|
+| `batesste_s3_backup_query_success` | 1 if the bucket listing worked |
+| `batesste_s3_backup_objects` | Number of backup objects for this host |
+| `batesste_s3_backup_last_object_timestamp_seconds` | `LastModified` of the newest one |
+| `batesste_s3_backup_last_object_bytes` | Size of the newest one |
+
+It queries S3 rather than reading the exit status of
+`batesste-s3-backup.service`, because the two are not the same
+claim and the gap between them is where the outage lived. The
+disk backup wrote nothing to `batesste-homelab-backups` between
+June 2025 and 8 Sep 2026 — every run rejected with
+`InvalidAccessKeyId` — and the Hermes backup still logs
+`Uploading to s3://...` without ever reporting whether the
+upload landed. A unit that exits 0 having uploaded nothing is
+the case worth catching, so the collector asks the bucket.
+
+Size is published for a related reason. `batesste-s3-backup`
+runs `dd | pigz > file` without `set -o pipefail`, so only
+`pigz`'s status reaches the shell: a `dd` that dies partway
+still yields a complete, valid, far too small `.gz` and the
+unit exits 0. Age alone would call that healthy.
+
+The unit reads the *same* `batesste-s3-backup.conf` and
+`~/.secrets.env` the backup itself reads, deliberately. A
+monitor with its own copy of the bucket name or its own key can
+pass while the thing it is watching fails. The one difference
+is a `-` prefix on the secrets `EnvironmentFile`: the backup
+should refuse to start without credentials, whereas this should
+still run and publish `query_success 0`, since "there are no
+credentials here" is the alert rather than a reason to go
+quiet.
 
 ## The ROCm version textfile collector
 
