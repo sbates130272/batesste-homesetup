@@ -157,11 +157,8 @@ collector, node-exporter and Grafana all being alive on snoc-beelink,
 and this job depends on snoc-beelink not at all.
 
 It needs `RESTORE_AWS_KEY` / `RESTORE_AWS_SECRET` repository secrets —
-a **third** credential pair, deliberately. `AWS_KEY`/`AWS_SECRET` can
-write to the CI bucket and `~/.secrets.env` can write to this one;
-neither belongs in a job whose only purpose is to read backups. Scope
-it to `s3:GetObject` and `s3:ListBucket` on
-`batesste-homelab-backups` and nothing else.
+see the credential table below for why it does not share either of the
+other two pairs.
 
 There is also a retention hazard worth knowing about. `PRUNE_DAYS=30`
 with `EXCEPT_DAY=1` keeps only 1st-of-month files long term, so a
@@ -172,6 +169,76 @@ run is dated 8 Sep 2026 and is therefore due to be pruned on 8 Oct
 still `2025-06-01`, and if the backup breaks again in the meantime the
 recovery run disappears with it.
 
+### CI credentials
+
+Three separate AWS credential pairs touch the backups, each with its
+own IAM user. They are not interchangeable, and the point of keeping
+them apart is that no single leaked secret can both write the CI
+bucket and reach the real backups:
+
+| Store | Used by | IAM user | Grants |
+|---|---|---|---|
+| `~/.secrets.env` on snoc-beelink | the live backup | `batesste` | read/write on `batesste-homelab-backups` |
+| `BACKUP_TEST_AWS_KEY` / `BACKUP_TEST_AWS_SECRET` | `backup-test` | `github-backup-test` | read/write on `batesste-homelab-backups-ci` only |
+| `RESTORE_AWS_KEY` / `RESTORE_AWS_SECRET` | `backup-restore-test` | `github-restore-test` | read-only on `batesste-homelab-backups` |
+
+`backup-test` used to use `AWS_KEY`/`AWS_SECRET`, which belong to
+`batesste` — an admin user that can create IAM users and write every
+bucket in the account. Those two secrets remain only because
+`dyndns-test` needs them for Route53; nothing under `backup/` should
+use them again.
+
+`github-backup-test` needs no `s3:DeleteObject`, because `backup-test`
+never sets `PRUNE_DAYS` and so never prunes. To recreate the user:
+
+```bash
+cat > /tmp/backup-test-policy.json <<'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListCIBucket",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::batesste-homelab-backups-ci"
+    },
+    {
+      "Sid": "ReadWriteCIObjects",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject",
+        "s3:AbortMultipartUpload"
+      ],
+      "Resource": "arn:aws:s3:::batesste-homelab-backups-ci/*"
+    }
+  ]
+}
+EOF
+
+aws iam create-user --user-name github-backup-test
+aws iam put-user-policy --user-name github-backup-test \
+  --policy-name ci-bucket-readwrite \
+  --policy-document file:///tmp/backup-test-policy.json
+```
+
+Then mint the key and pipe it straight into the repository secrets so
+it never lands in the scrollback or the shell history:
+
+```bash
+CREDS=$(aws iam create-access-key --user-name github-backup-test --output json)
+jq -rj .AccessKey.AccessKeyId <<<"${CREDS}" \
+  | gh secret set BACKUP_TEST_AWS_KEY --repo sbates130272/batesste-homesetup
+jq -rj .AccessKey.SecretAccessKey <<<"${CREDS}" \
+  | gh secret set BACKUP_TEST_AWS_SECRET --repo sbates130272/batesste-homesetup
+unset CREDS
+rm -f /tmp/backup-test-policy.json
+```
+
+`jq -rj` rather than `-r`: a trailing newline becomes part of the
+secret, and the resulting signature failure looks exactly like a wrong
+key.
+
 ## Hermes backup (`batesste-hermes-s3-backup`)
 
 > **Disabled as of 3 Sep 2026.** The timer is installed but not
@@ -181,12 +248,10 @@ recovery run disappears with it.
 >
 > The key in `~/.secrets.env` was rotated on 8 Sep 2026 and the disk
 > backup now works with it, so the `InvalidAccessKeyId` half of this
-> is resolved. The missing bucket is not. The `AWS_KEY` / `AWS_SECRET`
-> repository secrets are a *separate* store and were **not** rotated —
-> `backup-test` still gets `The security token included in the request
-> is invalid`. Rotating one does not rotate the other; they have
-> drifted apart before, and that drift is now a CI failure rather than
-> a warning.
+> is resolved. The missing bucket is not. Note that the repository
+> secrets are a *separate* store from `~/.secrets.env` — rotating one
+> does not rotate the other, they have drifted apart before, and that
+> drift is now a CI failure rather than a warning.
 >
 > Create the bucket, then re-enable with `systemctl --user enable
 > --now batesste-hermes-s3-backup.timer`. Note that the backup alert

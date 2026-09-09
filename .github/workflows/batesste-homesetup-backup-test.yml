@@ -5,11 +5,11 @@ on:
       - 'backup/**'
       - '!backup/README.md'
   # A path-filtered pull_request trigger only ever runs when someone
-  # edits backup/. Credentials do not rot on that schedule: the
-  # AWS_KEY/AWS_SECRET secrets went bad and no PR touched this
-  # directory for months, so the one check that would have noticed
-  # simply never ran. The weekly build is what makes this job a
-  # monitor rather than a linter.
+  # edits backup/. Credentials do not rot on that schedule: this job's
+  # AWS secrets went bad and no PR touched this directory for months,
+  # so the one check that would have noticed simply never ran. The
+  # weekly build is what makes this job a monitor rather than a
+  # linter.
   #
   # Off the hour deliberately -- GitHub queues scheduled workflows at
   # :00 across the whole platform, and jobs there are routinely
@@ -57,11 +57,19 @@ jobs:
       # So: bad credentials now fail the job. The single exception is
       # a pull request from a fork, where GitHub withholds secrets by
       # design and no contributor can do anything about it.
+      #
+      # BACKUP_TEST_AWS_* rather than the shared AWS_KEY/AWS_SECRET.
+      # Those belong to the `batesste` IAM user, which can create IAM
+      # users and write every bucket in the account -- far more than a
+      # CI job needs, and a much larger blast radius for a value that
+      # lives in repository settings. This pair is a dedicated user
+      # scoped to the CI bucket alone. AWS_KEY/AWS_SECRET stay put for
+      # dyndns-test, which needs Route53 and not S3.
       - name: Check whether the AWS credentials still work
         id: creds
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_TEST_AWS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_TEST_AWS_SECRET }}
           AWS_REGION: us-west-2
           IS_FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
@@ -77,13 +85,13 @@ jobs:
               echo "::warning title=S3 sanity-check skipped::Pull requests from forks cannot access repository secrets. A maintainer must re-run this on a branch in the repository to exercise the S3 round-trip."
               exit 0
             fi
-            fail "No AWS credentials are configured for this repository. Set the AWS_KEY and AWS_SECRET repository secrets."
+            fail "No AWS credentials are configured for this repository. Set the BACKUP_TEST_AWS_KEY and BACKUP_TEST_AWS_SECRET repository secrets. See backup/README.md for the IAM policy they need."
           fi
 
           if err=$(aws sts get-caller-identity --output text 2>&1 >/dev/null); then
             echo "usable=true" >> "${GITHUB_OUTPUT}"
           else
-            fail "AWS rejected the credentials: ${err##*: } Rotate the AWS_KEY and AWS_SECRET repository secrets. Note these are a separate store from ~/.secrets.env on snoc-beelink, which the live backup uses -- rotating one does not rotate the other, and they have drifted apart before."
+            fail "AWS rejected the credentials: ${err##*: } Rotate the BACKUP_TEST_AWS_KEY and BACKUP_TEST_AWS_SECRET repository secrets. Note these are a separate store from ~/.secrets.env on snoc-beelink, which the live backup uses -- rotating one does not rotate the other, and they have drifted apart before."
           fi
       - name: Run a local test as a sanity-check
         if: steps.creds.outputs.usable == 'true'
@@ -95,8 +103,8 @@ jobs:
           BLK_DEVICE: test.data
           MOUNT_POINT: /mnt/batesste-s3-backup
           AWS_BUCKET: batesste-homelab-backups-ci
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_TEST_AWS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_TEST_AWS_SECRET }}
       # Only reachable on a fork PR now; every other unusable-credential
       # path fails the job above.
       - name: Note the skipped S3 sanity-check

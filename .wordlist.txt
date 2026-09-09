@@ -78,6 +78,7 @@ HSA
 http
 https
 hwmon
+IAM
 icloud
 iCloud
 interop
@@ -160,6 +161,7 @@ RRSP
 RSSI
 sbates
 scrape
+scrollback
 sd
 SimpleFIN
 smartplug

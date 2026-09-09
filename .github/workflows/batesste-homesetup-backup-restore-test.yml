@@ -60,11 +60,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dosfstools
 
-      # Read-only credentials, deliberately a third set. AWS_KEY /
-      # AWS_SECRET can write to the CI bucket and ~/.secrets.env on
-      # snoc-beelink can write to this one; neither belongs in a job
-      # whose entire purpose is to read the backups. Scope
-      # RESTORE_AWS_KEY to s3:GetObject and s3:ListBucket on
+      # Read-only credentials, deliberately a third set.
+      # BACKUP_TEST_AWS_* can write to the CI bucket and
+      # ~/.secrets.env on snoc-beelink can write to this one; neither
+      # belongs in a job whose entire purpose is to read the backups.
+      # Scope RESTORE_AWS_KEY to s3:GetObject and s3:ListBucket on
       # batesste-homelab-backups and nothing else.
       - name: Check whether the restore credentials still work
         id: creds
@@ -90,7 +90,7 @@ jobs:
           if err=$(aws sts get-caller-identity --output text 2>&1 >/dev/null); then
             echo "usable=true" >> "${GITHUB_OUTPUT}"
           else
-            fail "AWS rejected the restore credentials: ${err##*: } Rotate RESTORE_AWS_KEY and RESTORE_AWS_SECRET. These are a separate store from AWS_KEY/AWS_SECRET and from ~/.secrets.env on snoc-beelink -- rotating one does not rotate the others, and they have drifted apart before."
+            fail "AWS rejected the restore credentials: ${err##*: } Rotate RESTORE_AWS_KEY and RESTORE_AWS_SECRET. These are a separate store from BACKUP_TEST_AWS_KEY/BACKUP_TEST_AWS_SECRET and from ~/.secrets.env on snoc-beelink -- rotating one does not rotate the others, and they have drifted apart before."
           fi
 
       # Age is checked here rather than left to the verifier because a
