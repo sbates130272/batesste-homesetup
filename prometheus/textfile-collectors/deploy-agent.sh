@@ -6,10 +6,13 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEXTFILE_DIR="/var/lib/node_exporter/textfile_collector"
 NE_DEFAULTS="/etc/default/prometheus-node-exporter"
+NE_BIN="/usr/bin/prometheus-node-exporter"
 BIN_DIR="/usr/local/bin"
 UNIT_DIR="/etc/systemd/system"
+
+# Only used when node-exporter has no textfile directory of its own.
+TEXTFILE_DIR_FALLBACK="/var/lib/node_exporter/textfile_collector"
 
 usage() {
     cat <<EOF
@@ -62,6 +65,39 @@ run() {
     fi
 }
 
+# Where node-exporter actually reads textfiles from, in the order the
+# flag is resolved: ARGS, then the unit and its drop-ins, then the
+# binary's own compiled-in default. Empty means it has none and we
+# have to supply one.
+#
+# That third case is the one that matters. This script used to assume
+# a host either carried the flag in ARGS or had no textfile directory
+# at all, and appended --collector.textfile.directory whenever ARGS
+# lacked it. Debian's package compiles the default to
+# /var/lib/prometheus/node-exporter and ships apt/nvme/smartmon
+# collectors that write there, so on snoc-beelink the flag is absent
+# precisely *because* the directory is already correct. Appending our
+# own would have redirected node-exporter to an empty directory and
+# silently dropped every one of those series -- including SMART health
+# for the disk the backup reads.
+detect_textfile_dir() {
+    local dir
+    local pat='s/.*--collector\.textfile\.directory[= ]"\?\([^" ]*\).*/\1/p'
+
+    dir="$(sed -n "${pat}" "${NE_DEFAULTS}" 2>/dev/null | tail -1)"
+    [[ -n "${dir}" ]] && { echo "${dir}"; return; }
+
+    dir="$(systemctl cat prometheus-node-exporter.service 2>/dev/null \
+        | grep -v '^#' | sed -n "${pat}" | tail -1)"
+    [[ -n "${dir}" ]] && { echo "${dir}"; return; }
+
+    # kingpin renders the default as ="..."; an unset default prints as
+    # ="" and correctly yields the empty string here.
+    "${NE_BIN}" --help 2>&1 \
+        | sed -n 's/.*--collector\.textfile\.directory="\([^"]*\)".*/\1/p' \
+        | head -1
+}
+
 if [[ ! -f "${NE_DEFAULTS}" ]]; then
     echo "Error: ${NE_DEFAULTS} not found." >&2
     echo "prometheus-node-exporter does not look installed here." >&2
@@ -101,6 +137,17 @@ if [[ -f "${BACKUP_UNIT}" ]]; then
     fi
 fi
 
+echo "==> Detecting the node-exporter textfile directory..."
+TEXTFILE_DIR="$(detect_textfile_dir)"
+ADD_NE_FLAG=false
+if [[ -n "${TEXTFILE_DIR}" ]]; then
+    echo "    using ${TEXTFILE_DIR} (node-exporter already reads it)"
+else
+    TEXTFILE_DIR="${TEXTFILE_DIR_FALLBACK}"
+    ADD_NE_FLAG=true
+    echo "    node-exporter has no textfile directory; will set ${TEXTFILE_DIR}"
+fi
+
 echo "==> Ensuring ${TEXTFILE_DIR} exists..."
 run sudo install -d -m 0755 -o root -g root "${TEXTFILE_DIR}"
 
@@ -113,6 +160,20 @@ for c in "${COLLECTORS[@]}"; do
         run sudo install -m 0644 -o root -g root \
             "${SCRIPT_DIR}/${u}" "${UNIT_DIR}/${u}"
     done
+    # The collector scripts default TEXTFILE_DIR to the fallback path,
+    # which is wrong wherever node-exporter reads somewhere else. A
+    # drop-in rather than an edit to the .service: the directory is a
+    # property of this host, and the units in git should stay
+    # host-agnostic.
+    echo "    ${c}.service.d/textfile-dir.conf"
+    run sudo install -d -m 0755 -o root -g root "${UNIT_DIR}/${c}.service.d"
+    if $DRY_RUN; then
+        echo "[dry-run] write ${UNIT_DIR}/${c}.service.d/textfile-dir.conf" \
+             "with TEXTFILE_DIR=${TEXTFILE_DIR}"
+    else
+        printf '[Service]\nEnvironment=TEXTFILE_DIR=%s\n' "${TEXTFILE_DIR}" \
+            | sudo tee "${UNIT_DIR}/${c}.service.d/textfile-dir.conf" >/dev/null
+    fi
 done
 
 # The flag is appended to the existing ARGS rather than the line
@@ -121,8 +182,8 @@ done
 # script has no business deciding what those should be.
 echo "==> Checking node-exporter textfile flag..."
 NEED_NE_RESTART=false
-if sudo grep -q -- '--collector.textfile.directory' "${NE_DEFAULTS}"; then
-    echo "    already present"
+if ! $ADD_NE_FLAG; then
+    echo "    not needed; node-exporter already reads ${TEXTFILE_DIR}"
 elif sudo grep -q '^ARGS=' "${NE_DEFAULTS}"; then
     echo "    adding --collector.textfile.directory=${TEXTFILE_DIR}"
     run sudo cp "${NE_DEFAULTS}" "${NE_DEFAULTS}.pre-textfile.bak"
