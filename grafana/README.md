@@ -31,8 +31,6 @@ grafana/
       speedtest-wan-testing.json
     personal-finance/         # folder: Personal Finance
       firefly-overview.json
-    rocm-xio-related/         # folder: ROCm XIO Related
-      rocm-xio-dashboard.json
   vendor/                     # adopted third-party dashboards
     manifest.yaml             # provenance for each one
     dashboards/
@@ -201,7 +199,6 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
 | Personal Finance | Firefly III Overview | Income, spending, investments, category breakdown |
-| ROCm XIO Related | rocm-xio dashboard | NVMe/RDMA xio benchmark results |
 
 Adopted third-party dashboards (see below):
 

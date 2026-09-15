@@ -62,18 +62,6 @@ providers:
       path: /var/lib/grafana/dashboards/personal-finance
       foldersFromFilesStructure: false
 
-  - name: rocm-xio-related
-    orgId: 1
-    folder: ROCm XIO Related
-    folderUid: bfo21p2etpce8a
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /var/lib/grafana/dashboards/rocm-xio-related
-      foldersFromFilesStructure: false
-
   # ── Adopted third-party dashboards ─────────────────────────────
 
   # This one *does* pin folderUid, unlike its sibling below. Retiring

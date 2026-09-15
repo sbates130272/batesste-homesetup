@@ -482,3 +482,26 @@ retired:
       three never applied; a "Cores" rename for a Value #E no target
       produced; and a data link pointing at grafana.rcrtv.net, a host that
       is not ours.
+
+  # ── Removed 2026-09-15 as out of date ───────────────────────────
+
+  - uid: rocm-xio-nvme-snoc-beelink
+    title: rocm-xio dashboard
+    was: dashboards/rocm-xio-related/rocm-xio-dashboard.json
+    deleted: 2026-09-15
+    reason: >-
+      First-party, 12 panels, out of date. Recoverable from git history
+      (last touched in a47a0fc); no file kept, since nothing here records
+      a refresh path better than "export whatever is running".
+
+      It was the only dashboard in ROCm XIO Related, so the
+      rocm-xio-related provider went with it. Grafana does not delete a
+      folder when its provider disappears, so folder uid bfo21p2etpce8a
+      is left behind empty and has to be removed by hand -- the same
+      cleanup rocm-aic-related needed above.
+
+      Its "Power Consumption (Server and GPU)" panel queried
+      emvue_plug_power_watts, but pinned to computer="$hostname" and with
+      no per-plug color overrides, so its removal does not change the
+      grafana-test check that every plug is the same color on every
+      dashboard.
