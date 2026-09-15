@@ -204,8 +204,8 @@ Adopted third-party dashboards (see below):
 
 | Folder | Dashboard | Upstream |
 |--------|-----------|----------|
-| AMD Related | AMD GPU (device-metrics-exporter) | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json) |
-| AMD Related | AMD GPU Fleet Overview | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json) |
+| AMD Related | AMD GPU Metric Dashboard | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json) |
+| AMD Related | AMD GPU Fleet Dashboard | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json) |
 | AMD Related | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
 | AMD Related | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
 | Home Network | NVMe Exporter Device Metrics | [grafana.com 12736](https://grafana.com/grafana/dashboards/12736-nvme-exporter/) |

@@ -2363,7 +2363,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "AMD GPU (device-metrics-exporter)",
+  "title": "AMD GPU Metric Dashboard",
   "uid": "ae0aj8euc43r4b",
   "version": 1,
   "weekStart": ""
