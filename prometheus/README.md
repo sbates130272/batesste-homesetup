@@ -495,6 +495,25 @@ existing `ARGS` (rather than rewriting the line, which carries
 unrelated local flags) and restarts the unit — `EnvironmentFile`
 is not re-read on reload, the same trap as `/etc/default/prometheus`.
 
+**A missing flag does not mean a missing directory.** The above
+assumed two cases, and there is a third. Debian's
+`prometheus-node-exporter` compiles the default to
+`/var/lib/prometheus/node-exporter` and ships `apt`, `nvme` and
+`smartmon` collectors that write there, so on `snoc-beelink` the
+flag was absent *because the directory was already right* — 39
+series were being served with `ARGS=""`. Appending our own flag
+would have pointed node-exporter at an empty directory and
+dropped every one of them, including SMART health for the disk
+the backup reads. `deploy-agent.sh` now resolves the directory
+the way node-exporter itself does — `ARGS`, then the unit and
+its drop-ins, then the binary's compiled-in default — and only
+adds the flag when all three come back empty. Since the
+collector scripts default `TEXTFILE_DIR` to the fallback path,
+it also writes a `<collector>.service.d/textfile-dir.conf`
+drop-in pinning the resolved directory; a drop-in rather than an
+edit to the unit, so the path stays a property of the host and
+the units in git stay host-agnostic.
+
 **The dashboard query is scoped to `job="node"`, deliberately.**
 A remote-written copy of the older `rocm_aic_rocm_version_info`
 arrives from the `rocm-aic-core42-mi300` cluster carrying
