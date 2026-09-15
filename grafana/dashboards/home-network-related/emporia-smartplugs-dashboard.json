@@ -281,7 +281,7 @@
         ]
       },
       "gridPos": {
-        "h": 12,
+        "h": 14,
         "w": 24,
         "x": 0,
         "y": 8
@@ -291,12 +291,14 @@
         "legend": {
           "calcs": [
             "lastNotNull",
-            "max",
-            "mean"
+            "mean",
+            "max"
           ],
-          "displayMode": "list",
+          "displayMode": "table",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": true,
+          "sortBy": "Last *",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -520,20 +522,18 @@
         ]
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 22
       },
       "id": 3,
       "options": {
         "legend": {
-          "calcs": [
-            "lastNotNull"
-          ],
+          "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,

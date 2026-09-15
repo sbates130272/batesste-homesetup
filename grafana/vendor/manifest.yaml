@@ -122,7 +122,7 @@ dashboards:
   # the GPU entry; the Overview entry records only what differs.
 
   - uid: ae0aj8euc43r4b
-    title: AMD GPU (device-metrics-exporter)
+    title: AMD GPU Metric Dashboard
     file: dashboards/amd-related/amd-device-metrics-gpu.json
     folder: AMD Related
     upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json
@@ -173,7 +173,11 @@ dashboards:
             form, which is semantically identical and parses on both.
 
         (e) Retitled from "GPU", too generic for a folder shared with
-            HSA Snoop and Lemonade Metrics Dashboard.
+            HSA Snoop and Lemonade Metrics Dashboard. Retitled again
+            2026-09-15, to "AMD GPU Metric Dashboard", pairing it with
+            "AMD GPU Fleet Dashboard" below; the intermediate title was
+            "AMD GPU (device-metrics-exporter)", which named the
+            exporter rather than what the dashboard shows.
 
         (f) Retagged from ["version: main"], which was untrue the
             moment we pinned to v1.5.1.
@@ -249,7 +253,7 @@ dashboards:
       unreadable, which is the entire reason for pinning a tag.
 
   - uid: fe0ayyeeoxvy8f
-    title: AMD GPU Fleet Overview
+    title: AMD GPU Fleet Dashboard
     file: dashboards/amd-related/amd-device-metrics-overview.json
     folder: AMD Related
     upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json
@@ -271,7 +275,11 @@ dashboards:
       variable, so this only removes UI noise.
 
       Retitled from "Overview", which in our folder tree reads as a
-      sibling of the first-party Home LAN Overview and is not.
+      sibling of the first-party Home LAN Overview and is not. Retitled
+      again 2026-09-15, to "AMD GPU Fleet Dashboard", dropping the word
+      Overview entirely for the same reason and pairing it with "AMD GPU
+      Metric Dashboard" above; the intermediate title was "AMD GPU Fleet
+      Overview".
 
       THREE PANELS READ ZERO BY DESIGN and must not be "fixed": Jobs,
       Allocated GPUs, and Average GPU Usage of Allocated GPUs all
@@ -482,3 +490,26 @@ retired:
       three never applied; a "Cores" rename for a Value #E no target
       produced; and a data link pointing at grafana.rcrtv.net, a host that
       is not ours.
+
+  # ── Removed 2026-09-15 as out of date ───────────────────────────
+
+  - uid: rocm-xio-nvme-snoc-beelink
+    title: rocm-xio dashboard
+    was: dashboards/rocm-xio-related/rocm-xio-dashboard.json
+    deleted: 2026-09-15
+    reason: >-
+      First-party, 12 panels, out of date. Recoverable from git history
+      (last touched in a47a0fc); no file kept, since nothing here records
+      a refresh path better than "export whatever is running".
+
+      It was the only dashboard in ROCm XIO Related, so the
+      rocm-xio-related provider went with it. Grafana does not delete a
+      folder when its provider disappears, so folder uid bfo21p2etpce8a
+      is left behind empty and has to be removed by hand -- the same
+      cleanup rocm-aic-related needed above.
+
+      Its "Power Consumption (Server and GPU)" panel queried
+      emvue_plug_power_watts, but pinned to computer="$hostname" and with
+      no per-plug color overrides, so its removal does not change the
+      grafana-test check that every plug is the same color on every
+      dashboard.

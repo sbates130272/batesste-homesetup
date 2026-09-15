@@ -31,8 +31,6 @@ grafana/
       speedtest-wan-testing.json
     personal-finance/         # folder: Personal Finance
       firefly-overview.json
-    rocm-xio-related/         # folder: ROCm XIO Related
-      rocm-xio-dashboard.json
   vendor/                     # adopted third-party dashboards
     manifest.yaml             # provenance for each one
     dashboards/
@@ -201,14 +199,13 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
 | Home Network | Speedtest WAN Testing | WAN speed/latency/jitter |
 | Personal Finance | Firefly III Overview | Income, spending, investments, category breakdown |
-| ROCm XIO Related | rocm-xio dashboard | NVMe/RDMA xio benchmark results |
 
 Adopted third-party dashboards (see below):
 
 | Folder | Dashboard | Upstream |
 |--------|-----------|----------|
-| AMD Related | AMD GPU (device-metrics-exporter) | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json) |
-| AMD Related | AMD GPU Fleet Overview | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json) |
+| AMD Related | AMD GPU Metric Dashboard | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json) |
+| AMD Related | AMD GPU Fleet Dashboard | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json) |
 | AMD Related | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
 | AMD Related | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
 | Home Network | NVMe Exporter Device Metrics | [grafana.com 12736](https://grafana.com/grafana/dashboards/12736-nvme-exporter/) |
