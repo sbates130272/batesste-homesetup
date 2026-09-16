@@ -1,0 +1,19 @@
+# Files encrypted at rest with git-crypt.
+#
+# grafana-server.defaults carries NTFY_TOPIC_URL, which is a bearer
+# secret rather than a mere address: ntfy topics have no access
+# control, so anyone who reads the URL can both read every alert this
+# fleet sends and post convincing fakes to it.
+#
+# It is committed rather than gitignored because deploy.sh installs
+# this file verbatim to /etc/default/grafana-server. Untracked, a
+# rebuild from a fresh clone would reinstate the placeholder and
+# Grafana would resolve the contact point to an empty URL and drop
+# every notification silently -- the exact failure this repo already
+# went eighteen hours blind to once.
+#
+# Consequence to know about: on a clone without the key (CI, for
+# instance) this file is an opaque binary blob, not text. deploy.sh
+# detects that case explicitly rather than misreading ciphertext as a
+# missing setting.
+grafana/grafana-server.defaults filter=git-crypt diff=git-crypt
