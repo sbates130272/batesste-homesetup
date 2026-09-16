@@ -246,3 +246,308 @@ groups:
                 - evaluator:
                     type: lt
                     params: [5000000000]
+
+  # ─────────────────────────────────────────────────────────────
+  # Memory exhaustion
+  # ─────────────────────────────────────────────────────────────
+  #
+  # Written after snoc-beelink hung on 16 September 2026. The node
+  # spent 45 minutes in a swap-thrash livelock -- kernel alive and
+  # still logging PCIe AER lines at widening intervals, userspace
+  # unschedulable from 06:35:56, recovered only by a power cycle. The
+  # kernel OOM killer never fired: with 4 GiB of swap, MemAvailable
+  # never reaches the floor that triggers it, so the kernel reclaims
+  # and re-faults indefinitely rather than killing anything.
+  #
+  # systemd-oomd is now the backstop (see oomd/ in this repo). These
+  # rules are the other half, and the more important half: every
+  # number below was already in Prometheus for the eighteen hours
+  # before the hang, and no rule existed to read it. The failure was
+  # not a lack of data.
+  #
+  # Three rules at three distances from the cliff, deliberately
+  # separate so each one names its own stage rather than firing a
+  # single vague "memory bad":
+  #
+  #   NodeSwapFillingUp   the slow bleed, hours out
+  #   NodeMemoryCritical  headroom nearly gone, tens of minutes out
+  #   NodeMemoryThrashing it is happening now
+  #   NodeOOMKilled       something was killed; the backstop worked
+  #
+  # All carry service=memory, which notification-policies.yaml routes
+  # on with a shorter repeat interval than the backup alerts get.
+  #
+  # Thresholds are ratios, not byte counts, so one rule covers a
+  # 7.5 GiB beelink and a 125 GiB thinkstation without per-host
+  # variants. Every one is backtested against the 15-16 September
+  # series and against a 7-day fleet baseline; the lead times quoted
+  # are measured, not estimated.
+  #
+  # Not covered here: a node that vanishes entirely. Every rule below
+  # is noDataState: OK because a missing series means a missing
+  # exporter, which is node-down alerting and a different rule that
+  # this repo does not yet have. Do not fold it in -- an alert that
+  # fires for two unrelated causes gets read as neither.
+  - orgId: 1
+    name: memory
+    folder: Alerts
+    # Tighter than the backup group's 5m. Memory exhaustion moves on a
+    # timescale where a five-minute evaluation delay is a meaningful
+    # fraction of the warning.
+    interval: 1m
+    rules:
+
+      # ── The slow bleed ─────────────────────────────────────────
+      #
+      # Swap consumption is the earliest honest signal, because on a
+      # box with swap it is what the leak eats first. The backtest is
+      # unambiguous: swap was 100% free at 09:00 on the 15th, 31% free
+      # by 18:00, 9% by 01:00 on the 16th and 0% from 03:00. Firing at
+      # 50% free would have notified at 18:00 on the 15th -- thirteen
+      # hours before the power cycle, with the node still completely
+      # healthy and responsive.
+      #
+      # 1h of `for:` because swap filling is not in itself an
+      # emergency and a build or a backup run can legitimately push
+      # into swap for a while. Thirteen hours of margin can afford to
+      # spend one confirming the trend is real.
+      #
+      # The `> 0` on SwapTotal is a filter, not a comparison: it drops
+      # nodes with no swap from the result entirely rather than
+      # dividing by zero and alerting on NaN forever.
+      - uid: batesste-node-swap-filling
+        title: NodeSwapFillingUp
+        condition: C
+        for: 1h
+        labels:
+          service: memory
+          severity: warning
+        annotations:
+          summary: >-
+            Less than half of swap is free and it has stayed that way
+            for an hour. On snoc-beelink this is the signal that
+            preceded the 16 September livelock by thirteen hours.
+          runbook: >-
+            Find the growth before it becomes a page:
+            `ps -eo rss,etimes,args --sort=-rss | head -20` and
+            `systemd-cgtop --order=memory`. Check swap held per
+            process with
+            `for f in /proc/[0-9]*/status; do awk '/^Name:/{n=$2}
+            /^VmSwap:/{if ($2>50000) print $2, n}' $f; done | sort -rn`.
+            systemd-oomd will not act until 90% of swap is gone.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                node_memory_SwapFree_bytes /
+                (node_memory_SwapTotal_bytes > 0)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.5]
+
+      # ── Headroom nearly gone ───────────────────────────────────
+      #
+      # MemAvailable is the kernel's own estimate of what can be
+      # allocated without swapping, which makes it the right measure
+      # here and free/used the wrong one -- page cache counts as
+      # "used" and is reclaimable, so a used-memory rule alerts
+      # constantly on a healthy server running Loki.
+      #
+      # 10%: the backtest shows beelink at 62% available on the
+      # morning of the 15th, 25% by 14:00, 14% at 04:00 on the 16th
+      # and 9% from 05:00. This fires around 05:00, roughly 90 minutes
+      # before userspace stopped responding. That is late -- it is
+      # meant to be. NodeSwapFillingUp is the rule with the useful
+      # lead time; this one is the confirmation that the bleed was not
+      # transient, and it is a page rather than a notification.
+      - uid: batesste-node-memory-critical
+        title: NodeMemoryCritical
+        condition: C
+        for: 15m
+        labels:
+          service: memory
+          severity: critical
+        annotations:
+          summary: >-
+            Under 10% of RAM is available and has been for fifteen
+            minutes. The node is close to the point where reclaim
+            costs more than the work it is reclaiming for.
+          runbook: >-
+            Shed load now rather than investigating first; this is
+            about 90 minutes from an unrecoverable livelock on a small
+            node. Stop the largest non-essential consumer
+            (`systemd-cgtop --order=memory`), then look at why. SSH and
+            tailscaled are ManagedOOMPreference=omit so remote access
+            should survive even if systemd-oomd starts killing.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                node_memory_MemAvailable_bytes /
+                node_memory_MemTotal_bytes
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.1]
+
+      # ── It is happening now ────────────────────────────────────
+      #
+      # PSI "full" stall: the fraction of wall-clock time in which
+      # *every* runnable task was blocked on memory. Unlike the two
+      # rules above it does not measure a resource level, it measures
+      # the symptom -- time the machine spent unable to make progress
+      # -- which is precisely what a livelock is and precisely what
+      # MemAvailable alone cannot distinguish from a well-tuned cache.
+      #
+      # 0.5% is not a round number, it is three times the highest
+      # value any node in this fleet produced over seven days:
+      #
+      #   snoc-strix         0.15%   (three llama-servers, 2.6 GiB swapped)
+      #   snoc-thinkstation  0.06%
+      #   amd-laptop         0.03%
+      #   snoc-gaming        0.00%
+      #
+      # On beelink through the incident: 0.03% at 04:30, 0.17% at
+      # 05:00, 0.41% at 05:30, 0.69% at 06:00, 1.09% at 06:20, and
+      # then 158% on the final partial scrape at 06:30 -- a figure
+      # that exceeds 100% only because the counter jumped across a
+      # scrape the node was too far gone to answer on time. Crossing
+      # 0.5% happens around 05:30, an hour before the end.
+      #
+      # for: 10m rather than something shorter because a single
+      # 5-minute rate sample crossing 0.5% is survivable; ten minutes
+      # of it is the node grinding.
+      - uid: batesste-node-memory-thrashing
+        title: NodeMemoryThrashing
+        condition: C
+        for: 10m
+        labels:
+          service: memory
+          severity: critical
+        annotations:
+          summary: >-
+            The node is stalling on memory: every task has been
+            blocked on reclaim for more than 0.5% of wall time, ten
+            minutes running. This is the beginning of the swap-thrash
+            livelock that cost snoc-beelink a power cycle.
+          runbook: >-
+            Act before investigating. If it is still reachable, kill
+            the largest consumer immediately -- past this point the
+            box can stop accepting SSH within the hour, and once it
+            does the only remaining option is the power button.
+            `journalctl -u systemd-oomd -g Killed` shows whether the
+            backstop has already tried.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                rate(node_pressure_memory_stalled_seconds_total[5m])
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.005]
+
+      # ── The backstop fired ─────────────────────────────────────
+      #
+      # node_vmstat_oom_kill counts kernel OOM kills. Through the
+      # entire 16 September incident it did not move once, which is
+      # the single most diagnostic fact about that outage: nothing was
+      # ever killed, so nothing was ever reclaimed.
+      #
+      # A kill is not itself a failure -- it is the system working as
+      # designed, and after installing systemd-oomd it is the expected
+      # outcome of the conditions above. It still warrants a
+      # notification, because something died and somebody should know
+      # what and why. Warning, not critical.
+      #
+      # This counts kernel kills only. systemd-oomd's own kills do not
+      # increment it and are not exported by node-exporter at all;
+      # they land in the journal, and Loki has them via the
+      # systemd-journal scrape. Worth a Loki-based rule eventually.
+      - uid: batesste-node-oom-killed
+        title: NodeOOMKilled
+        condition: C
+        for: 0m
+        labels:
+          service: memory
+          severity: warning
+        annotations:
+          summary: >-
+            The kernel OOM killer terminated a process in the last ten
+            minutes. Something on this node asked for more memory than
+            it could be given.
+          runbook: >-
+            `journalctl -k -g "Out of memory"` names the victim and
+            its RSS at death. Cross-check `journalctl -u systemd-oomd`
+            -- if oomd killed something first and the kernel still had
+            to step in, the oomd thresholds in oomd/oomd.conf are too
+            loose for this workload.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 1800
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: increase(node_vmstat_oom_kill[10m])
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]

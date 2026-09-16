@@ -1,0 +1,95 @@
+# Hermes MCP servers on snoc-beelink.
+#
+# This file is the source of truth for the whole `mcp_servers:` map in
+# ~/.hermes/config.yaml. Apply it with ./apply-model-config.py, which
+# *replaces* that key rather than merging into it -- so deleting a server
+# here deletes it there. That is deliberate: the two servers this file
+# replaced were dead for months precisely because nothing ever removed
+# them, and a merge-only apply could not have.
+#
+# Keys are never stored here. `${VAR}` placeholders are resolved by
+# Hermes at load time from ~/.hermes/.env (tools/mcp_tool_config.py,
+# _interpolate_env_vars). An unset variable keeps the literal
+# placeholder, which fails as an auth error rather than silently
+# running unauthenticated.
+
+# GitHub's own hosted server, over streamable HTTP. It used to be
+# `npx -y @modelcontextprotocol/server-github`, which never once ran:
+# there is no Node on this box, so Hermes parked it at every startup.
+# The hosted endpoint needs no runtime at all, and the PAT already in
+# ~/.hermes/.env is the only credential it wants.
+#
+# The tool names below are not the old ones. The hosted server
+# consolidated the per-verb tools into read/write pairs -- get_issue and
+# create_issue are now issue_read and issue_write -- so the old include
+# list would have silently selected the four names that happened to
+# survive and dropped the other four. This is the same eight
+# capabilities, renamed.
+github:
+  url: https://api.githubcopilot.com/mcp/
+  headers:
+    # Referencing the existing variable rather than the MCP_GITHUB_API_KEY
+    # the `hermes mcp add` flow would have created: a second copy of a PAT
+    # is one more thing to rotate and one more thing to get out of sync.
+    Authorization: Bearer ${GITHUB_PERSONAL_ACCESS_TOKEN}
+  tools:
+    include:
+      - search_repositories
+      - get_file_contents
+      - list_issues
+      - issue_read
+      - issue_write
+      - list_pull_requests
+      - pull_request_read
+      - pull_request_review_write
+    resources: false
+    prompts: false
+
+# Local read-only view of Firefly III, from
+# ~/.hermes/workspace/mcp/firefly_mcp.py.
+#
+# It runs out of that directory's own .venv, not the Hermes venv. It used
+# to share the Hermes venv, and a Hermes update that moved `mcp` to 2.0
+# broke it at import: fastmcp 3.x wants a symbol 2.0 dropped. Sharing a
+# venv with Hermes made Hermes's dependency churn this server's problem,
+# and the breakage was invisible because `hermes mcp list` reports the
+# config, not a connection.
+firefly:
+  command: /home/batesste/.hermes/workspace/mcp/.venv/bin/python
+  args:
+    - /home/batesste/.hermes/workspace/mcp/firefly_mcp.py
+  env:
+    FIREFLY_URL: http://localhost:1080
+    # Was a 980-character JWT inline in config.yaml, byte-identical to
+    # the copy already in ~/.hermes/.env. config.yaml is world-readable
+    # in every backup and every diff this repo prints; .env is not.
+    FIREFLY_TOKEN: ${FIREFLY_API_TOKEN}
+  # All eight the server exposes. The first three are Firefly reads; the
+  # rest are the Google Drive and Apple Calendar handlers that had been
+  # written, shipped and then left unreachable by an include list that
+  # predated them.
+  #
+  # create_calendar_event is the only write in the set. The server refuses
+  # it without an explicit confirmation argument, and the apple-calendar
+  # skill states the same rule, so it is guarded in two places.
+  #
+  # list_google_files and google_doc_content need GOOGLE_SERVICE_ACCOUNT_KEY
+  # in ~/.hermes/.env. That variable exists but has not been verified
+  # end-to-end; if Drive calls fail, that is the first thing to check.
+  tools:
+    include:
+      - list_accounts
+      - search_transactions
+      - get_account_balance
+      - list_google_files
+      - google_doc_content
+      - list_calendar_events
+      - create_calendar_event
+      - server_info
+    resources: false
+    prompts: false
+
+# Deliberately absent: `fetch`. It was the second `command: npx` entry
+# and had never started either. Nothing was lost -- Hermes ships native
+# web_search and web_extract tools plus a browser toolset, all of which
+# work today, so the MCP server was redundant even on a box with Node.

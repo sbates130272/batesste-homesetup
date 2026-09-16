@@ -216,14 +216,35 @@ home server. It runs as a pair of *user* systemd units rather than
 system ones, which matters because `Linger` has to be enabled for the
 account or nothing starts at boot.
 
-The folder holds a drop-in that binds the dashboard to loopback
-instead of all interfaces. The old bind was taking port 9119 on every
-address, including the one tailscaled needs for its own `serve` entry,
-which left tailscaled retrying in a loop forever — and left the
-dashboard reachable from the LAN with no authentication in front of
-it. Reaching it over the tailnet now goes through an nginx shim. See
-[the README.md](./hermes/README.md) for the details and for the
-duplicate system unit that was disabled alongside it.
+Every token it generates comes from the Lemonade server on `snoc-strix`
+over the tailnet — no cloud inference in the hot path. That server keeps
+three models resident at a time, so the routing table is built to name
+exactly three: a 35B MoE with speculative decoding as the main agent, a
+coder model for subagents and as the fallback, and a 4B for the short
+side-calls like titles and triage. Speech-to-text runs on the same GPU;
+it lands in a separate slot category and so costs none of the three.
+
+Hermes owns its own install directory and rewrites its config on every
+update, so the folder does not template that config — it holds the
+decisions that would otherwise be lost (the model routing, the
+credential sync, the dashboard's loopback bind, the health checks) and a
+`deploy.sh` that re-asserts them idempotently.
+
+The Lemonade API key lives in three places and all three have to agree.
+When they drifted, every model call returned `HTTP 401` and every
+scheduled job failed quietly into Telegram for twelve days; the sync
+script and the health check both exist to make that loud.
+
+The agent can also drive a GUI. The server is headless, so
+[hermes/cua](./hermes/cua) gives it a desktop in a container — an X
+server, a browser and an accessibility bus, with Hermes reaching the
+driver through `docker exec` rather than over any network. Watch it work
+at `http://127.0.0.1:6080/vnc.html`, view-only by default.
+
+See [the README.md](./hermes/README.md) for the model evidence, the
+rotation runbook, and the two historical fixes — the dashboard port
+collision and the duplicate system unit that had restarted 140,989
+times.
 
 # Firefly III
 
@@ -262,7 +283,7 @@ In order to backup my MacBook we use [this timemachine
 repo][ref-time-machine] on the home server. In order to get this
 started and in order to provide AWS S3 backup of the volume that
 contains the time machine data use the [docker
-compose](./time-machine/batesste-time-machine.yml) file.
+compose](./time-machine/batesste-time-machine.dc.yml) file.
 
 Place a ```.aws.creds.env``` file in the ```time-machine``` folder of
 the form:

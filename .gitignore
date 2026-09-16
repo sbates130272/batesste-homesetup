@@ -5,6 +5,12 @@
 # Compiled aspell dictionary, produced by a local pyspelling run
 dictionary.dic
 
+# Python bytecode. The scripts here are run directly rather than
+# imported, so this is a side effect of a stray `python3 -c 'import'`
+# rather than anything the repo needs.
+__pycache__/
+*.pyc
+
 # Certain agent markdown files
 snoc-gaming.md
 

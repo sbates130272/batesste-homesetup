@@ -1,0 +1,44 @@
+# The Hermes side of the computer-use setup on snoc-beelink.
+#
+# Apply it with ../apply-model-config.py, which merges these keys into
+# ~/.hermes/config.yaml alongside models.yaml and mcp.yaml. Kept separate
+# from models.yaml because it pins no model: what lives here is which
+# toolset is on and how far the agent is allowed to go with it.
+#
+# The other half of the wiring is HERMES_CUA_DRIVER_CMD in ~/.hermes/.env,
+# which cannot live in config.yaml -- Hermes reads the driver path from the
+# environment only. deploy.sh writes it.
+
+# The toolset list is replaced wholesale, not appended to (deep_merge
+# replaces lists), so this has to name hermes-cli as well as the new entry.
+# hermes-cli is what was there before.
+toolsets:
+  - hermes-cli
+  - computer_use
+
+computer_use:
+  # standard: cua-driver keeps its own protected boundary and Hermes gates
+  # every click, keystroke and drag through the same approval path as a
+  # dangerous shell command. bounded would trade those per-action prompts
+  # for a capability manifest reviewed once -- worth revisiting if a cron
+  # job ever needs this, because approvals in an unattended run are refused
+  # rather than auto-granted and the job would simply never act.
+  permission_mode: standard
+
+  # The overlay cursor is a fullscreen always-on-top X window. Hermes
+  # already auto-disables it for headless Linux and containers, but the
+  # detection runs against the *host* environment, and the host is not
+  # where the X server is. Stated explicitly so the answer does not depend
+  # on a heuristic looking at the wrong machine.
+  no_overlay: true
+
+  # The desktop is 1920x1080 and the 4B that serves auxiliary.vision
+  # downscales to 1456 on its longest edge anyway. Matching it here means
+  # one resize instead of two and no tokens spent on detail that is
+  # discarded before the model sees it.
+  max_image_dimension: 1456
+
+  # Xvfb is X11, and the native-Wayland path is an opt-in that only
+  # applies when the driver process has WAYLAND_DISPLAY. Left false so a
+  # future desktop-environment change has to be a deliberate edit.
+  native_wayland: false
