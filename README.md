@@ -283,7 +283,7 @@ In order to backup my MacBook we use [this timemachine
 repo][ref-time-machine] on the home server. In order to get this
 started and in order to provide AWS S3 backup of the volume that
 contains the time machine data use the [docker
-compose](./time-machine/batesste-time-machine.yml) file.
+compose](./time-machine/batesste-time-machine.dc.yml) file.
 
 Place a ```.aws.creds.env``` file in the ```time-machine``` folder of
 the form:

@@ -31,3 +31,27 @@ policies:
         # unread -- which is the way this alert most plausibly ends up
         # as useless as the monitoring it replaces.
         repeat_interval: 4h
+
+      # Memory exhaustion, from the `memory` rule group. A backup is a
+      # daily event and can be batched; a node filling its swap has a
+      # deadline, and on snoc-beelink the measured distance from the
+      # first warning to an unrecoverable livelock was thirteen hours.
+      # Everything here is therefore tighter than the backup route.
+      - receiver: batesste-ntfy
+        object_matchers:
+          - ['service', '=', 'memory']
+        # Overrides the root group_by. Without server_name in the key,
+        # every node's memory alerts collapse into a single
+        # notification group -- so beelink filling its swap would be
+        # silently folded into an existing firing group for strix and
+        # never notified separately. The one label that must not be
+        # grouped away is the one naming the box to go and look at.
+        group_by:
+          - alertname
+          - server_name
+        group_wait: 30s
+        group_interval: 5m
+        # One hour, not four. These alerts are actionable for as long
+        # as the node is still answering SSH, and the window in which
+        # that is true is the window this interval has to fit inside.
+        repeat_interval: 1h
