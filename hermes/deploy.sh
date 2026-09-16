@@ -28,8 +28,9 @@ usage() {
 Usage: $(basename "$0") [--dry-run] [--skip-key] [--no-restart]
 
 Re-assert this repo's Hermes configuration on the local machine:
-model routing from models.yaml, the dashboard loopback drop-in,
-the Lemonade credential sync, and the health scripts.
+model routing from models.yaml, the MCP servers from mcp.yaml, the
+dashboard loopback drop-in, the credential sync, and the health
+scripts.
 
 Options:
   --dry-run     Show what would change without writing anything.
@@ -92,16 +93,17 @@ if $DROPIN_CHANGED; then
 fi
 
 # ~/.hermes/.env is the third copy of the Lemonade key, after snoc-strix and
-# ~/.secrets.env. Re-syncing it on every deploy is what keeps the three from
-# drifting apart the way they did in September 2026.
+# ~/.secrets.env, and the second copy of the GitHub PAT after the dotfiles.
+# Re-syncing on every deploy is what keeps them from drifting apart the way
+# the Lemonade key did in September 2026 and the PAT did silently before that.
 if $SKIP_KEY; then
     echo "==> Skipping credential sync (--skip-key)"
 else
-    echo "==> Syncing Lemonade credentials..."
+    echo "==> Syncing credentials from the dotfiles..."
     if $DRY_RUN; then
-        "${SCRIPT_DIR}/sync-lemonade-key.sh" --dry-run | sed 's/^/    /'
+        "${SCRIPT_DIR}/sync-secrets.sh" --dry-run | sed 's/^/    /'
     else
-        "${SCRIPT_DIR}/sync-lemonade-key.sh" | sed 's/^/    /'
+        "${SCRIPT_DIR}/sync-secrets.sh" | sed 's/^/    /'
     fi
 fi
 

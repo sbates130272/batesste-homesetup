@@ -12,8 +12,9 @@ of decisions that would otherwise be lost on the next update:
 | File | What it pins |
 | --- | --- |
 | [`models.yaml`](./models.yaml) | Which models serve which role, and why |
-| [`apply-model-config.py`](./apply-model-config.py) | Merges that into `~/.hermes/config.yaml` and any profiles |
-| [`sync-lemonade-key.sh`](./sync-lemonade-key.sh) | Projects `LEMONADE_API_KEY` from the dotfiles into `~/.hermes/.env` |
+| [`mcp.yaml`](./mcp.yaml) | The whole set of MCP servers, and their credential references |
+| [`apply-model-config.py`](./apply-model-config.py) | Merges those into `~/.hermes/config.yaml` and any profiles |
+| [`sync-secrets.sh`](./sync-secrets.sh) | Projects `LEMONADE_API_KEY` and the GitHub PAT from the dotfiles into `~/.hermes/.env` |
 | [`systemd/user/`](./systemd/user/) | The dashboard's loopback bind |
 | [`scripts/`](./scripts/) | The health checks the agent runs on a schedule |
 | [`deploy.sh`](./deploy.sh) | Re-asserts all of the above, idempotently |
@@ -24,7 +25,49 @@ of decisions that would otherwise be lost on the next update:
 ```
 
 Run it after `hermes update`, after a Lemonade key rotation, and after
-editing `models.yaml`.
+editing `models.yaml` or `mcp.yaml`.
+
+## MCP servers
+
+`mcp.yaml` is the source of truth for the entire `mcp_servers:` map, and
+`apply-model-config.py` **replaces** that key rather than merging into it.
+That asymmetry is deliberate: a merge can only ever add a server, which is
+why two servers that had never once started survived every apply until
+September 2026. Deleting a server here deletes it there.
+
+| Server | Transport | Tools |
+| --- | --- | --- |
+| `github` | GitHub's hosted endpoint over HTTPS | 8: search, file reads, issue and PR read/write |
+| `firefly` | local script, its own venv | 8: Firefly reads, Google Drive, Apple Calendar |
+
+Credentials are `${VAR}` references resolved from `~/.hermes/.env` at load
+time, never inline. An unset variable keeps the literal placeholder and
+fails as an auth error, which is louder than running unauthenticated.
+
+`firefly` runs out of its own venv under `~/.hermes/workspace/mcp/`, not
+the Hermes venv it used to share. A `hermes update` that moved `mcp` to
+2.0 broke it at import — sharing a venv with Hermes makes Hermes'
+dependency churn this server's problem. `create_calendar_event` is its
+only write, and it is refused without an explicit confirmation argument
+— the same rule the `apple-calendar` skill states, so it is guarded in
+two places.
+
+**Nothing here may depend on Node.** There is no Node on this box and no
+plan to add one. Both retired servers were `command: npx`, and Hermes
+parked them at every startup for months without ever failing loudly —
+`hermes mcp list` reported them `✓ enabled` throughout, because that
+column reflects the config, not a connection. `hermes mcp test <name>` is
+the one that actually connects.
+
+Note that testing from an interactive shell fails on TLS
+(`CERTIFICATE_VERIFY_FAILED`) for any non-tailnet endpoint, because
+ZScaler is exported there and intercepts. The systemd units start clean,
+so this is a terminal-only artifact — clear the proxy variables to
+reproduce what the gateway actually does:
+
+```bash
+HTTPS_PROXY= HTTP_PROXY= https_proxy= http_proxy= hermes mcp test github
+```
 
 ## Processes and ports
 
@@ -208,20 +251,29 @@ snoc-strix (lemond)  →  ~/.secrets.env (git-crypt, stow)  →  ~/.hermes/.env
      issuer                source of truth                    what Hermes reads
 ```
 
-`sync-lemonade-key.sh` copies **only** that one variable (plus the two
-STT variables derived from it and a `NO_PROXY` exemption) out of
-`~/.secrets.env`. The units deliberately do **not** get
+`sync-secrets.sh` copies **only** that variable (plus the two STT
+variables derived from it and a `NO_PROXY` exemption) and
+`GH_TOKEN_SBATES130272`, which lands as `GITHUB_PERSONAL_ACCESS_TOKEN`
+for the `github` MCP server. The units deliberately do **not** get
 `EnvironmentFile=-%h/.secrets.env`: that file holds seventeen
 credentials, and Hermes has a local shell tool.
 
-The script verifies the key against the server *before* writing it, and
-prints only a length and a SHA-256 prefix — never the key.
+Only the personal GitHub token is projected. `GH_TOKEN_STEBATES_AMDENG`
+is AMD's and stays out of the agent's reach — `sbates130272` is the only
+account Hermes should ever act as.
 
-> **Rotation runbook.** Rotate on `snoc-strix`, update `~/.secrets.env`,
-> commit the dotfiles, then run `./deploy.sh` here. Skipping the last
-> step is what caused a twelve-day outage in September 2026: every model
-> call returned `HTTP 401` and every scheduled job failed silently into
-> Telegram.
+The script verifies both credentials against their servers *before*
+writing either, and prints only a length and a SHA-256 prefix — never a
+key. A sync that faithfully copies a dead credential is worse than no
+sync, because it looks like it worked.
+
+> **Rotation runbook.** Rotate on `snoc-strix` (or on GitHub), update
+> `~/.secrets.env`, commit the dotfiles, then run `./deploy.sh` here.
+> Skipping the last step is what caused a twelve-day outage in September
+> 2026: every model call returned `HTTP 401` and every scheduled job
+> failed silently into Telegram. The GitHub PAT failed the same way and
+> was never noticed at all, because nothing on that path had a health
+> check — it was a hand-placed copy that had been revoked.
 
 ### The corporate proxy
 
@@ -288,12 +340,18 @@ hermes backup --output /var/tmp/hermes-pre-upgrade-$(date +%F).zip
   key-authenticated, but it is the same exposure shape as Appendix A and
   it is not behind `tailscale serve`. Fix is `API_SERVER_HOST=127.0.0.1`
   plus a serve entry — deferred because the LAN consumers are unknown.
-- **Secrets are inline in `config.yaml`.** The `github` and `firefly`
-  MCP server definitions carry a PAT and a JWT in plaintext. They should
-  move to `~/.hermes/.env` references.
-- **Two MCP servers cannot start.** `github` and `fetch` are declared
-  with `command: npx`, and there is no Node on this box; Hermes parks
-  them permanently at startup. Either install Node or drop the entries.
+- **The GitHub PAT is a classic token, not a fine-grained one.**
+  `GH_TOKEN_SBATES130272` carries `admin:org`, `delete_repo`, `workflow`
+  and more, and Hermes now holds it. `mcp.yaml` limits the *tools* to
+  eight, but the token itself would permit far more if reached another
+  way — and Hermes has a local shell tool. A fine-grained PAT scoped to
+  the reads and issue writes actually listed would be the tighter answer;
+  it expires 2027-09-02, which is the natural moment to swap it.
+- **No health check covers the MCP servers.** `service_health.sh` checks
+  units, containers and Lemonade, so all three MCP servers could sit
+  broken for months without anything saying so — and all three did.
+  `hermes mcp list` is no help: it reports the config, not a connection.
+  A `hermes mcp test` sweep belongs in the six-hourly check.
 - **TTS is not local.** Nothing on the Hermes side blocks it: Lemonade
   serves `POST /api/v1/audio/speech`, and Hermes' built-in `openai` TTS
   provider takes a configurable `tts.openai.base_url` on both the batch

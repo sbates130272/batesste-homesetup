@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Merge hermes/models.yaml into ~/.hermes/config.yaml.
+"""Merge this repo's Hermes config overlays into ~/.hermes/config.yaml.
+
+Two files, each owning one decision: models.yaml the model routing and
+mcp.yaml the MCP servers.
 
 The Hermes installer owns config.yaml: it rewrites it on every update and
 adds keys as the schema version moves. So this does not template the file,
@@ -11,8 +14,14 @@ Deletion is explicit. `model.base_url`, `model.api_key` and
 leaving a stale copy of a key or a URL behind is the failure this whole
 folder exists to prevent.
 
+`mcp_servers` is the one key that is replaced rather than merged, for the
+same reason stated the other way round: a merge can only ever add servers.
+Two dead `command: npx` entries survived months of applies because nothing
+in this repo was able to remove them. mcp.yaml names the whole set.
+
 Usage:
     ./apply-model-config.py [--dry-run] [--config PATH] [--models PATH]
+                            [--mcp PATH]
 """
 
 import argparse
@@ -41,6 +50,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 DEFAULT_CONFIG = pathlib.Path.home() / ".hermes" / "config.yaml"
 DEFAULT_PROFILES = pathlib.Path.home() / ".hermes" / "profiles"
 DEFAULT_MODELS = HERE / "models.yaml"
+DEFAULT_MCP = HERE / "mcp.yaml"
 
 
 def deep_merge(base, overlay):
@@ -74,7 +84,8 @@ def print_diff(before, after, label):
     # MCP server credentials inline, and they show up in these diffs as
     # soon as a neighbouring line changes.
     for line in diff:
-        if any(s in line.lower() for s in ("api_key:", "password", "token:", "secret")):
+        if any(s in line.lower() for s in ("api_key:", "password", "token:", "secret",
+                                           "authorization:", "bearer ")):
             line = line.split(":")[0] + ": <redacted>"
         print(line)
 
@@ -90,10 +101,21 @@ def write_yaml(path, data):
     return backup
 
 
-def apply_to(path, overlay, label, dry_run):
-    """Merge overlay into the YAML at path. Returns True if anything changed."""
+def apply_to(path, overlay, label, dry_run, replace_keys=()):
+    """Merge overlay into the YAML at path. Returns True if anything changed.
+
+    Keys named in replace_keys are emptied in the live config first, so the
+    overlay's version of them lands whole instead of being merged key-by-key.
+    That is what lets a server deleted from mcp.yaml actually disappear.
+    Emptied rather than popped: assigning to an existing key keeps its
+    position in the file, and a key that jumps to the end rewrites every
+    line after it in the diff this prints.
+    """
     config = yaml.safe_load(path.read_text()) or {}
     before = copy.deepcopy(config)
+    for key in replace_keys:
+        if key in overlay and isinstance(config.get(key), dict):
+            config[key] = {}
     deep_merge(config, overlay)
 
     # The named provider owns the endpoint and credentials now.
@@ -121,6 +143,8 @@ def main():
     parser.add_argument("--config", type=pathlib.Path, default=DEFAULT_CONFIG)
     parser.add_argument("--profiles", type=pathlib.Path, default=DEFAULT_PROFILES)
     parser.add_argument("--models", type=pathlib.Path, default=DEFAULT_MODELS)
+    parser.add_argument("--mcp", type=pathlib.Path, default=DEFAULT_MCP,
+                        help="MCP server definitions; skipped if the file is absent")
     args = parser.parse_args()
 
     if not args.config.exists():
@@ -129,7 +153,14 @@ def main():
     desired = strip_anchor_helpers(yaml.safe_load(args.models.read_text()) or {})
     profile_overrides = desired.pop("profile_overrides", {}) or {}
 
-    changed = apply_to(args.config, desired, "config.yaml", args.dry_run)
+    # Profiles never get this: PROFILE_SHARED_KEYS decides what is pushed
+    # down, and an MCP server started once per profile is a second process
+    # holding the same credential.
+    if args.mcp.exists():
+        desired["mcp_servers"] = yaml.safe_load(args.mcp.read_text()) or {}
+
+    changed = apply_to(args.config, desired, "config.yaml", args.dry_run,
+                       replace_keys=("mcp_servers",))
 
     for name, model in profile_overrides.items():
         path = args.profiles / name / "config.yaml"

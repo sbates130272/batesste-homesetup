@@ -27,7 +27,7 @@ INFERENCE_MAX_TIME="${INFERENCE_MAX_TIME:-180}"
 SSH_TIMEOUT=10
 
 # The tailnet must not go through the corporate proxy; see
-# sync-lemonade-key.sh. Appended rather than defaulted, because the
+# sync-secrets.sh. Appended rather than defaulted, because the
 # inherited NO_PROXY is usually already set to something short like
 # "localhost,127.0.0.1" -- a `${NO_PROXY:-...}` default would keep that
 # and every request would come back HTTP 000 through tinyproxy.
@@ -115,7 +115,7 @@ check_reachability() {
     # Naming the fix here because this is the failure that took the agent
     # down for twelve days: the key rotated and ~/.hermes/.env kept a copy.
     record "Reachability" "FAIL" \
-      "/v1/models returned HTTP $http_code -- run hermes/sync-lemonade-key.sh"
+      "/v1/models returned HTTP $http_code -- run hermes/sync-secrets.sh"
     return
   fi
   if [ "$http_code" != "200" ]; then

@@ -1,13 +1,21 @@
 #!/bin/bash
-# Project the Lemonade credentials from the stow-managed dotfiles into
+# Project the credentials Hermes needs from the stow-managed dotfiles into
 # ~/.hermes/.env.
 #
-# ~/.secrets.env is the source of truth for LEMONADE_API_KEY across the
-# fleet. Hermes cannot read it directly: custom_providers[].key_env only
-# names an environment variable, and pointing the units at ~/.secrets.env
-# wholesale would hand ANTHROPIC_API_KEY, the AWS pair, the GitHub tokens
-# and HF_TOKEN to an agent that has a local shell tool. So this copies
-# exactly the two variables Hermes needs and nothing else.
+# ~/.secrets.env is the source of truth for these across the fleet. Hermes
+# cannot read it directly: custom_providers[].key_env and the MCP config's
+# ${VAR} references only name environment variables, and pointing the units
+# at ~/.secrets.env wholesale would hand ANTHROPIC_API_KEY, the AWS pair,
+# the other GitHub tokens and HF_TOKEN to an agent that has a local shell
+# tool. So this copies exactly the variables Hermes needs and nothing else:
+#
+#   LEMONADE_API_KEY          -> inference, plus the two STT vars
+#   GH_TOKEN_SBATES130272     -> GITHUB_PERSONAL_ACCESS_TOKEN, for the
+#                                github MCP server
+#
+# Only the personal token is projected. GH_TOKEN_STEBATES_AMDENG is AMD's
+# and stays out of the agent's reach; sbates130272 is the account Hermes
+# should ever act as.
 #
 # The copy is what rotted in September 2026: the key was rotated on
 # snoc-strix and in the dotfiles, ~/.hermes/.env kept the old value, and
@@ -61,6 +69,28 @@ else
   echo "warning: could not reach $LEMONADE_URL -- syncing without verification" >&2
 fi
 
+# The github MCP server reads this via a ${GITHUB_PERSONAL_ACCESS_TOKEN}
+# reference in mcp.yaml. The copy that used to sit in ~/.hermes/.env was a
+# hand-placed classic PAT that had since been revoked, so the server
+# authenticated against nothing -- the same drift that killed the Lemonade
+# key, and invisible for the same reason. Projecting it from the dotfiles
+# is what stops it happening a third time.
+GH_TOKEN=$(read_var GH_TOKEN_SBATES130272)
+[ ${#GH_TOKEN} -ge 16 ] || die "GH_TOKEN_SBATES130272 looks too short (${#GH_TOKEN} chars)"
+
+echo "dotfiles GH_TOKEN_SBATES130272: ${#GH_TOKEN} chars, sha256:$(fingerprint "$GH_TOKEN")"
+
+if code=$(curl -sS -m 15 --noproxy '*' -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/user 2>/dev/null); then
+  case "$code" in
+    200) echo "github api.github.com/user: accepted (HTTP 200)" ;;
+    401|403) die "github rejected this token (HTTP $code) -- rotate the dotfiles copy first" ;;
+    *) echo "warning: github returned HTTP $code -- syncing anyway" >&2 ;;
+  esac
+else
+  echo "warning: could not reach api.github.com -- syncing without verification" >&2
+fi
+
 if [ "$DRY_RUN" = 1 ]; then
   echo "--dry-run: $HERMES_ENV not modified"
   exit 0
@@ -96,7 +126,9 @@ set_var VOICE_TOOLS_OPENAI_KEY "$KEY"
 set_var STT_OPENAI_BASE_URL "$LEMONADE_URL/api/v1"
 set_var NO_PROXY "$NOPROXY"
 set_var no_proxy "$NOPROXY"
+set_var GITHUB_PERSONAL_ACCESS_TOKEN "$GH_TOKEN"
 chmod 600 "$HERMES_ENV"
 
-echo "synced LEMONADE_API_KEY, VOICE_TOOLS_OPENAI_KEY, STT_OPENAI_BASE_URL, NO_PROXY -> $HERMES_ENV"
+echo "synced LEMONADE_API_KEY, VOICE_TOOLS_OPENAI_KEY, STT_OPENAI_BASE_URL, NO_PROXY," \
+     "GITHUB_PERSONAL_ACCESS_TOKEN -> $HERMES_ENV"
 echo "restart to pick it up: systemctl --user restart hermes-gateway hermes-dashboard"
