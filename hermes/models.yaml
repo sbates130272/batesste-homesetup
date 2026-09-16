@@ -1,0 +1,160 @@
+# Hermes model routing for the Lemonade server on snoc-strix.
+#
+# This file is the source of truth for every model decision in
+# ~/.hermes/config.yaml. Apply it with ./apply-model-config.py, which
+# merges these keys into the live config and leaves everything else
+# alone. The rest of config.yaml is machine-managed by the Hermes
+# installer and is deliberately not version-controlled here.
+#
+# Why these models: see README.md. The short version is that snoc-strix
+# holds three LLMs resident at once (lemonade max_loaded_models: 3), so
+# the whole routing table is built to name exactly three and never a
+# fourth -- a fourth evicts one of the others on every call.
+#
+# Keys are never stored here. custom_providers[].key_env names an
+# environment variable and sync-lemonade-key.sh fills it in.
+
+model:
+  # Fastest model measured on this box (74 tok/s) *and* the largest and
+  # newest. MTP speculative decoding is what makes that possible -- the
+  # same weights without it run 52 tok/s.
+  default: Qwen3.6-35B-A3B-MTP-GGUF
+  provider: custom:lemonade
+  # base_url, api_key and context_length are deliberately absent. The
+  # named provider below supplies the first two, and Lemonade reports
+  # the third on /v1/models, so hardcoding it here only creates a second
+  # value to keep in sync with the server's ctx_size.
+  supports_vision: true
+
+providers:
+  custom:lemonade:
+    # A cold model load is ~40s and a long agent turn can run minutes.
+    request_timeout_seconds: 600
+    stale_timeout_seconds: 600
+
+custom_providers:
+  - name: lemonade
+    base_url: https://snoc-strix.fold-leaffish.ts.net:13305/v1
+    key_env: LEMONADE_API_KEY
+    api_mode: chat_completions
+    model: Qwen3.6-35B-A3B-MTP-GGUF
+    # Only the models this deployment actually routes to. Lemonade
+    # serves 43; listing the other 40 here would just rot.
+    models:
+      Qwen3.6-35B-A3B-MTP-GGUF:
+        context_length: 65536
+        supports_vision: true
+      Qwen3-Coder-30B-A3B-Instruct-GGUF:
+        context_length: 65536
+      Qwen3.5-4B-MTP-GGUF:
+        context_length: 65536
+        supports_vision: true
+
+# Second slot. Different weights from the main model on purpose: a
+# fallback that shares a lineage with the thing it is covering for is
+# not much of a fallback.
+fallback_providers:
+  - provider: custom:lemonade
+    model: Qwen3-Coder-30B-A3B-Instruct-GGUF
+
+# Subagents get the coder. They do the file-editing and shell work, and
+# it measured 72 tok/s -- within noise of the main model.
+delegation:
+  provider: custom:lemonade
+  model: Qwen3-Coder-30B-A3B-Instruct-GGUF
+
+# Both keys name a profile, and a name that no longer exists fails soft
+# in two different ways: orchestrator_profile silently falls back to the
+# active profile, while default_assignee resolves to None and leaves
+# tasks unassigned -- and a task whose assignee is a missing profile is
+# dropped into skipped_nonspawnable with no error anywhere. Naming
+# `default` explicitly is what keeps that from being a silent failure.
+kanban:
+  orchestrator_profile: default
+  default_assignee: default
+
+# Third slot. Every short side-call -- titles, summaries, triage,
+# approvals -- goes to the 4B so it never queues behind a main-model
+# turn. It is vision-capable, which matters for the vision task below.
+#
+# The MTP variant is the same weights as Qwen3.5-4B-GGUF with
+# multi-token prediction: 85.5 tok/s against 56.9, tool-calling and
+# vision both verified.
+auxiliary:
+  _default: &aux
+    provider: custom:lemonade
+    model: Qwen3.5-4B-MTP-GGUF
+  # Qwen3.5 is a reasoning model and thinks before every answer,
+  # including "write a six-word title". Left on, title_generation spent
+  # 2.8s and hit the 300-token cap still thinking, returning an empty
+  # string; off, it answers in 0.27s and 7 tokens. Hermes forwards
+  # extra_body verbatim, and chat_template_kwargs is the form Lemonade's
+  # llama.cpp backend acts on -- the OpenAI-shaped reasoning_effort is
+  # accepted and ignored. Applied only to the tasks that are lookups or
+  # formatting; the ones below that exercise judgement keep thinking.
+  vision: {<<: *aux, timeout: 120, download_timeout: 30}
+  web_extract: {<<: *aux, timeout: 360}
+  compression: {<<: *aux, timeout: 120}
+  skills_hub:
+    <<: *aux
+    timeout: 30
+    extra_body: &nothink {chat_template_kwargs: {enable_thinking: false}}
+  approval: {<<: *aux, timeout: 30, extra_body: *nothink}
+  mcp: {<<: *aux, timeout: 30, extra_body: *nothink}
+  title_generation: {<<: *aux, timeout: 30, extra_body: *nothink}
+  tts_audio_tags: {<<: *aux, timeout: 30, extra_body: *nothink}
+  triage_specifier: {<<: *aux, timeout: 120}
+  kanban_decomposer: {<<: *aux, timeout: 180}
+  profile_describer: {<<: *aux, timeout: 60, extra_body: *nothink}
+  session_search: {<<: *aux, timeout: 30, extra_body: *nothink}
+  # The curator rewrites memory files and the monitor watches long runs.
+  # Both are judgement calls rather than lookups, so they get the main
+  # model despite being "auxiliary".
+  curator:
+    provider: custom:lemonade
+    model: Qwen3.6-35B-A3B-MTP-GGUF
+    timeout: 600
+  monitor:
+    provider: custom:lemonade
+    model: Qwen3.6-35B-A3B-MTP-GGUF
+    timeout: 60
+
+# Speech-to-text runs on the Strix GPU rather than the beelink CPU.
+# Lemonade counts transcription models in their own pool, so this costs
+# none of the three LLM slots. STT_OPENAI_BASE_URL and
+# VOICE_TOOLS_OPENAI_KEY are set by sync-lemonade-key.sh.
+stt:
+  enabled: true
+  provider: openai
+  openai:
+    model: Whisper-Large-v3-Turbo
+
+# Text-to-speech stays on Edge. Lemonade serves kokoro-v1 and it is the
+# obvious local answer, but as of 2026-09-15 loading it fails on
+# snoc-strix with "koko failed to start or become ready". Revisit when
+# that is fixed server-side; the change is tts.provider plus a base_url.
+tts:
+  provider: edge
+
+agent:
+  # Lemonade is configured with ctx_size 65536, so nothing served here
+  # can offer more. Asking for more makes Hermes reject the provider.
+  minimum_context_length: 32768
+
+# Profiles are separate agents with their own config.yaml under
+# ~/.hermes/profiles/<name>/, and they inherit nothing from the above --
+# so each one that exists has to be held to the same three models, or it
+# names a fourth and evicts a resident one on every invocation.
+#
+# There are none. assistant, finance, ops, orchestrator and research were
+# created in June 2026 and never used: zero sessions and zero messages in
+# every state.db, empty cron directories, and "memories" that were
+# byte-identical seed copies of the default template. They were deleted
+# on 2026-09-15, leaving `default` as the only agent.
+#
+# The machinery below is kept rather than deleted because it is what
+# stops a new profile from silently becoming a fourth model.
+# apply-model-config.py reads this key, applies it to each named profile,
+# and strips it before writing the main config; an empty map is a no-op
+# and a name with no config.yaml is skipped with a message.
+profile_overrides: {}
