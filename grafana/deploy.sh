@@ -105,12 +105,39 @@ while read -r p; do
     fi
 done <<<"${PROVIDER_PATHS}"
 
+# grafana-server.defaults is git-crypt encrypted (see ../.gitattributes)
+# because NTFY_TOPIC_URL is a bearer secret. On a clone without the key
+# -- CI, most obviously -- it is an opaque blob beginning with the
+# git-crypt magic rather than text. Detect that explicitly: otherwise
+# the NTFY_TOPIC_URL grep below searches ciphertext, finds nothing, and
+# reports the setting as missing, which is a misleading way to say "you
+# have no key" -- and a real deploy would install the ciphertext as
+# Grafana's environment file, leaving the contact point resolving to
+# nothing.
+DEFAULTS_ENCRYPTED=false
+if head -c 9 "${SCRIPT_DIR}/grafana-server.defaults" 2>/dev/null \
+        | grep -qa GITCRYPT; then
+    DEFAULTS_ENCRYPTED=true
+fi
+
 echo "==> Deploying grafana-server defaults..."
-run sudo cp \
-    "${SCRIPT_DIR}/grafana-server.defaults" \
-    /etc/default/grafana-server
-run sudo chown root:root /etc/default/grafana-server
-run sudo chmod 644 /etc/default/grafana-server
+if $DEFAULTS_ENCRYPTED; then
+    # Tolerated under --dry-run so CI can still validate the rest of
+    # the script; never tolerated for a real deploy.
+    if $DRY_RUN; then
+        echo "    SKIPPED: git-crypt encrypted, no key in this clone."
+    else
+        echo "    ERROR: grafana-server.defaults is git-crypt encrypted." >&2
+        echo "           Run 'git crypt unlock' before deploying." >&2
+        exit 1
+    fi
+else
+    run sudo cp \
+        "${SCRIPT_DIR}/grafana-server.defaults" \
+        /etc/default/grafana-server
+    run sudo chown root:root /etc/default/grafana-server
+    run sudo chmod 644 /etc/default/grafana-server
+fi
 
 echo "==> Deploying datasource provisioning..."
 run sudo cp \
@@ -147,13 +174,15 @@ done
 # point that resolves to no URL and drops every notification silently
 # -- the same class of quiet failure the backup alerts exist to catch,
 # and it would take out the alerting instead of the backup.
-if ! grep -q '^NTFY_TOPIC_URL=' "${SCRIPT_DIR}/grafana-server.defaults"; then
-    echo "    ERROR: NTFY_TOPIC_URL is not set in grafana-server.defaults." >&2
-    exit 1
-fi
-if grep -q '^NTFY_TOPIC_URL=thishastochange$' "${SCRIPT_DIR}/grafana-server.defaults"; then
-    echo "    WARNING: NTFY_TOPIC_URL is still the placeholder; alerts" >&2
-    echo "             will be delivered nowhere. Set a real topic URL." >&2
+if ! $DEFAULTS_ENCRYPTED; then
+    if ! grep -q '^NTFY_TOPIC_URL=' "${SCRIPT_DIR}/grafana-server.defaults"; then
+        echo "    ERROR: NTFY_TOPIC_URL is not set in grafana-server.defaults." >&2
+        exit 1
+    fi
+    if grep -q '^NTFY_TOPIC_URL=thishastochange$' "${SCRIPT_DIR}/grafana-server.defaults"; then
+        echo "    WARNING: NTFY_TOPIC_URL is still the placeholder; alerts" >&2
+        echo "             will be delivered nowhere. Set a real topic URL." >&2
+    fi
 fi
 
 echo "==> Deploying dashboard JSON files..."

@@ -23,9 +23,10 @@
         "status": "active"
     },
     "snoc_pinewood_plug_e": {
-        "name": "Playstation",
-        "location": "Living Room",
-        "status": "unused"
+        "name": "snoc-beelink",
+        "location": "Entryway Closet",
+        "computer": "snoc-beelink",
+        "status": "active"
     },
     "snoc_pinewood_plug_f": {
         "name": "Master Bedroom - Stevie",

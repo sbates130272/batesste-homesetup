@@ -1,0 +1,81 @@
+#
+# batesste-cua-driver.dc.yml
+#
+# The GUI sandbox Hermes drives. Built locally rather than pulled: there is
+# no published image that pairs a Debian desktop with a pinned cua-driver.
+#
+#   docker compose -f batesste-cua-driver.dc.yml up -d --build
+#
+# Nothing here is reachable from the network except noVNC on loopback, and
+# that is deliberate -- see the nginx README for what a wildcard bind on
+# this machine costs. To watch the agent work from another machine:
+#
+#   tailscale serve --bg --https 6080 http://127.0.0.1:6080
+#
+
+services:
+
+  cua-driver:
+    build:
+      context: .
+      args:
+        # Pinned. Hermes requires the 0.20 runtime contract or newer and
+        # warns when the driver is older than the version it was tested
+        # against, so this moves on purpose, not on rebuild.
+        CUA_DRIVER_VERSION: "0.28.2"
+    image: batesste-cua-driver:0.28.2
+    hostname: batesste-cua-driver
+    container_name: batesste-cua-driver
+    restart: unless-stopped
+
+    # snoc-beelink has 8 GB and roughly 2 GB of it free with Hermes, the
+    # Firefly stack and the exporters resident. A browser with no ceiling
+    # is the one thing here that can take the host down with it, so it gets
+    # one -- the container dies instead of the OOM killer choosing.
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 2.0
+
+    # /dev/shm defaults to 64 MB, which Firefox exhausts on the first
+    # content-heavy tab and reports as a renderer crash.
+    shm_size: 512m
+
+    # x11vnc, the AT-SPI bus and Firefox all fork enough that the default
+    # pid ceiling is worth raising, and Firefox's sandbox wants a larger
+    # file limit than the daemon default.
+    pids_limit: 512
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 8192
+
+    environment:
+      CUA_SCREEN: 1920x1080x24
+      # View-only: this is a window onto what the agent is doing. Set to 0
+      # when you want to take the keyboard back from it.
+      CUA_VNC: "1"
+      CUA_VNC_VIEW_ONLY: "1"
+
+    ports:
+      - "127.0.0.1:6080:6080"
+
+    volumes:
+      # The browser profile survives a rebuild, so a site the agent is
+      # meant to work with stays logged in. It is also the one thing in
+      # here worth treating as sensitive -- session cookies for whatever
+      # you sign into on this desktop.
+      - batesste-cua-home:/home/agent
+
+    healthcheck:
+      # `status` answers over the daemon socket, so it fails whenever the
+      # driver is gone even if Xvfb is still up -- which is the state that
+      # actually breaks Hermes.
+      test: ["CMD", "cua-driver", "status"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  batesste-cua-home:
+    name: batesste-cua-home

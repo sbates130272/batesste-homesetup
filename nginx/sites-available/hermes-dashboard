@@ -14,8 +14,10 @@
 # deliberate trade: the guard defends against a malicious website
 # rebinding DNS in a victim's browser, whereas everything reaching this
 # listener has already passed Tailscale's TLS and tailnet ACLs. The
-# dashboard runs with no auth provider, so tailnet membership is the
-# only thing gating it -- do not expose this vhost beyond loopback.
+# dashboard's own dashboard.basic_auth login still applies behind this
+# (GET / returns 302 to the login page), so tailnet membership is the
+# outer gate, not the only one -- but do not expose this vhost beyond
+# loopback regardless.
 #
 # tailscale serve points at 9120, not 9119:
 #   tailscale serve --bg --https 9119 http://127.0.0.1:9120
