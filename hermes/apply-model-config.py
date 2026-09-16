@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Merge this repo's Hermes config overlays into ~/.hermes/config.yaml.
 
-Two files, each owning one decision: models.yaml the model routing and
-mcp.yaml the MCP servers.
+Three files, each owning one decision: models.yaml the model routing,
+mcp.yaml the MCP servers, cua/hermes-config.yaml the computer-use toolset.
 
 The Hermes installer owns config.yaml: it rewrites it on every update and
 adds keys as the schema version moves. So this does not template the file,
@@ -21,7 +21,7 @@ in this repo was able to remove them. mcp.yaml names the whole set.
 
 Usage:
     ./apply-model-config.py [--dry-run] [--config PATH] [--models PATH]
-                            [--mcp PATH]
+                            [--mcp PATH] [--computer-use PATH]
 """
 
 import argparse
@@ -51,6 +51,7 @@ DEFAULT_CONFIG = pathlib.Path.home() / ".hermes" / "config.yaml"
 DEFAULT_PROFILES = pathlib.Path.home() / ".hermes" / "profiles"
 DEFAULT_MODELS = HERE / "models.yaml"
 DEFAULT_MCP = HERE / "mcp.yaml"
+DEFAULT_COMPUTER_USE = HERE / "cua" / "hermes-config.yaml"
 
 
 def deep_merge(base, overlay):
@@ -145,6 +146,8 @@ def main():
     parser.add_argument("--models", type=pathlib.Path, default=DEFAULT_MODELS)
     parser.add_argument("--mcp", type=pathlib.Path, default=DEFAULT_MCP,
                         help="MCP server definitions; skipped if the file is absent")
+    parser.add_argument("--computer-use", type=pathlib.Path, default=DEFAULT_COMPUTER_USE,
+                        help="computer-use toolset settings; skipped if the file is absent")
     args = parser.parse_args()
 
     if not args.config.exists():
@@ -158,6 +161,14 @@ def main():
     # holding the same credential.
     if args.mcp.exists():
         desired["mcp_servers"] = yaml.safe_load(args.mcp.read_text()) or {}
+
+    # Merged, not replaced: unlike mcp_servers there is no set to prune
+    # here, and `toolsets` is a list, which deep_merge replaces anyway.
+    # Also not pushed down to profiles -- the driver is one container with
+    # one desktop, and a second profile driving it would be two agents
+    # fighting over the same mouse.
+    if args.computer_use.exists():
+        deep_merge(desired, yaml.safe_load(args.computer_use.read_text()) or {})
 
     changed = apply_to(args.config, desired, "config.yaml", args.dry_run,
                        replace_keys=("mcp_servers",))

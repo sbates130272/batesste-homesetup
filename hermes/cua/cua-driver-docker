@@ -1,0 +1,73 @@
+#!/bin/bash
+# Host-side stand-in for the cua-driver binary, forwarding every invocation
+# into the desktop container.
+#
+# Hermes' computer_use toolset spawns `cua-driver mcp` as a stdio child and
+# talks MCP down the pipe. It has no notion of a remote driver -- but it
+# does not care what the process on the other end of that pipe is, so a
+# `docker exec -i` with stdin and stdout attached is a complete
+# substitution. The short probe verbs Hermes also runs (manifest, --help,
+# check-update, doctor) come through here unchanged.
+#
+# Point Hermes at this file with HERMES_CUA_DRIVER_CMD in ~/.hermes/.env.
+#
+# No TTY is allocated on purpose. `docker exec -t` would put the pty in
+# line-discipline mode and corrupt the MCP framing with \r.
+
+set -euo pipefail
+
+CONTAINER="${CUA_CONTAINER:-batesste-cua-driver}"
+SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+if ! docker inspect -f '{{.State.Running}}' "${CONTAINER}" 2>/dev/null | grep -q true; then
+    cat >&2 <<EOF
+cua-driver: container '${CONTAINER}' is not running.
+
+    cd ~/Projects/batesste-homesetup/hermes/cua
+    docker compose -f batesste-cua-driver.dc.yml up -d
+
+EOF
+    exit 2
+fi
+
+# CUA_DRIVER_RS_TELEMETRY_ENABLED is the one variable worth forwarding:
+# Hermes sets it in the child environment on every spawn to hold upstream's
+# telemetry off, and `docker exec` drops the parent environment. The image
+# also sets it, so this only matters if someone opts back in.
+EXEC=(docker exec -i
+      -e "CUA_DRIVER_RS_TELEMETRY_ENABLED=${CUA_DRIVER_RS_TELEMETRY_ENABLED:-0}"
+      "${CONTAINER}" cua-driver)
+
+# `cua-driver manifest` is the one verb whose answer is wrong on this side
+# of the boundary. Hermes asks the driver where its MCP server lives and
+# then spawns mcp_invocation.command in preference to the command it was
+# configured with (cua_backend_driver.py:_resolve_mcp_invocation) -- which
+# would have it spawn a container path that does not exist on the host.
+# Rewriting the one field keeps that indirection working and keeps this
+# shim the only thing Hermes ever executes. Everything else in the payload
+# -- the version, the subcommand/flag surface Hermes gates the 0.20 runtime
+# contract on -- is the container's own answer, passed through untouched.
+if [[ "${1:-}" == "manifest" ]]; then
+    set +e
+    manifest="$("${EXEC[@]}" "$@")"
+    status=$?
+    set -e
+    [[ ${status} -eq 0 ]] || { printf '%s' "${manifest}"; exit "${status}"; }
+    printf '%s' "${manifest}" | python3 -c '
+import json, sys
+raw = sys.stdin.read()
+try:
+    data = json.loads(raw)
+    data["mcp_invocation"]["command"] = sys.argv[1]
+except Exception:
+    # Not the JSON we expected (--pretty is still JSON, but a future
+    # driver may answer differently). Passing it through unchanged lets
+    # Hermes apply its own fallback instead of seeing a broken pipe.
+    sys.stdout.write(raw)
+else:
+    json.dump(data, sys.stdout)
+' "${SELF}"
+    exit 0
+fi
+
+exec "${EXEC[@]}" "$@"

@@ -54,6 +54,25 @@ check_user_systemd() {
   fi
 }
 
+# The computer-use sandbox. `docker ps` says Up as soon as the entrypoint
+# runs, which is several seconds before Xvfb, the session bus and the
+# AT-SPI bus are all up -- and a container that is Up with a dead driver is
+# exactly what an agent trying to click something hits. The driver's own
+# status answers over its socket, so it is the check that distinguishes
+# them. Absent by design on a box without the container.
+check_cua_driver() {
+  local shim="${CUA_SHIM:-$HOME/.local/bin/cua-driver-docker}"
+  if [ ! -x "$shim" ]; then
+    echo "[INFO] cua-driver shim not installed -- computer use not deployed here"
+    return 0
+  fi
+  if "$shim" status >/dev/null 2>&1; then
+    echo "[PASS] cua-driver daemon is answering"
+  else
+    fail "cua-driver not answering (docker logs batesste-cua-driver)"
+  fi
+}
+
 check_disk() {
   local pct
   pct=$(df --output=pcent / | tail -1 | tr -d ' %')
@@ -86,6 +105,7 @@ check_systemd "homebridge"
 check_user_systemd "hermes-gateway"
 check_user_systemd "hermes-dashboard"
 
+check_cua_driver
 check_disk
 check_lemonade
 

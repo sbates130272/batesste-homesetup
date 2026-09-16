@@ -235,6 +235,12 @@ When they drifted, every model call returned `HTTP 401` and every
 scheduled job failed quietly into Telegram for twelve days; the sync
 script and the health check both exist to make that loud.
 
+The agent can also drive a GUI. The server is headless, so
+[hermes/cua](./hermes/cua) gives it a desktop in a container — an X
+server, a browser and an accessibility bus, with Hermes reaching the
+driver through `docker exec` rather than over any network. Watch it work
+at `http://127.0.0.1:6080/vnc.html`, view-only by default.
+
 See [the README.md](./hermes/README.md) for the model evidence, the
 rotation runbook, and the two historical fixes — the dashboard port
 collision and the duplicate system unit that had restarted 140,989

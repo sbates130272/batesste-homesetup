@@ -15,6 +15,7 @@ of decisions that would otherwise be lost on the next update:
 | [`mcp.yaml`](./mcp.yaml) | The whole set of MCP servers, and their credential references |
 | [`apply-model-config.py`](./apply-model-config.py) | Merges those into `~/.hermes/config.yaml` and any profiles |
 | [`sync-secrets.sh`](./sync-secrets.sh) | Projects `LEMONADE_API_KEY` and the GitHub PAT from the dotfiles into `~/.hermes/.env` |
+| [`cua/`](./cua/) | The containerised desktop the agent drives, and its config block |
 | [`systemd/user/`](./systemd/user/) | The dashboard's loopback bind |
 | [`scripts/`](./scripts/) | The health checks the agent runs on a schedule |
 | [`deploy.sh`](./deploy.sh) | Re-asserts all of the above, idempotently |
@@ -80,6 +81,7 @@ status` sweep and need `--user` on every command.
 | `hermes-gateway.service` | user | `0.0.0.0:8642` | LAN, bearer key |
 | `hermes-dashboard.service` | user | `127.0.0.1:9119` | `tailscale serve :9119` → nginx `:9120` |
 | `hermes-webui.service` | system | `127.0.0.1:8787` | nginx `/hermes`, basic auth |
+| `batesste-cua-driver` (container) | docker | `127.0.0.1:6080` | noVNC, view-only; the driver itself is `docker exec` only |
 
 The gateway unit does the messaging-platform work (Telegram is the only
 platform configured) and also hosts Hermes's own OpenAI-compatible API
@@ -292,9 +294,9 @@ the list of models it expects out of `~/.hermes/config.yaml` rather than
 carrying its own copy, so it cannot drift from the routing table.
 
 [`scripts/service_health.sh`](./scripts/service_health.sh) wraps that
-with the containers, the system units, and the Hermes user units. It
-treats a high restart count as a failure, because a restart-looping unit
-reports `active` on every sample (Appendix B).
+with the containers, the system units, the Hermes user units, and the
+computer-use driver. It treats a high restart count as a failure, because
+a restart-looping unit reports `active` on every sample (Appendix B).
 
 ```bash
 ./scripts/service_health.sh        # prints HEARTBEAT_OK on success
@@ -306,6 +308,27 @@ hermes -z 'Reply with exactly: ROUTING OK'   # end-to-end, one turn
 
 `deploy.sh` installs both scripts into `~/.hermes/workspace/scripts/`,
 where the agent and its cron jobs call them by absolute path.
+
+## Computer use
+
+Hermes' built-in `computer_use` toolset drives a real GUI — screenshots,
+mouse, keyboard, and an accessibility tree it can read elements out of.
+This box is headless, so [`cua/`](./cua/) supplies the desktop as a
+container and a host shim carries MCP stdio into it with `docker exec`.
+No agent-side code was needed; the toolset already speaks to `cua-driver`.
+
+```bash
+hermes computer-use doctor                  # both capabilities must say ok
+hermes -t computer_use -z 'Take a screenshot and tell me what you see'
+http://127.0.0.1:6080/vnc.html              # watch it, view-only
+```
+
+Actions are approved individually (`permission_mode: standard`), and
+unattended contexts refuse them outright rather than auto-approving — a
+computer-use cron job will not work without a deliberate change. See
+[`cua/README.md`](./cua/README.md) for the transport, the manifest
+rewrite, and the accessibility-bus failure mode that looks like a
+merely-incompetent agent.
 
 ## Scheduled jobs
 

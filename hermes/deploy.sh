@@ -25,17 +25,18 @@ UNITS=(hermes-gateway hermes-dashboard)
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--dry-run] [--skip-key] [--no-restart]
+Usage: $(basename "$0") [--dry-run] [--skip-key] [--skip-cua] [--no-restart]
 
 Re-assert this repo's Hermes configuration on the local machine:
 model routing from models.yaml, the MCP servers from mcp.yaml, the
-dashboard loopback drop-in, the credential sync, and the health
-scripts.
+dashboard loopback drop-in, the credential sync, the computer-use
+sandbox, and the health scripts.
 
 Options:
   --dry-run     Show what would change without writing anything.
   --skip-key    Do not touch ~/.hermes/.env. Use when the dotfiles
                 git-crypt is locked and the existing key still works.
+  --skip-cua    Do not touch the computer-use container or its shim.
   --no-restart  Leave the units running the old config.
   -h, --help    Show this help message.
 EOF
@@ -44,12 +45,14 @@ EOF
 
 DRY_RUN=false
 SKIP_KEY=false
+SKIP_CUA=false
 RESTART=true
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run)    DRY_RUN=true;  shift ;;
         --skip-key)   SKIP_KEY=true; shift ;;
+        --skip-cua)   SKIP_CUA=true; shift ;;
         --no-restart) RESTART=false; shift ;;
         -h|--help)    usage ;;
         *) echo "Error: unknown option '$1'" >&2; usage ;;
@@ -112,6 +115,23 @@ if $DRY_RUN; then
     "${SCRIPT_DIR}/apply-model-config.py" --dry-run | sed 's/^/    /'
 else
     "${SCRIPT_DIR}/apply-model-config.py" | sed 's/^/    /'
+fi
+
+# The config half of computer use rides along with apply-model-config.py
+# above; this is the container, the host shim and HERMES_CUA_DRIVER_CMD.
+# Skipped without docker rather than failed: this script is the one that
+# brings Hermes up on a new box, and the desktop sandbox is optional there.
+if $SKIP_CUA; then
+    echo "==> Skipping computer-use sandbox (--skip-cua)"
+elif ! command -v docker >/dev/null; then
+    echo "==> Skipping computer-use sandbox (docker not installed)"
+else
+    echo "==> Deploying the computer-use sandbox..."
+    if $DRY_RUN; then
+        "${SCRIPT_DIR}/cua/deploy.sh" --dry-run | sed 's/^/    /'
+    else
+        "${SCRIPT_DIR}/cua/deploy.sh" | sed 's/^/    /'
+    fi
 fi
 
 # The agent calls these by absolute path from cron jobs and from chat, so
