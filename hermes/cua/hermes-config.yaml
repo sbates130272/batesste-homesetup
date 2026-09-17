@@ -17,12 +17,36 @@ toolsets:
   - computer_use
 
 computer_use:
-  # standard: cua-driver keeps its own protected boundary and Hermes gates
-  # every click, keystroke and drag through the same approval path as a
-  # dangerous shell command. bounded would trade those per-action prompts
-  # for a capability manifest reviewed once -- worth revisiting if a cron
-  # job ever needs this, because approvals in an unattended run are refused
-  # rather than auto-granted and the job would simply never act.
+  # standard, and it has to be.
+  #
+  # First, the thing this is NOT. The per-action approval prompts are
+  # Hermes', not the driver's: handle_computer_use calls _request_approval
+  # before it constructs a backend at all, so permission_mode is never
+  # consulted and cannot quiet them. An earlier version of this comment
+  # claimed otherwise and was simply wrong. approvals.yaml is what silences
+  # them, by naming each `cua:<action>:<mode>` scope in command_allowlist.
+  #
+  # bounded was then tried as the compensating ceiling -- deny-by-default
+  # enforcement inside the driver, to replace a prompt nobody reads at the
+  # fortieth click. It does not work here, for a structural reason rather
+  # than a fixable one. Any permission_mode other than standard makes Hermes
+  # take the _EmbeddedCuaDaemon path, which spawns
+  #
+  #     cua-driver serve --embedded --socket /tmp/hc-<token>.sock
+  #
+  # and then connects to that socket itself. The driver on this box is a
+  # `docker exec` into batesste-cua-driver, so the socket is created in the
+  # container's filesystem and the host connects to a path that does not
+  # exist. Same for --capability-manifest: cua_backend_daemon.py checks
+  # os.path.isfile() on the host and hands the identical string to a process
+  # that resolves it in the container. Both would need host paths bind-
+  # mounted into the sandbox, and a sandbox that can write the host's /tmp
+  # is most of the way to not being a sandbox.
+  #
+  # The ceiling that remains is the container itself: no host filesystem, no
+  # network reachable but loopback noVNC, memory and pid limits. See
+  # capability-manifest.yaml, which is kept and installed for the day the
+  # driver runs on the host.
   permission_mode: standard
 
   # The overlay cursor is a fullscreen always-on-top X window. Hermes

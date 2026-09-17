@@ -13,10 +13,12 @@ of decisions that would otherwise be lost on the next update:
 | --- | --- |
 | [`models.yaml`](./models.yaml) | Which models serve which role, and why |
 | [`mcp.yaml`](./mcp.yaml) | The whole set of MCP servers, and their credential references |
+| [`approvals.yaml`](./approvals.yaml) | The whole permanent approval allowlist |
 | [`apply-model-config.py`](./apply-model-config.py) | Merges those into `~/.hermes/config.yaml` and any profiles |
 | [`sync-secrets.sh`](./sync-secrets.sh) | Projects `LEMONADE_API_KEY` and the GitHub PAT from the dotfiles into `~/.hermes/.env` |
 | [`cua/`](./cua/) | The containerised desktop the agent drives, and its config block |
-| [`systemd/user/`](./systemd/user/) | The dashboard's loopback bind |
+| [`webui/`](./webui/) | The one local patch `~/Projects/hermes-webui` carries |
+| [`systemd/user/`](./systemd/user/) | The dashboard's loopback bind, and the WebUI unit |
 | [`scripts/`](./scripts/) | The health checks the agent runs on a schedule |
 | [`deploy.sh`](./deploy.sh) | Re-asserts all of the above, idempotently |
 
@@ -70,6 +72,29 @@ reproduce what the gateway actually does:
 HTTPS_PROXY= HTTP_PROXY= https_proxy= http_proxy= hermes mcp test github
 ```
 
+## Approvals
+
+`approvals.yaml` owns `command_allowlist` the same way `mcp.yaml` owns
+`mcp_servers` — it is a list, `deep_merge` replaces lists, so the file is
+the whole key and deleting an entry here deletes it there.
+
+**An "always" answered at a prompt is now temporary.** It writes the key
+into `~/.hermes/config.yaml`, and the next `./deploy.sh` overwrites it.
+Add it here as well, or it goes away.
+
+That asymmetry is deliberate and it is the same lesson as the two dead
+`npx` MCP servers: `command_allowlist` lives in a file `hermes update`
+rewrites, so a grant that only lives there is a grant with an expiry date
+nobody wrote down. `cua:click:background` was already in exactly that
+state when this file was written.
+
+The bulk of the list is the `computer_use` desktop actions. Hermes gates
+every click, keystroke and drag through the same approval path as a
+dangerous shell command, and — contrary to what this repo claimed until
+September 2026 — cua-driver's `permission_mode` has nothing to do with
+it. See [`cua/README.md`](./cua/README.md#permissions) for the two gates
+and which one does what.
+
 ## Processes and ports
 
 Hermes runs as **user** units under a lingering session (`Linger=yes` for
@@ -80,7 +105,7 @@ status` sweep and need `--user` on every command.
 | --- | --- | --- | --- |
 | `hermes-gateway.service` | user | `0.0.0.0:8642` | LAN, bearer key |
 | `hermes-dashboard.service` | user | `127.0.0.1:9119` | `tailscale serve :9119` → nginx `:9120` |
-| `hermes-webui.service` | system | `127.0.0.1:8787` | nginx `/hermes`, basic auth |
+| `hermes-webui.service` | user | `127.0.0.1:8787` | nginx `/hermes`, basic auth |
 | `batesste-cua-driver` (container) | docker | `127.0.0.1:6080` | noVNC, view-only; the driver itself is `docker exec` only |
 
 The gateway unit does the messaging-platform work (Telegram is the only
@@ -88,7 +113,19 @@ platform configured) and also hosts Hermes's own OpenAI-compatible API
 server on 8642, enabled by `API_SERVER_*` in `~/.hermes/.env`.
 
 `hermes-webui` is a **separate project** (`~/Projects/hermes-webui`), not
-part of the agent. It happens to run out of the Hermes venv.
+part of the agent. It happens to run out of the Hermes venv. Its unit is
+the one in [`systemd/user/`](./systemd/user/) that is a whole unit rather
+than a drop-in, because nothing else generates it — it used to be a
+hand-written system unit tracked nowhere, and had already drifted from the
+stray copy in the project checkout.
+
+It is user-scoped for two reasons that are not tidiness: only a user unit
+can reach the login session's gpg-agent, which it needs to sign the commits
+Hermex makes into the workspace; and only a user unit reads
+`~/.config/environment.d/`, which is where its environment lives. That file
+belongs to the `systemd` package in the dotfiles, not to this repo — see
+[`webui/`](./webui/) for the whole picture, including the one local patch
+that checkout carries.
 
 The dashboard's path through nginx is not incidental — see
 [Appendix: why nginx is in the path](#appendix-a--the-dashboard-and-port-9119).

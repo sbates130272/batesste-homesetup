@@ -19,6 +19,8 @@ CONTAINER="${CUA_CONTAINER:-batesste-cua-driver}"
 SHIM_SRC="${SCRIPT_DIR}/cua-driver-docker"
 SHIM_DST="${SHIM_DST:-$HOME/.local/bin/cua-driver-docker}"
 HERMES_ENV="${HERMES_ENV:-$HOME/.hermes/.env}"
+MANIFEST_SRC="${SCRIPT_DIR}/capability-manifest.yaml"
+MANIFEST_DST="${MANIFEST_DST:-$HOME/.hermes/cua-capability-manifest.yaml}"
 
 usage() {
     cat <<EOF
@@ -63,6 +65,18 @@ else
     echo "    ${SHIM_DST}"
     run mkdir -p "$(dirname "${SHIM_DST}")"
     run install -m 0755 "${SHIM_SRC}" "${SHIM_DST}"
+fi
+
+# Installed even though permission_mode is `standard` and nothing reads it
+# today -- see the header of capability-manifest.yaml. Keeping the install
+# here means the file is already in place, already correct, on the day the
+# driver moves off `docker exec` and the mode can be flipped.
+echo "==> Installing the capability manifest..."
+if cmp -s "${MANIFEST_SRC}" "${MANIFEST_DST}"; then
+    echo "    $(basename "${MANIFEST_DST}") (unchanged)"
+else
+    echo "    ${MANIFEST_DST}"
+    run install -m 0644 "${MANIFEST_SRC}" "${MANIFEST_DST}"
 fi
 
 # Hermes resolves the driver from the environment, never from config.yaml,

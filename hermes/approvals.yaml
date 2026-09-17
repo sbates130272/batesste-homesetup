@@ -1,0 +1,73 @@
+# The permanent approval allowlist, in full.
+#
+# Apply it with ./apply-model-config.py. `command_allowlist` is a list, and
+# deep_merge replaces lists, so this file owns the whole key the same way
+# mcp.yaml owns mcp_servers: an entry deleted here is deleted there on the
+# next apply. That asymmetry is the point. Answering "always" to a prompt
+# writes the key into ~/.hermes/config.yaml, which `hermes update` rewrites
+# -- so a grant that only lives there is a grant with an expiry date nobody
+# wrote down. `cua:click:background` was already in exactly that state.
+#
+# The corollary: an "always" answered interactively from now on is reverted
+# by the next ./deploy.sh unless it is also added here.
+#
+# These are approval *scope keys*, not command text. Matching is exact --
+# _approval_key_aliases() does no globbing, so there is no `cua:*` shorthand
+# and every key has to be spelled out.
+
+command_allowlist:
+  # ---- Terminal and tool scopes, carried over from the live config ----
+  - execute_code
+  - overwrite system config
+  - overwrite system file via tee
+  - stop/restart system service
+  - sudo with privilege flag (stdin/askpass/shell/list)
+  - tirith:raw_ip_url
+
+  # ---- computer_use ----
+  #
+  # Hermes gates every action its _ACTIONS table marks `destructive` through
+  # the same approval path as a dangerous shell command, in
+  # tools/computer_use/tool.py:_request_approval. That gate is entirely
+  # separate from cua-driver's permission_mode: it runs before the backend is
+  # even constructed, so `bounded` does not quiet it and never did. A
+  # permanent allowlist entry is one of only three things that does (the
+  # others being session --yolo and approvals.mode: off, both too broad).
+  #
+  # The action names below are Hermes' own -- `type` and `key`, not the
+  # driver's `type_text` and `press_key`. The `:background` / `:foreground`
+  # suffix is the delivery mode; foreground briefly raises the window and
+  # changes focus, which is why Hermes scopes it separately. Both are listed
+  # here because the only desktop these reach is the one inside the
+  # batesste-cua-driver container, where "steals focus" has no one to steal
+  # it from.
+  #
+  # The ceiling that replaces these prompts is the container: no host
+  # filesystem, no reachable network but loopback noVNC, and hard memory and
+  # pid limits. cua/capability-manifest.yaml would be a second, narrower one,
+  # but it cannot be enforced while the driver runs over `docker exec` --
+  # cua/README.md#permissions has the reason.
+  - cua:click:background
+  - cua:click:foreground
+  - cua:double_click:background
+  - cua:double_click:foreground
+  - cua:right_click:background
+  - cua:right_click:foreground
+  - cua:middle_click:background
+  - cua:middle_click:foreground
+  - cua:drag:background
+  - cua:drag:foreground
+  - cua:scroll:background
+  - cua:scroll:foreground
+  - cua:type:background
+  - cua:type:foreground
+  - cua:key:background
+  - cua:key:foreground
+  - cua:set_value:background
+  - cua:set_value:foreground
+  - cua:focus_app:background
+  - cua:focus_app:foreground
+  # Not an action: a separate scope Hermes adds whenever `bring_to_front` or
+  # focus_app(raise_window=true) is set, on top of the action's own scope.
+  - cua:bring_to_front:background
+  - cua:bring_to_front:foreground

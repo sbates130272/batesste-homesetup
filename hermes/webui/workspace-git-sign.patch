@@ -1,0 +1,88 @@
+diff --git a/api/workspace_git.py b/api/workspace_git.py
+index a33fd316..ffe8fa94 100644
+--- a/api/workspace_git.py
++++ b/api/workspace_git.py
+@@ -31,6 +31,7 @@ STATUS_FILE_LIMIT = 500
+ DIFF_SIZE_LIMIT = 512 * 1024
+ COMMIT_MESSAGE_DIFF_LIMIT = 64 * 1024
+ WORKSPACE_GIT_DESTRUCTIVE_ENV = "HERMES_WEBUI_WORKSPACE_GIT_DESTRUCTIVE"
++WORKSPACE_GIT_SIGN_ENV = "HERMES_WEBUI_WORKSPACE_GIT_SIGN"
+ _GIT_ENV_SCRUB_KEYS = (
+     "GIT_DIR",
+     "GIT_WORK_TREE",
+@@ -66,15 +67,31 @@ _GIT_HARDENED_CONFIG = (
+     ("fetch.recurseSubmodules", "false"),
+ )
+ _GIT_DESTRUCTIVE_HARDENED_CONFIG = (
+-    # Disable signing helper command resolution while performing destructive
+-    # Git operations. Hooks are redirected to a temporary empty directory in
+-    # _run_git() so Git never falls back to .git/hooks.
++    ("core.alternateRefsCommand", ""),
++)
++# Disable signing helper command resolution while performing destructive
++# Git operations. Hooks are redirected to a temporary empty directory in
++# _run_git() so Git never falls back to .git/hooks.
++#
++# LOCAL PATCH (batesste): split out of _GIT_DESTRUCTIVE_HARDENED_CONFIG and
++# made conditional on HERMES_WEBUI_WORKSPACE_GIT_SIGN, because a signing
++# policy of "always sign" cannot survive a hardcoded `-c commit.gpgSign=false`
++# -- a command-line -c beats .gitconfig, so the flag is not overridable from
++# config and every WebUI commit lands unsigned with no warning. Opt-in, so
++# the default behaviour is unchanged.
++#
++# What this re-admits is gpg.program resolution, i.e. running the configured
++# gpg binary. That is the hardening being traded away: a repo-local
++# gpg.program is command execution. It is still neutralized -- the entries
++# below are applied unless the operator sets the variable, and the operator
++# setting it is asserting that the signing config comes from their own
++# ~/.gitconfig and not from a repository an agent cloned.
++_GIT_SIGNING_HARDENED_CONFIG = (
+     ("commit.gpgSign", "false"),
+     ("push.gpgSign", "false"),
+     ("gpg.program", ""),
+     ("gpg.ssh.program", ""),
+     ("gpg.x509.program", ""),
+-    ("core.alternateRefsCommand", ""),
+ )
+ 
+ 
+@@ -91,6 +108,9 @@ def _hardened_git_argv(
+     if destructive:
+         for key, value in _GIT_DESTRUCTIVE_HARDENED_CONFIG:
+             argv.extend(["-c", f"{key}={value}"])
++        if not workspace_git_signing_enabled():
++            for key, value in _GIT_SIGNING_HARDENED_CONFIG:
++                argv.extend(["-c", f"{key}={value}"])
+         if hooks_path:
+             argv.extend(["-c", f"core.hooksPath={hooks_path}"])
+     if attributes_file:
+@@ -99,8 +119,8 @@ def _hardened_git_argv(
+     return argv
+ 
+ 
+-def workspace_git_destructive_enabled() -> bool:
+-    return os.getenv(WORKSPACE_GIT_DESTRUCTIVE_ENV, "").strip().lower() in {
++def _env_flag_enabled(name: str) -> bool:
++    return os.getenv(name, "").strip().lower() in {
+         "1",
+         "true",
+         "yes",
+@@ -108,6 +128,18 @@ def workspace_git_destructive_enabled() -> bool:
+     }
+ 
+ 
++def workspace_git_destructive_enabled() -> bool:
++    return _env_flag_enabled(WORKSPACE_GIT_DESTRUCTIVE_ENV)
++
++
++def workspace_git_signing_enabled() -> bool:
++    """Let the operator's own Git signing config apply to mutating commits.
++
++    LOCAL PATCH (batesste). Off by default, which reproduces upstream exactly.
++    """
++    return _env_flag_enabled(WORKSPACE_GIT_SIGN_ENV)
++
++
+ def _clean_git_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+     env = os.environ.copy()
+     if extra:

@@ -1,0 +1,36 @@
+# hermes-webui, as a user unit.
+#
+# It was a hand-written system unit in /etc/systemd/system, version-controlled
+# nowhere, and already drifted from the stray copy left in the project
+# checkout -- different ExecStart, different Restart policy, and only one of
+# the two had the port and bind address. Moving it here ends that.
+#
+# User-scoped for two concrete reasons, not tidiness:
+#
+#   - It can reach the login session's gpg-agent at /run/user/1000/gnupg.
+#     A system unit cannot, and WebUI needs it to sign the commits Hermex
+#     makes into ~/.hermes/workspace.
+#   - ~/.config/environment.d/ only applies to user units. That is where this
+#     service's environment now lives (the `systemd` package in the dotfiles),
+#     so there is not an Environment= line in here to drift from it.
+#
+# Safe because batesste has Linger=yes, which is the same thing
+# hermes-gateway and hermes-dashboard already rely on.
+
+[Unit]
+Description=Hermes Web UI
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/batesste/Projects/hermes-webui
+# No `bash -lc`. The old system unit needed a login shell to pick up its
+# environment from the interactive shell config; environment.d makes that
+# unnecessary, and a service whose behaviour depends on .bashrc is a service
+# that breaks when you edit .bashrc.
+ExecStart=/usr/bin/python3 bootstrap.py --no-browser --foreground
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
