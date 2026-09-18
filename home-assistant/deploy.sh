@@ -8,10 +8,13 @@
 #
 # Same division of labour as ../homebridge/deploy.sh. Home Assistant
 # owns its own state -- /var/lib/home-assistant/.storage holds every
-# integration, entity, area and token, and nothing here touches it.
-# This repo owns configuration.yaml, the container definition, and the
-# decision that the web UI is reachable from the tailnet and from
-# nowhere else.
+# integration, entity, area and token. This repo owns
+# configuration.yaml, the container definition, and the decision that
+# the web UI is reachable from the tailnet and from nowhere else.
+#
+# One exception to that line, and it is not a happy one: .storage/http.
+# Since 2026.9 the bind address lives there and YAML cannot set it, so
+# this script writes that one key. See the HTTP config store section.
 #
 # Idempotent. A run that finds everything already true restarts
 # nothing.
@@ -26,7 +29,7 @@ CONFIG_DIR="${CONFIG_DIR:-/var/lib/home-assistant}"
 # Loopback, and the same port inside and out. Unlike the Homebridge
 # Config UI there is no port shuffle here: nothing else on this box
 # wants 8123, and Home Assistant's own listener is already unroutable
-# by virtue of http.server_host in configuration.yaml.
+# by virtue of the server_host written into .storage/http below.
 HA_HOST="127.0.0.1"
 HA_PORT=8123
 TS_PORT=8123
@@ -137,6 +140,77 @@ for f in "${INCLUDE_FILES[@]}"; do
     fi
 done
 
+# ── HTTP config store ────────────────────────────────────────────
+#
+# The bind address is not configurable from configuration.yaml any
+# more. Since 2026.9 an `http:` block is migrated into .storage/http
+# once, applied as a five-minute trial, and reverted to the stored
+# `stable` slot unless somebody confirms it in the UI -- a slot that
+# carries no server_host, and therefore a dual-stack wildcard bind on
+# a host-networked container. The first version of this script shipped
+# the YAML block and verified the loopback listener inside that trial
+# window, which passed and then silently stopped being true.
+#
+# So the store is what this repo writes. `stable` is what Home
+# Assistant uses on every normal start once yaml_migration_done is
+# set, and pending is cleared so no trial is ever staged.
+
+http_store="${CONFIG_DIR}/.storage/http"
+readonly HTTP_STORE_JQ='
+.version = 2
+| .minor_version = 2
+| .key = "http"
+| .data.stable = ((.data.stable // {})
+    + { server_port: 8123,
+        server_host: ["127.0.0.1"],
+        use_x_forwarded_for: true,
+        trusted_proxies: ["127.0.0.1/32", "::1/128"],
+        error: null,
+        error_message: null })
+| .data.pending = null
+| .data.yaml_migration_done = true
+'
+
+echo "==> Checking the HTTP config store..."
+
+store_now='{"data":{}}'
+if sudo test -e "${http_store}"; then
+    store_now="$(sudo cat "${http_store}")"
+fi
+store_want="$(jq -S "${HTTP_STORE_JQ}" <<<"${store_now}")"
+
+if [[ "$(jq -S . <<<"${store_now}")" == "${store_want}" ]]; then
+    echo "    stable slot: loopback, already correct"
+    store_changed=false
+else
+    store_changed=true
+    if $DRY_RUN; then
+        echo "[dry-run] would rewrite ${http_store}"
+    else
+        # Written while the container is stopped: Home Assistant holds
+        # this store in memory and rewrites it on shutdown, so an edit
+        # under a running instance is undone by the next restart.
+        docker stop "${CONTAINER}" >/dev/null 2>&1 || true
+        tmp_store="$(mktemp)"
+        trap 'rm -f "${tmp_store}"' EXIT
+        printf '%s\n' "${store_want}" >"${tmp_store}"
+        jq empty <"${tmp_store}" && [[ -s "${tmp_store}" ]] || {
+            echo "Error: refusing to install an invalid HTTP config store." >&2
+            exit 1
+        }
+        # Backed up beside the config root rather than inside
+        # .storage: Home Assistant archives that directory wholesale,
+        # and it is its own namespace, not a dumping ground.
+        if sudo test -e "${http_store}"; then
+            sudo cp -p "${http_store}" \
+                "${CONFIG_DIR}/http-store.$(date +%Y%m%d-%H%M%S).bak"
+        fi
+        sudo mkdir -p "${CONFIG_DIR}/.storage"
+        sudo install -m 644 -o root -g root "${tmp_store}" "${http_store}"
+        echo "    stable slot: rewritten (server_host 127.0.0.1, pending cleared)"
+    fi
+fi
+
 # ── Container ────────────────────────────────────────────────────
 
 if $PULL; then
@@ -154,10 +228,23 @@ if $START; then
 
     if $config_changed; then
         echo "==> Restarting (configuration.yaml changed)..."
-        run docker restart "${CONTAINER}" >/dev/null
+        # The redirect belongs to docker, not to `run`: attached to the
+        # wrapper it would discard the [dry-run] line for the one
+        # mutating action a dry run exists to show.
+        if $DRY_RUN; then
+            echo "[dry-run] docker restart ${CONTAINER}"
+        else
+            docker restart "${CONTAINER}" >/dev/null
+        fi
     fi
+    # The store edit stopped the container above, so `up -d` has
+    # already started it with the new slot; nothing more to do here.
 else
     echo "==> --no-start given; container not touched."
+    if $store_changed && ! $DRY_RUN; then
+        echo "    WARNING: the HTTP config store was rewritten, which" >&2
+        echo "    stopped the container. It is still stopped." >&2
+    fi
 fi
 
 # ── Tailnet listener ─────────────────────────────────────────────
@@ -170,11 +257,15 @@ fi
 # onboarding screen creates the first administrator account for
 # whoever reaches it, and its API can unlock doors and watch cameras.
 
+# Resolved unconditionally: the closing summary prints it whether or
+# not --skip-serve was given, and a hardcoded fallback there would be
+# a second copy of this box's tailnet name waiting to go stale.
+host="$(tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")')"
+
 if ! $SKIP_SERVE; then
     echo "==> Checking tailscale serve on :${TS_PORT}..."
 
     serve_json="$(tailscale serve status --json 2>/dev/null || echo '{}')"
-    host="$(tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")')"
     want="http://127.0.0.1:${HA_PORT}"
     have="$(jq -r --arg k "${host}:${TS_PORT}" \
         '.Web[$k].Handlers["/"].Proxy // "none"' <<<"${serve_json}")"
@@ -224,22 +315,42 @@ if [[ "${code}" != "200" ]]; then
 fi
 echo "    HTTP on ${HA_HOST}:${HA_PORT}: ok"
 
-# The check that matters given network_mode: host. If http.server_host
+# The check that matters given network_mode: host. If the stable slot
 # is ever lost, this is the difference between a loopback listener and
 # an open administrator-account-creation form on the WiFi.
-if ss -tln | grep -E "0\.0\.0\.0:${HA_PORT}|\*:${HA_PORT}" >/dev/null; then
+#
+# `[::]:8123` is in the pattern because that is how iproute2 renders an
+# IPv6 wildcard, and Home Assistant's built-in default binds 0.0.0.0
+# *and* :: -- so the v6 half can be the only one visible if something
+# else already holds the v4 address.
+listeners="$(ss -tln)" || {
+    echo "Error: ss failed; cannot prove the bind is not a wildcard." >&2
+    exit 1
+}
+if grep -E "0\.0\.0\.0:${HA_PORT}|\[::\]:${HA_PORT}|\*:${HA_PORT}" \
+        <<<"${listeners}" >/dev/null; then
     echo "Error: Home Assistant is bound to a wildcard address." >&2
-    echo "       http.server_host in configuration.yaml did not take" >&2
-    echo "       effect, and the UI is on WiFi and the tailnet without" >&2
-    echo "       a proxy in front of it. Fix before going further." >&2
+    echo "       The server_host in the stable slot of" >&2
+    echo "       ${CONFIG_DIR}/.storage/http did not take effect, and" >&2
+    echo "       the UI is on WiFi without a proxy in front of it." >&2
+    echo "       Fix before going further." >&2
     exit 1
 fi
 echo "    not wildcard-bound: ok"
 
+# A wildcard bind is also what Home Assistant falls back to when it
+# decides the running config was a trial nobody confirmed. Nothing
+# here should ever stage one, so its presence means the store is being
+# written by something other than this script.
+if [[ "$(sudo jq -r '.data.pending // "null"' "${http_store}")" != "null" ]]; then
+    echo "    WARNING: a pending HTTP config is staged. It reverts to the" >&2
+    echo "    stable slot five minutes from now and restarts." >&2
+fi
+
 if ! $SKIP_SERVE; then
-    # Local check only -- tailscaled does not loop its own serve
-    # listener back to this host, so curling the tailnet name from here
-    # hangs whether or not the deployment works.
+    # Local check only -- a curl to the tailnet name from this host
+    # is accepted and TLS-terminated by tailscaled and then never
+    # answered, so it hangs whether or not the deployment works.
     ts_ip="$(tailscale ip -4)"
     if ! ss -tln | grep -q "${ts_ip}:${TS_PORT}"; then
         echo "Error: nothing is listening on ${ts_ip}:${TS_PORT}." >&2
@@ -251,7 +362,7 @@ fi
 
 echo
 echo "==> Done."
-echo "    UI:   https://${host:-snoc-beelink.fold-leaffish.ts.net}:${TS_PORT}/  (tailnet only)"
+echo "    UI:   https://${host}:${TS_PORT}/  (tailnet only)"
 echo "    Logs: docker logs -f ${CONTAINER}"
 echo
 echo "    Still manual, and in this order -- see README.md:"

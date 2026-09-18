@@ -17,6 +17,8 @@ backpressure
 batesste
 BDF
 beelink
+bluetoothd
+BlueZ
 BSSID
 canonicalising
 certbot
@@ -185,6 +187,7 @@ prometheus
 Promtail
 promtool
 protanopia
+proxied
 proxying
 pty
 PV
@@ -270,6 +273,7 @@ unmonitored
 Unpair
 unprefixed
 unreproducible
+unrotated
 unroutable
 unscoped
 Upstream's

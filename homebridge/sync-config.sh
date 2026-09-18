@@ -95,14 +95,28 @@ fi
 # also load-bearing -- change one and every paired controller treats
 # the bridge as a brand new accessory and drops its rooms, names and
 # automations. Keeping them readable is the point of having this file.
+# A pattern, not a list of the eight key names the four plugins
+# installed today happen to use. A list is fail-open: installing a
+# plugin through the Config UI is enough to put a credential under a
+# key nobody added here, and this file is committed to a public
+# repository. `username` is the one exception, handled below, because
+# the bridge identities use that name.
+readonly SENSITIVE_RE='(?ix)
+  pass | pwd | secret | token | credential | auth | session | cookie
+  | \bkey\b | apikey | accesskey | privatekey
+  | \bpin\b | \bcode\b | serial | \bmac\b | email | \bsms\b | phone'
+
 readonly REDACT_JQ='
+def sensitive($k): $k | test($re);
+
 def scrub:
   walk(
     if type == "object" then
-      reduce ("password", "code", "pin", "mac", "serialNumber",
-              "token", "apiKey", "apiKeys") as $k (.;
-        if has($k) and (.[$k] | type) == "string" and .[$k] != ""
-        then .[$k] = "REDACTED"
+      with_entries(
+        if sensitive(.key)
+           and ((.value | type) | . == "string" or . == "number")
+           and (.value != "")
+        then .value = "REDACTED"
         else . end)
     else . end
   )
@@ -112,25 +126,50 @@ def scrub:
       else . end
     );
 
+# Every per-device `name` under any platform, not just the presence
+# plugins id. Those values are "<family member>s iPhone", one row per
+# person in the household, and keying the rule on a plugins exact
+# platform string means a rename fails open and silently.
+def scrub_device_names:
+  if has("devices") and (.devices | type) == "array"
+  then .devices = [ .devices[]
+      | if type == "object" and has("name") then .name = "REDACTED" else . end ]
+  else . end;
+
+# Platform-level `username` only. The walk above deliberately does not
+# match it: `_bridge.username` and `bridge.username` are HAP bridge
+# identities rather than logins, and rewriting one detaches every
+# paired controller.
+def scrub_usernames:
+  if has("username") and (.username | type) == "string" and .username != ""
+  then .username = "REDACTED" else . end;
+
 scrub
-# Platform-level `username` only. The walk above cannot do this: it
-# would take `_bridge.username` with it.
-| .platforms = [ .platforms[]
-    | if has("username") and .username != "" then .username = "REDACTED" else . end
-    | if .platform == "NetworkPresence"
-      then .devices = [ (.devices // [])[] | .name = "REDACTED" ]
-      else . end ]
+| .platforms = [ (.platforms // [])[] | scrub_usernames | scrub_device_names ]
+| if has("accessories")
+  then .accessories = [ .accessories[] | scrub_usernames | scrub_device_names ]
+  else . end
 '
 
-redacted="$(sudo cat "${LIVE_CONFIG}" | jq -S "${REDACT_JQ}")"
+redacted="$(sudo cat "${LIVE_CONFIG}" \
+    | jq -S --arg re "${SENSITIVE_RE}" "${REDACT_JQ}")"
 
-# Cheap assertion that the redaction actually fired. A jq filter that
-# silently matches nothing produces a perfectly valid file full of
-# credentials, and the only thing standing between that and a public
-# commit is this check.
-if grep -qi '"password"[[:space:]]*:[[:space:]]*"[^"]' <<<"${redacted}" \
-   && ! grep -q '"password"[[:space:]]*:[[:space:]]*"REDACTED"' <<<"${redacted}"; then
-    echo "Error: redaction did not fire -- a plaintext password survived." >&2
+# The tripwire, and it fails closed: it re-walks the *output* and names
+# every key that still matches the pattern with something other than
+# REDACTED next to it. The previous version only ever looked for the
+# literal key "password", so a filter that matched nothing at all could
+# still produce a valid file full of credentials and a clean exit.
+survivors="$(jq -r --arg re "${SENSITIVE_RE}" '
+  [ paths(scalars) as $p
+    | select(($p[-1] | type) == "string")
+    | select($p[-1] | test($re))
+    | select(getpath($p) != "REDACTED" and getpath($p) != "")
+    | $p | map(tostring) | join(".") ]
+  | .[]' <<<"${redacted}")"
+
+if [[ -n "${survivors}" ]]; then
+    echo "Error: redaction did not fire for:" >&2
+    printf '       %s\n' ${survivors} >&2
     echo "       Refusing to write. Fix REDACT_JQ in $(basename "$0")." >&2
     exit 1
 fi

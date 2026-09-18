@@ -22,26 +22,19 @@
 # tools to offer.
 default_config:
 
-http:
-  # Loopback only. With network_mode: host in the compose file, this
-  # line is the only thing standing between Home Assistant and a
-  # wildcard bind on WiFi and the tailnet -- there is no `ports:`
-  # mapping doing it instead.
-  #
-  # The tailnet reaches it through `tailscale serve`, which proxies
-  # from 127.0.0.1. Nothing else needs to.
-  server_host:
-    - 127.0.0.1
-
-  # `tailscale serve` is a reverse proxy on loopback, so every request
-  # arrives from 127.0.0.1. Without these two settings, Home Assistant
-  # sees the whole tailnet as one host -- which breaks the login
-  # attempt ban (one person fat-fingering a password locks out
-  # everybody) and logs every access as local.
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 127.0.0.1
-    - ::1
+# There is deliberately no `http:` block here, and it is not an
+# oversight: since 2026.9 an `http:` block in YAML is migrated into
+# .storage/http exactly once, applied as a five-minute *trial*, and
+# then -- if nobody confirms it in the UI -- reverted to a stored
+# "stable" slot that has no server_host at all. YAML is ignored from
+# then on. A block here would therefore be inert, would raise a
+# "YAML is being ignored" repair issue, and on first boot would leave
+# a five-minute window followed by a wildcard bind.
+#
+# So server_host, use_x_forwarded_for and trusted_proxies are written
+# straight into the stable slot of .storage/http by deploy.sh, which
+# is the only representation Home Assistant still reads. See the
+# "HTTP config store" section there.
 
 recorder:
   # Bounded on purpose. The default is 10 days, but the default also

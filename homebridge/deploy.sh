@@ -214,11 +214,15 @@ fi
 # The check below is not decoration -- `tailscale funnel 8581 on` is
 # two words away from the serve command and does not warn.
 
+# Resolved unconditionally: it is printed in the closing summary,
+# which runs whether or not --skip-serve was given, and `set -u` turns
+# an unset one into a failure after the deploy has already succeeded.
+host="$(tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")')"
+
 if ! $SKIP_SERVE; then
     echo "==> Checking tailscale serve on :${TS_PORT}..."
 
     serve_json="$(tailscale serve status --json 2>/dev/null || echo '{}')"
-    host="$(tailscale status --json | jq -r '.Self.DNSName | rtrimstr(".")')"
     want="http://127.0.0.1:${UI_PORT}"
     have="$(jq -r --arg k "${host}:${TS_PORT}" \
         '.Web[$k].Handlers["/"].Proxy // "none"' <<<"${serve_json}")"
@@ -299,9 +303,9 @@ echo "    UI on ${UI_HOST}:${UI_PORT}: ok"
 # The local check stops at "tailscaled is listening on the tailnet
 # address for this port". It cannot go further, and the obvious
 # stronger test is a trap: curl to https://<this node>:8581 from this
-# node hangs until it times out. tailscaled does not loop its own
-# serve listener back to the local host, so that failure says nothing
-# at all about whether the tailnet can reach it -- the first version
+# node hangs until it times out -- tailscaled accepts it and
+# terminates TLS, and the proxied response never comes back -- so that
+# failure says nothing about the tailnet at all. The first version
 # of this script treated it as an error and reported a working
 # deployment as broken.
 if ! $SKIP_SERVE; then

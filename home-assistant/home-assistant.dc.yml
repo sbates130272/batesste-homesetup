@@ -41,17 +41,30 @@ services:
     # hand, which then breaks on the next DHCP lease.
     #
     # The cost is that `ports:` no longer isolates anything: the
-    # container's listener is the host's listener. That is handled in
-    # configuration.yaml instead, with http.server_host pinned to
-    # loopback. If that setting is ever lost, Home Assistant binds
-    # 0.0.0.0 and lands on WiFi and on the tailnet unauthenticated at
-    # the onboarding screen -- which is to say, offering to create the
-    # first administrator account to whoever asks. deploy.sh checks the
-    # actual bound socket for exactly this reason.
+    # container's listener is the host's listener. That is handled by
+    # the server_host in the stable slot of /config/.storage/http,
+    # which deploy.sh writes -- not by configuration.yaml, which Home
+    # Assistant stopped reading for this after 2026.9. If that setting
+    # is ever lost, Home Assistant binds 0.0.0.0 and :: and lands on
+    # WiFi unauthenticated at the onboarding screen -- which is to say,
+    # offering to create the first administrator account to whoever
+    # asks. deploy.sh checks the actual bound socket for that reason,
+    # and it has already happened here once.
     network_mode: host
 
     environment:
       TZ: America/Edmonton
+
+    # Docker's default json-file driver has no cap, and / is at 84% of
+    # 98 GB shared with Prometheus, Loki, the image store and the
+    # Firefly database. Home Assistant is perfectly capable of emitting
+    # a per-second error loop -- it did exactly that here over a
+    # Bluetooth adapter -- so the log is bounded rather than trusted.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
     # snoc-beelink has 8 GB, and in September 2026 it spent 45 minutes
     # in a swap-thrash livelock that ended in a power cycle -- see
@@ -70,10 +83,15 @@ services:
       # configuration.yaml from this repo into it, and reaching into
       # /var/lib/docker/volumes to do that would be worse.
       - /var/lib/home-assistant:/config
-      # Bluetooth and some discovery paths talk to the host bus. Read
-      # only -- Home Assistant needs to see the bus, not reconfigure
-      # the host's services on it.
-      - /run/dbus:/run/dbus:ro
+      # No /run/dbus mount. It was here for Bluetooth, and it does not
+      # work: bluetooth.service is inactive on this host, so BlueZ owns
+      # no name on the bus. Home Assistant found hci0, tried to start
+      # discovery on it, and threw an AttributeError in bleak every few
+      # seconds into an unrotated docker log. Nothing here needs
+      # Bluetooth -- the devices arrive over WiFi, mDNS and HomeKit --
+      # so the mount is gone rather than papered over. Enabling
+      # Bluetooth means starting bluetoothd on the host first, and that
+      # is a deliberate change, not a side effect of a volume line.
       - /etc/localtime:/etc/localtime:ro
 
     healthcheck:

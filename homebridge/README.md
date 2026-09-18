@@ -85,11 +85,12 @@ $ curl -sI https://snoc-beelink.fold-leaffish.ts.net:8581/ | head -1
 HTTP/2 200
 ```
 
-Not from `snoc-beelink` itself. `tailscaled` does not loop its own
-serve listener back to the local host, so that request hangs until it
-times out regardless of whether the deployment is healthy. `deploy.sh`
-stops at checking that `tailscaled` holds the listening socket, which
-is as far as a local check can honestly go.
+Not from `snoc-beelink` itself. `tailscaled` accepts that connection
+and terminates TLS on it, and then the proxied response never arrives:
+the request hangs until it times out whether or not the deployment is
+healthy, so the result carries no information. `deploy.sh` stops at
+checking that `tailscaled` holds the listening socket, which is as far
+as a local check can honestly go.
 
 ## Plugins
 

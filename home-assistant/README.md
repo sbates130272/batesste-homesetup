@@ -23,13 +23,19 @@ upgrades happen.
 ## What this repo owns, and what it does not
 
 This repo owns [`configuration.yaml`](./configuration.yaml), the
-container definition, and the tailnet listener.
+container definition, the tailnet listener, and exactly one key inside
+Home Assistant's own state: `.storage/http`.
 
-Home Assistant owns `/var/lib/home-assistant/.storage`, which is where
-everything done through the UI actually lives: integrations, entities,
-areas, dashboards, the exposed-entity list, users and access tokens.
-None of that is version-controlled and none of it should be — it holds
-credentials, and it is not text anybody wants to review in a diff.
+Home Assistant owns the rest of `/var/lib/home-assistant/.storage`,
+which is where everything done through the UI actually lives:
+integrations, entities, areas, dashboards, the exposed-entity list,
+users and access tokens. None of that is version-controlled and none
+of it should be — it holds credentials, and it is not text anybody
+wants to review in a diff.
+
+`.storage/http` is the exception because Home Assistant took the bind
+address away from YAML in 2026.9 and left it nowhere else to live. See
+[below](#why-the-bind-address-is-in-storage-of-all-places).
 
 Home Assistant never rewrites `configuration.yaml`, which is what makes
 owning it from git possible. `deploy.sh` installs it and backs up
@@ -61,28 +67,49 @@ every integration has to be added by IP by hand, and each one then
 breaks at the next DHCP lease.
 
 The cost is that `ports:` is no longer isolating anything — the
-container's listener *is* the host's listener. So the isolation moves
-into `configuration.yaml`:
+container's listener *is* the host's listener. So the isolation has to
+come from the bind address, and since 2026.9 that no longer lives in
+`configuration.yaml`.
 
-```yaml
-http:
-  server_host:
-    - 127.0.0.1
+### Why the bind address is in `.storage`, of all places
+
+An `http:` block in YAML is now migrated into `.storage/http` **once**,
+applied as a five-minute **trial**, and — if nobody confirms it in the
+UI — reverted to a stored `stable` slot that has no `server_host` at
+all. `yaml_migration_done` is then set and the YAML is ignored for
+good.
+
+This is not theory. It happened here on 2026-09-18: the first version
+of this deployment shipped the YAML block, verified a correct loopback
+listener, and was reverted five minutes later, after the deploy script
+had exited reporting success. What saved it was luck — Home Assistant's
+default bind is `0.0.0.0` *and* `::`, and the `::` half collided with
+`tailscaled`'s own listener on 8123, so the process failed into
+recovery mode instead of serving an unauthenticated onboarding form on
+WiFi. Free that port and it binds.
+
+So `deploy.sh` writes the `stable` slot directly, with the container
+stopped, and clears `pending` so no trial is ever staged:
+
+```json
+"stable": { "server_host": ["127.0.0.1"], "use_x_forwarded_for": true,
+            "trusted_proxies": ["127.0.0.1/32", "::1/128"] }
 ```
 
-That is the only thing standing between Home Assistant and a wildcard
-bind. Lose it and the UI appears on WiFi and on the tailnet showing
-the onboarding screen, which offers to create the first administrator
-account for whoever reaches it first.
-
-`deploy.sh` therefore checks the actual bound socket after every
-start, not the file it just installed:
+That slot is the only thing standing between Home Assistant and a
+wildcard bind. `deploy.sh` therefore checks the actual bound socket
+after every start, not the file it just installed:
 
 ```console
 $ ss -tln | grep 8123
 LISTEN 0 128 127.0.0.1:8123  0.0.0.0:*     # correct
 LISTEN 0 128   0.0.0.0:8123  0.0.0.0:*     # deploy.sh fails here
+LISTEN 0 128      [::]:8123     [::]:*     # and here
 ```
+
+A local verification is only meaningful five minutes after the start
+it verifies, which is the other reason nothing stages a pending
+config.
 
 ## The tailnet listener
 
@@ -92,7 +119,7 @@ TLS with a real certificate, reachable only from the tailnet, and the
 mapping held by `tailscaled` so it comes back on boot without racing
 anything.
 
-`use_x_forwarded_for` and `trusted_proxies` in `configuration.yaml`
+`use_x_forwarded_for` and `trusted_proxies`, in the same stored slot,
 are the other half of that. `tailscale serve` proxies from loopback,
 so without them Home Assistant sees the entire tailnet as a single
 client — which means one person fat-fingering a password trips the
@@ -211,6 +238,29 @@ The tools are the Assist intents — `HassTurnOn`, `HassLightSet`,
 `mcp.yaml` deliberately carries no `include` list for this server, for
 that reason: any list written today would silently drop whatever is
 exposed tomorrow.
+
+## Bluetooth is off, deliberately
+
+The compose file mounts no `/run/dbus`. It did, for Bluetooth, and
+Bluetooth does not work here: `bluetooth.service` is inactive on this
+host, so BlueZ owns no name on the bus. Home Assistant found the Intel
+adapter anyway, tried to drive it, and threw an `AttributeError` out
+of `bleak` every few seconds into an unrotated docker log.
+
+Nothing in this house arrives over Bluetooth — the devices come in
+over WiFi, mDNS and HomeKit — so the mount is gone rather than papered
+over. Enabling it means starting `bluetoothd` on the host *and*
+restoring the mount, which is a deliberate change.
+
+One leftover: the config entry Home Assistant created for the adapter
+during the first run is still in `.storage`, and still logs on every
+start. Disable it once in **Settings → Devices & services →
+Bluetooth**; nothing in this repo can do it, because it lives in the
+half of `.storage` Home Assistant owns.
+
+Container logs are capped at 3 × 10 MB in the compose file for the
+same reason this was worth finding: `/` is at 84% and shared with
+Prometheus, Loki, the image store and the Firefly database.
 
 ## Memory, and why there is a ceiling
 
