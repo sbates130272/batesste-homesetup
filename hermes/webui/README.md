@@ -70,11 +70,48 @@ gpg-agent has no cached passphrase: `pinentry-curses` cannot prompt a
 service with no terminal. The cache TTLs in the dotfiles' `gpg` package
 exist for that, and one interactive sign per boot primes them.
 
+## Updating
+
+Updated 2026-09-17, from 3593 commits behind to `origin/master`. An earlier
+version of this section called that gap tolerable because "the box works
+either way". It was not: the WebUI reads its Python straight from this
+checkout, so being behind is not a cosmetic version number, it is the
+running code. The clipboard-paste path Hermex needs shipped upstream during
+that gap and was simply absent here.
+
+Update by rebasing the one patch, never by merging:
+
+```bash
+sqlite3 ~/.hermes/state.db ".backup '$HOME/.hermes/backups/state-preupgrade-$(date +%F).db'"
+git -C ~/Projects/hermes-webui checkout master
+git -C ~/Projects/hermes-webui merge --ff-only origin/master
+git -C ~/Projects/hermes-webui rebase -S origin/master local/workspace-git-sign
+systemctl --user restart hermes-webui
+```
+
+Three things that are not optional:
+
+- **`-S` on the rebase.** A plain rebase rewrites the commit and drops its
+  GPG signature. Check with `git log --show-signature -1`; it must print `G`.
+- **`sqlite3 .backup`, not `cp`.** `~/.hermes/state.db` is 68 MB in WAL mode
+  with a live multi-megabyte `-wal`; copying the file alone copies a torn
+  database. Session history itself is JSON sidecars under
+  `~/.hermes/webui/sessions/` and survives independently.
+- **Prime gpg-agent first**, or the signing rebase hangs the same way a
+  Hermex commit does, for the same reason.
+
+Do not install this from PyPI. The `hermes-webui` package there is a
+different, unrelated project (version 0.1.0, one release, no project URLs);
+`pip install hermes-webui` installs an unknown package. pipx is also the
+wrong tool even from this source: `bootstrap.py` has to find an interpreter
+that can import **both** the WebUI's dependencies and Hermes Agent, and a
+pipx-isolated venv has only the former. The service would come up green and
+then fail every chat turn with "AIAgent not available". Today bootstrap
+re-execs into `~/.hermes/hermes-agent/venv/bin/python`, which has both.
+
 ## Upstream
 
-Not submitted. The checkout is thousands of commits behind
-`nesquena/hermes-webui` and carries no other local change, so the useful
-thing to do before proposing this is to update it — and the box works
-either way. If that ever happens, the shape above is deliberately
-upstreamable: opt-in, default unchanged, one env var alongside the
-`HERMES_WEBUI_WORKSPACE_GIT_DESTRUCTIVE` it already has.
+Not submitted. The shape above is deliberately upstreamable: opt-in, default
+unchanged, one env var alongside the
+`HERMES_WEBUI_WORKSPACE_GIT_DESTRUCTIVE` it already has. Now that the
+checkout is current, that is a rebase away from being a real pull request.
