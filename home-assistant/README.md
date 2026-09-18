@@ -125,6 +125,22 @@ so without them Home Assistant sees the entire tailnet as a single
 client — which means one person fat-fingering a password trips the
 login-attempt ban for everybody.
 
+Two things follow that are easy to get wrong in the other direction.
+`tailscale serve` *replaces* a client-supplied `X-Forwarded-For`
+rather than appending to it, so a browser behind a header-injecting
+corporate proxy is not a problem and these settings need no hardening
+for it. But trusting `127.0.0.1` means any local process that can
+open `127.0.0.1:8123` can claim to be any address it likes, and Home
+Assistant will log and ban on that claim. That is an acceptable trade
+only while the bind stays on loopback — a local process already has
+better options — and it is the reason to think twice before setting
+`login_attempts_threshold` back to a positive number.
+
+`http.forwarded` errors in the log naming an impossible address, such
+as `300.1.1.1`, are almost always somebody's own probe rather than
+traffic. They render as a plain `400 Bad Request`, never as a
+connection failure.
+
 Verify from another tailnet node, never from `snoc-beelink` itself:
 
 ```console
@@ -146,54 +162,86 @@ reporting it.
 This is the part that is not automated, and not because of an
 oversight.
 
-**A HomeKit accessory can be paired with exactly one controller.** All
-seven Homebridge bridges on this box — the main one and the six child
-bridges — are already paired, with two controllers each:
+HAP is not single-controller — an accessory holds as many pairings as
+it is given. What it will not do is hand out the *first* one twice.
+Pair-setup is refused outright once any pairing exists (`HAPServer.js`
+returns `TLVErrorCode.UNAVAILABLE`), and every pairing after that has
+to be added by an already-authenticated controller with the admin bit.
+Apple Home has that bit here; Home Assistant has no way to ask for it.
+
+All seven bridges on this box — the main one and the six child bridges
+— hold the same two pairings, one admin and one user, which is one
+Apple Home household rather than two independent controllers:
 
 ```console
 $ cd /var/lib/homebridge/persist
-$ for f in AccessoryInfo*.json; do
-    echo "$(sudo jq -r '.displayName' "$f") $(sudo jq '.pairedClients|length' "$f")"
-  done
-Homebridge SNOC 4334 2
-SNOC - EufySecurity 5437 2
-Govee 3F9B 2
-Wemo 681C 2
-Emporia Energy A58C 2
-homebridge-network-presence 49D9 2
-AutomationCalendar 26A7 2
+$ sudo jq -c '{n: .displayName, perm: .pairedClientsPermission}' AccessoryInfo*.json
+{"n":"Homebridge SNOC 4334","perm":{"4A14A531-…":1,"9DB2ED3C-…":0}}
+{"n":"SNOC - EufySecurity 5437","perm":{"4A14A531-…":1,"9DB2ED3C-…":0}}
+…
 ```
 
-So Home Assistant's **HomeKit Device** integration cannot simply pair
-with them. It will discover them over mDNS, accept the PIN, and fail.
-There are three ways round it, and the trade is real:
+`1` is admin, `0` is user. The same two UUIDs, with the same public
+keys, on all seven.
 
-1. **Matter multi-admin.** Homebridge 2.x can expose a bridge over
-   Matter as well as HAP, and Matter genuinely supports multiple
-   controllers commissioning the same bridge. This is the only option
-   that leaves the Apple Home setup untouched. Opt in per bridge with
-   a `matter` block under `bridge` or a plugin's `_bridge` in
-   `config.json`. Uncertified-accessory warnings during commissioning
-   are expected.
+So Home Assistant's **HomeKit Device** integration never even gets as
+far as asking for a PIN. `homekit_controller/config_flow.py` reads the
+`sf` flag out of the mDNS advertisement and, for a bridge that is
+already paired, returns `async_abort(reason="already_paired")` before
+the pairing form is ever built; the same check keeps paired bridges
+out of the manual "Add device" picker. There is no PIN field to type
+into and no failure to work around — the flow ends first.
 
-2. **A dedicated child bridge.** Put the plugins Home Assistant should
-   see on child bridges that Apple Home is *not* paired with. Clean,
-   but it is all-or-nothing per bridge: pairing a bridge hands over
-   every accessory on it.
+That leaves three routes, and none of them is the easy one:
+
+1. **Matter multi-admin.** Homebridge 2.4.0 does ship Matter
+   (`@matter/main` 0.17.9, `dist/matter/MatterAPIImpl.js`), and Matter
+   genuinely allows several controllers to commission one bridge. But
+   a `matter` block under `bridge` or a plugin's `_bridge` only stands
+   the Matter server up: accessories appear on it only if the plugin
+   itself calls `api.matter`, and **none of the five configured
+   plugins does** — grep the installed tree and the only hit is
+   `homebridge-resideo`, which has no platform block here. Opting in
+   today produces an empty bridge. Home Assistant's side is missing
+   too: the `matter` integration talks to a separate
+   python-matter-server over `ws://localhost:5580/ws`, and this box
+   runs no such container. Revisit only if a plugin gains `api.matter`
+   *and* you are willing to run a tenth container.
+
+2. **A separate Homebridge instance.** Not "a dedicated child bridge":
+   all five active plugins already sit on their own `_bridge`, so
+   moving one means rewriting its `_bridge.username`, and that MAC
+   *is* the HAP identity — change it and the Home app treats the
+   bridge as brand new and drops its rooms, names and automations.
+   Doing this properly means a genuinely second Homebridge with its
+   own storage path, fresh MACs and non-colliding ports. Note that
+   `hb-service install` is disabled by the APT package, so it would be
+   a hand-written systemd unit or a container.
 
 3. **Unpair from Apple Home.** Works, and destroys the existing setup:
    every room assignment, name and automation in the Home app is lost,
    because an unpaired-and-repaired bridge is a new accessory as far
    as HomeKit is concerned. Do not do this by accident.
 
-Whichever is chosen, the pairing itself happens in the Home Assistant
-UI with a PIN typed by hand, so no script here can or should do it.
-
 The alternative direction — native Home Assistant integrations for
 Govee, Wemo and Eufy, with Home Assistant's own HomeKit Bridge pushing
 them back to Apple Home — is a bigger migration, and it moves the
-device credentials out of Homebridge. Worth considering if Homebridge
-ever stops being the thing that works.
+device credentials out of Homebridge. It is also the only one of these
+that can be done incrementally, which makes it the one to start with:
+
+- **`nmap_tracker` or `ping`** replaces `homebridge-network-presence`
+  outright. Both are shipped, `nmap` is in the image, and the
+  container runs host-networked, so the default ARP scan works.
+- **Belkin Wemo** is native and needs no credentials. Blocked today:
+  `snoc-wemo-a` is off the network and Homebridge has been logging
+  `still not been initially found` for it continuously.
+- **Govee, Eufy and Emporia** stay on Homebridge. Their native
+  integrations want the same cloud credentials Homebridge already
+  holds, and moving them buys nothing until something forces it.
+
+Until one of those lands there is genuinely nothing controllable to
+expose, and the MCP chain below will report a connection with no
+entity tools. That is the correct result, not a broken deployment.
 
 ## MCP, and what Hermes can actually see
 
@@ -211,6 +259,15 @@ are exposed:
    on it does not exist as far as Hermes is concerned, whatever
    `mcp.yaml` says. *This page is the access control.* Think about it
    before adding the locks.
+
+   With one caveat that undoes most of the curation: the overflow
+   menu's **Expose new entities** defaults to on, and
+   `DEFAULT_EXPOSED_DOMAINS` covers `switch`, `light`, `cover`,
+   `climate`, `media_player` and `vacuum`. Left on, every entity a
+   future integration creates in those domains reaches the agent
+   without anyone revisiting this page. Turn it off to make the list
+   an allowlist. `lock` and `alarm_control_panel` are not in that set,
+   so doors never auto-expose either way.
 2. **Settings → Devices & services → Add integration → Model Context
    Protocol Server.**
 3. **Profile → Security → Long-lived access tokens → Create token.**
@@ -230,14 +287,30 @@ Then check it end to end. `hermes mcp list` reports the *config*, not
 a connection, so it is not a test:
 
 ```console
+$ hermes mcp test homeassistant
 $ hermes -z 'What Home Assistant tools do you have?'
 ```
 
+Run those in that order. `mcp test` failing with `Server
+'homeassistant' not found in config` means step 4 has not run yet —
+`apply-model-config.py` *replaces* the whole `mcp_servers` key from
+this file, so `mcp.yaml` is the only place to add a server and
+`hermes mcp add` would be overwritten by the next deploy without a
+word. If `mcp test` passes but `hermes -z` misbehaves, the difference
+is the corporate proxy: the systemd units carry no proxy environment,
+an interactive login shell does.
+
 The tools are the Assist intents — `HassTurnOn`, `HassLightSet`,
-`GetLiveContext` and so on — generated from the exposed entities.
-`mcp.yaml` deliberately carries no `include` list for this server, for
-that reason: any list written today would silently drop whatever is
-exposed tomorrow.
+`GetLiveContext` and so on. `mcp.yaml` deliberately carries no
+`include` list for this server: any list written today would silently
+drop whatever is exposed tomorrow.
+
+Read the tool list carefully, though. `HassTurnOn` and `HassTurnOff`
+are published whether or not anything is exposed — the Assist API
+registers them regardless, and they simply have nothing to act on. So
+the tool list is not a report of what the agent can reach. The Expose
+page is, and `trust: full` in `mcp.yaml` means the moment a real
+switch lands on it, the agent can throw it without asking.
 
 ## Bluetooth is off, deliberately
 

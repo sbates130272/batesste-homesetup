@@ -125,6 +125,22 @@ homeassistant:
     # administrator credential wearing an API token's clothes -- which is
     # the other reason the Expose page matters.
     Authorization: Bearer ${HOMEASSISTANT_TOKEN}
+  # Spelled out because an absent key here means `full`, and silence
+  # reads like nobody thought about it. This was decided: HassTurnOn,
+  # HassTurnOff, HassLightSet, HassSetPosition and the shopping-list
+  # writes run with no approval prompt, from every surface including
+  # the gateway's unattended ones and the cron scheduler.
+  #
+  # The alternative is `untrusted`, and its cost is not what it looks
+  # like: Home Assistant builds its tools without `annotations`, so
+  # `readOnlyHint` is absent on all of them and nothing counts as read
+  # only -- `untrusted` prompts on every call, including the
+  # GetLiveContext snapshot, on every turn that touches the house.
+  #
+  # What actually bounds this is Settings > Voice assistants > Expose,
+  # not this key. Worth re-reading the moment the first real switch is
+  # exposed; today the blast radius is one to-do list.
+  trust: full
   tools:
     # Enabled, unlike the two servers above. Home Assistant publishes one
     # resource, homeassistant://assist/context-snapshot, which is the

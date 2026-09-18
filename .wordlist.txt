@@ -7,7 +7,9 @@ amdgpu
 amdsmi
 ansible
 ARGS
+ARP
 auth
+automations
 autostarts
 avahi
 Avahi
@@ -17,6 +19,7 @@ backpressure
 batesste
 BDF
 beelink
+Belkin
 bluetoothd
 BlueZ
 BSSID
@@ -38,6 +41,7 @@ cron
 crontab
 CSV
 cua
+curation
 datasource
 datasources
 dBm
@@ -278,6 +282,7 @@ unroutable
 unscoped
 Upstream's
 userspace
+UUIDs
 vendored
 venv
 vhost
