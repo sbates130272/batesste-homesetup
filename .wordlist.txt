@@ -58,6 +58,7 @@ env
 EnvironmentFile
 ethernet
 Eufy
+EV
 exporter
 exporters
 FHSA
@@ -68,6 +69,8 @@ GHSA
 GiB
 gitignored
 GoDaddy
+Govee
+Govee's
 gpg
 GPT
 gpu
@@ -83,6 +86,7 @@ HBM
 hermes
 homebridge
 Homebridge
+Homebridge's
 homekit
 HomeKit
 homelab
@@ -97,6 +101,7 @@ IAM
 icloud
 iCloud
 idempotently
+integrations
 interop
 Interop
 IPs
@@ -140,6 +145,8 @@ mistyped
 MoE
 mountpoint
 MTP
+multicast
+Multicast
 mux
 nameservers
 natively
@@ -153,12 +160,14 @@ NICs
 NIXL
 nl
 noVNC
+npm
 ntfy
 nvme
 NVMe
 observability
 offen
 OMNI
+onboarding
 oneshot
 OOM
 oomctl
@@ -192,6 +201,7 @@ repointed
 rocm
 ROCm
 rollout
+routable
 RRSP
 RSSI
 runbook
@@ -211,8 +221,10 @@ Speedtest
 SPI
 spined
 Spining
+SSDP
 SSID
 SSL
+streamable
 strix
 Strix
 STT
@@ -251,11 +263,14 @@ UID
 UIDs
 UIs
 unallocated
+Uncertified
 unguessable
 unjoinable
 unmonitored
+Unpair
 unprefixed
 unreproducible
+unroutable
 unscoped
 Upstream's
 userspace
@@ -271,6 +286,7 @@ vxwm
 WAN
 webhook
 WebSocket
+Wemo
 WiFi
 WLAN
 WSL
@@ -282,4 +298,5 @@ Xvfb
 yaml
 YAML
 yml
+zeroconf
 ZScaler

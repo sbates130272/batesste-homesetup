@@ -1,0 +1,62 @@
+# Home Assistant configuration for snoc-beelink.
+#
+# This file is owned by this repository, not by Home Assistant. Edit it
+# here and re-run deploy.sh; editing /var/lib/home-assistant/configuration.yaml
+# directly works until the next deploy and is then silently reverted.
+#
+# Home Assistant itself does not rewrite this file -- everything done
+# through the UI (integrations, entities, areas, dashboards, exposed
+# entities, access tokens) lands in /var/lib/home-assistant/.storage
+# instead. That split is what makes owning this file from git possible
+# in the first place, and it is also why .storage is deliberately not
+# version-controlled: it holds the tokens.
+
+# The standard bundle: discovery (zeroconf, SSDP, DHCP), the
+# conversation and assist_pipeline components, the frontend, the
+# recorder, and the rest of what a normal install assumes is present.
+#
+# Load-bearing for two things here specifically. Discovery is how the
+# Homebridge bridge is found at all -- see README.md. And the Assist
+# API that `conversation` provides is the entire surface the MCP
+# server exposes to Hermes; without it the MCP integration has no
+# tools to offer.
+default_config:
+
+http:
+  # Loopback only. With network_mode: host in the compose file, this
+  # line is the only thing standing between Home Assistant and a
+  # wildcard bind on WiFi and the tailnet -- there is no `ports:`
+  # mapping doing it instead.
+  #
+  # The tailnet reaches it through `tailscale serve`, which proxies
+  # from 127.0.0.1. Nothing else needs to.
+  server_host:
+    - 127.0.0.1
+
+  # `tailscale serve` is a reverse proxy on loopback, so every request
+  # arrives from 127.0.0.1. Without these two settings, Home Assistant
+  # sees the whole tailnet as one host -- which breaks the login
+  # attempt ban (one person fat-fingering a password locks out
+  # everybody) and logs every access as local.
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+
+recorder:
+  # Bounded on purpose. The default is 10 days, but the default also
+  # assumes a machine that is not at 81% of a 98 GB disk shared with
+  # Prometheus, Loki, Docker images and the Firefly database. The
+  # long-term history worth keeping on this network is already in
+  # Prometheus and Grafana; this database is for the recent past the
+  # Home Assistant UI needs to draw a graph.
+  purge_keep_days: 7
+  auto_purge: true
+  commit_interval: 5
+
+# These three exist so the UI's automation, script and scene editors
+# have somewhere to write. Home Assistant refuses to start if an
+# !include target is missing, so deploy.sh creates them empty.
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml

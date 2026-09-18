@@ -14,11 +14,28 @@ more information.
 
 # Homebridge
 
-The [homebridge](./homebridge) folder contains a docker-based setup
-for [Homebridge][ref-homebridge] for my house. This allows me to use
-[Apple HomeKit][ref-homekit] to communicate with all my home
-automation devices. See [the README.md](./homebridge/README.md) for
-more information.
+The [homebridge](./homebridge) folder version-controls the
+[Homebridge][ref-homebridge] setup on `snoc-beelink`, which lets
+[Apple HomeKit][ref-homekit] talk to all my home automation devices —
+Eufy cameras, Govee lights, Wemo outlets, Emporia energy monitors and
+per-person presence.
+
+It is an apt install from `repo.homebridge.io`, not the docker one an
+earlier version of this README described. `deploy.sh` re-asserts the
+parts this repo owns: the Config UI on loopback, the `tailscale serve`
+listener that publishes it to the tailnet on `:8581`, and the absence
+of a public Funnel in front of it. `sync-config.sh` captures the live
+config back into the repo with every credential redacted. See [the
+README.md](./homebridge/README.md) for more information.
+
+# Home Assistant
+
+The [home-assistant](./home-assistant) folder runs
+[Home Assistant][ref-home-assistant] in a container alongside
+Homebridge, imports the same accessories over HomeKit rather than
+pairing with the devices a second time, and exposes them to the
+[Hermes](./hermes) agent over MCP. See [the
+README.md](./home-assistant/README.md) for more information.
 
 # SSL Certificate
 
@@ -314,6 +331,7 @@ link to the server via the instructions in main repo.
 [ref-dvb]: https://github.com/offen/docker-volume-backup
 [ref-time-machine]: https://github.com/mbentley/docker-timemachine
 [ref-file-sd]: https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config
+[ref-home-assistant]: https://www.home-assistant.io/
 [ref-homekit]: https://www.apple.com/home-app/
 [ref-avahi]: https://avahi.org/
 [ref-alloy]: https://grafana.com/docs/alloy/latest/

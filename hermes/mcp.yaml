@@ -89,6 +89,51 @@ firefly:
     resources: false
     prompts: false
 
+# Home Assistant on this same box, over streamable HTTP on loopback.
+# See ../home-assistant/README.md for the deployment.
+#
+# What this exposes is Home Assistant's Assist API and nothing else: the
+# tools are the Assist intents (HassTurnOn, HassLightSet, GetLiveContext
+# and friends), scoped to whatever is listed under Settings > Voice
+# assistants > Expose. An entity that is not exposed there does not exist
+# as far as Hermes is concerned, whatever this file says. That page is the
+# real access control, not this one -- worth knowing before exposing the
+# door locks.
+#
+# There is no `include` list here, and that is a departure from the two
+# servers above. Their tool names are fixed by the server; these are
+# generated from the exposed entities and the selected LLM API, so any
+# list written today would silently drop whatever is added tomorrow --
+# the same failure the GitHub entry above describes, except that here it
+# would recur on every change to the house rather than once per server
+# upgrade.
+#
+# The endpoint is 127.0.0.1, not the tailnet name. Both Hermes and Home
+# Assistant run on snoc-beelink, so going out to tailscaled and back for
+# TLS would buy nothing; the tailnet listener exists for phones and for
+# the other nodes.
+homeassistant:
+  # Streamable HTTP. The older SSE endpoint at /mcp_server/sse still
+  # answers, and is what most of the third-party write-ups still show;
+  # Hermes supports both transports, so the only reason to fall back to
+  # it is a Home Assistant older than this one.
+  url: http://127.0.0.1:8123/api/mcp
+  headers:
+    # A long-lived access token, created under Profile > Security in the
+    # Home Assistant UI and stored in ~/.hermes/.env. It carries the full
+    # privileges of the account that created it, so it is an
+    # administrator credential wearing an API token's clothes -- which is
+    # the other reason the Expose page matters.
+    Authorization: Bearer ${HOMEASSISTANT_TOKEN}
+  tools:
+    # Enabled, unlike the two servers above. Home Assistant publishes one
+    # resource, homeassistant://assist/context-snapshot, which is the
+    # current state of every exposed entity in one read. That is exactly
+    # the thing an agent otherwise burns a dozen tool calls discovering.
+    # It only appears when the configured LLM API includes GetLiveContext.
+    resources: true
+    prompts: false
+
 # Deliberately absent: `fetch`. It was the second `command: npx` entry
 # and had never started either. Nothing was lost -- Hermes ships native
 # web_search and web_extract tools plus a browser toolset, all of which

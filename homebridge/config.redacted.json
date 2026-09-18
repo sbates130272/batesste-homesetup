@@ -1,0 +1,190 @@
+{
+  "accessories": [
+    {
+      "_bridge": {
+        "name": "AutomationCalendar 26A7",
+        "port": 33242,
+        "username": "0E:D4:53:35:6B:89"
+      },
+      "accessory": "AutomationCalendar",
+      "latitude": 0,
+      "longitude": 0,
+      "name": "AutomationCalendar"
+    },
+    {
+      "accessory": "AutomationCalendar",
+      "latitude": 0,
+      "longitude": 0,
+      "name": "AutomationCalendar"
+    }
+  ],
+  "bridge": {
+    "advertiser": "bonjour-hap",
+    "name": "Homebridge SNOC",
+    "pin": "REDACTED",
+    "port": 51950,
+    "username": "0E:64:CD:60:B7:2C"
+  },
+  "disabledPlugins": [
+    "homebridge-automation-calendar"
+  ],
+  "platforms": [
+    {
+      "host": "127.0.0.1",
+      "name": "Config",
+      "platform": "config",
+      "port": 18581,
+      "theme": "blue"
+    },
+    {
+      "_bridge": {
+        "manufacturer": "Emporia",
+        "name": "Emporia Energy",
+        "port": 44851,
+        "username": "0E:44:94:DB:4E:91"
+      },
+      "debug": true,
+      "devices": [
+        {
+          "deviceGid": 166264,
+          "hide": false,
+          "name": "snoc-thinkstation"
+        },
+        {
+          "deviceGid": 289761,
+          "hide": false,
+          "name": "living-room-desk"
+        }
+      ],
+      "exposeChargers": true,
+      "exposeEnergyMonitoring": true,
+      "exposeOutlets": true,
+      "name": "Emporia Energy",
+      "password": "REDACTED",
+      "platform": "EmporiaEnergy",
+      "updateInterval": 30,
+      "username": "REDACTED"
+    },
+    {
+      "CameraMaxLivestreamDuration": 10,
+      "_bridge": {
+        "manufacturer": "Eufy",
+        "name": "SNOC - EufySecurity",
+        "port": 32155,
+        "username": "0E:DE:8D:52:4A:A2"
+      },
+      "autoSyncStation": false,
+      "cameras": [
+        {
+          "enableButton": false,
+          "indoorChimeButton": false,
+          "motionButton": false,
+          "rtsp": false,
+          "serialNumber": "REDACTED"
+        },
+        {
+          "serialNumber": "REDACTED",
+          "talkback": true
+        }
+      ],
+      "cleanCache": true,
+      "country": "CA",
+      "deviceName": "",
+      "enableDetailedLogging": false,
+      "hkAway": 0,
+      "hkHome": 1,
+      "hkNight": 3,
+      "hkOff": 63,
+      "ignoreDevices": [],
+      "ignoreMultipleDevicesWarning": false,
+      "ignoreStations": [],
+      "name": "EufySecurity",
+      "omitLogFiles": false,
+      "password": "REDACTED",
+      "platform": "EufySecurity",
+      "pollingIntervalMinutes": 10,
+      "stations": [],
+      "username": "REDACTED"
+    },
+    {
+      "_bridge": {
+        "port": 51199,
+        "username": "0E:C2:3A:E1:AB:12"
+      },
+      "addressRange": "10.0.0.0/24",
+      "anyoneSensor": true,
+      "debug": true,
+      "devices": [
+        {
+          "mac": "REDACTED",
+          "name": "REDACTED",
+          "threshold": 5
+        },
+        {
+          "mac": "REDACTED",
+          "name": "REDACTED",
+          "threshold": 5
+        },
+        {
+          "mac": "REDACTED",
+          "name": "REDACTED",
+          "threshold": 5
+        },
+        {
+          "mac": "REDACTED",
+          "name": "REDACTED",
+          "threshold": 5
+        },
+        {
+          "mac": "REDACTED",
+          "name": "REDACTED",
+          "threshold": 5
+        },
+        {
+          "mac": "REDACTED",
+          "name": "REDACTED",
+          "threshold": 5
+        }
+      ],
+      "interval": 10,
+      "platform": "NetworkPresence",
+      "threshold": 15
+    },
+    {
+      "_bridge": {
+        "port": 49383,
+        "username": "0E:E9:21:76:4C:33"
+      },
+      "disableDeviceLogging": false,
+      "disableUPNP": false,
+      "hideConnectionErrors": false,
+      "mode": "auto",
+      "name": "Wemo",
+      "platform": "Wemo",
+      "wemoClient": {
+        "discover_opts": {
+          "explicitSocketBind": false
+        }
+      }
+    },
+    {
+      "_bridge": {
+        "name": "Govee",
+        "port": 44586,
+        "username": "0E:A4:83:59:B8:D1"
+      },
+      "awsDisable": false,
+      "bleDisable": false,
+      "code": "REDACTED",
+      "colourSafeMode": false,
+      "disableDeviceLogging": false,
+      "ignoreMatter": false,
+      "lanDisable": false,
+      "name": "Govee",
+      "openApiDisable": false,
+      "password": "REDACTED",
+      "platform": "Govee",
+      "username": "REDACTED"
+    }
+  ]
+}
