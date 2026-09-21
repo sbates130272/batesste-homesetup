@@ -29,7 +29,7 @@ git -c commit.gpgSign=false -c push.gpgSign=false -c gpg.program= ... commit
 
 A command-line `-c` beats `.gitconfig`, and there is no environment variable
 or config file that overrides it. So enabling the destructive flag as shipped
-means **every commit Hermex makes is unsigned**, with no warning and no way
+means **every commit Hermes makes is unsigned**, with no warning and no way
 to ask for otherwise — against a standing rule here that commits are signed.
 
 The patch splits those five entries into their own tuple and applies them
@@ -57,7 +57,7 @@ git apply ~/Projects/batesste-homesetup/hermes/webui/workspace-git-sign.patch
 systemctl --user restart hermes-webui
 ```
 
-Verify by committing something from Hermex and checking the result on the
+Verify by committing something from Hermes and checking the result on the
 host — this is the only test that exercises the whole path:
 
 ```bash
@@ -76,7 +76,7 @@ Updated 2026-09-17, from 3593 commits behind to `origin/master`. An earlier
 version of this section called that gap tolerable because "the box works
 either way". It was not: the WebUI reads its Python straight from this
 checkout, so being behind is not a cosmetic version number, it is the
-running code. The clipboard-paste path Hermex needs shipped upstream during
+running code. The clipboard-paste path Hermes needs shipped upstream during
 that gap and was simply absent here.
 
 Update by rebasing the one patch, never by merging:
@@ -98,7 +98,7 @@ Three things that are not optional:
   database. Session history itself is JSON sidecars under
   `~/.hermes/webui/sessions/` and survives independently.
 - **Prime gpg-agent first**, or the signing rebase hangs the same way a
-  Hermex commit does, for the same reason.
+  Hermes commit does, for the same reason.
 
 Do not install this from PyPI. The `hermes-webui` package there is a
 different, unrelated project (version 0.1.0, one release, no project URLs);

@@ -2424,7 +2424,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Playstation"
+              "options": "snoc-beelink"
             },
             "properties": [
               {

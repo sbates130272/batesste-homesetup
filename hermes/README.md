@@ -121,7 +121,7 @@ stray copy in the project checkout.
 
 It is user-scoped for two reasons that are not tidiness: only a user unit
 can reach the login session's gpg-agent, which it needs to sign the commits
-Hermex makes into the workspace; and only a user unit reads
+Hermes makes into the workspace; and only a user unit reads
 `~/.config/environment.d/`, which is where its environment lives. That file
 belongs to the `systemd` package in the dotfiles, not to this repo — see
 [`webui/`](./webui/) for the whole picture, including the one local patch

@@ -1,5 +1,6 @@
 ACLs
 AER
+AIAgent
 ais
 allowlist
 amd
@@ -74,6 +75,7 @@ GDDR
 gfx
 GHSA
 GiB
+git's
 gitignored
 GoDaddy
 Govee
@@ -186,7 +188,9 @@ OUI
 PCIe
 perf
 PIDs
+pids
 pigz
+pipx
 ppp
 prometheus
 Promtail
@@ -196,6 +200,7 @@ proxied
 proxying
 pty
 PV
+PyPI
 Qwen
 radeon
 Radeon
@@ -203,6 +208,8 @@ raithlin
 rdma
 reachability
 README
+rebase
+rebasing
 regexes
 repo
 repointed
@@ -264,6 +271,7 @@ tokenless
 toolset
 tradeoff
 tsdb
+TTLs
 TTS
 TXT
 UI
@@ -281,7 +289,9 @@ unreproducible
 unrotated
 unroutable
 unscoped
+unstage
 Upstream's
+upstreamable
 userspace
 UUIDs
 vendored
@@ -293,11 +303,16 @@ VM
 VMCreatorId
 VRAM
 vxwm
+WAL
 WAN
 webhook
 WebSocket
+WebUI
+webui
+WebUI's
 Wemo
 WiFi
+wifi
 WLAN
 WSL
 xio
