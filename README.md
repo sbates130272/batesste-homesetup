@@ -32,8 +32,9 @@ README.md](./homebridge/README.md) for more information.
 
 The [home-assistant](./home-assistant) folder runs
 [Home Assistant][ref-home-assistant] in a container alongside
-Homebridge, imports the same accessories over HomeKit rather than
-pairing with the devices a second time, and exposes them to the
+Homebridge, tracks presence through the Companion app rather than
+importing the Homebridge accessories over HomeKit — a route the
+already-paired bridges close — and exposes what it has to the
 [Hermes](./hermes) agent over MCP. See [the
 README.md](./home-assistant/README.md) for more information.
 

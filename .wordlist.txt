@@ -64,6 +64,7 @@ env
 EnvironmentFile
 ethernet
 Eufy
+EufyHome
 EV
 exporter
 exporters

@@ -223,25 +223,60 @@ That leaves three routes, and none of them is the easy one:
    because an unpaired-and-repaired bridge is a new accessory as far
    as HomeKit is concerned. Do not do this by accident.
 
-The alternative direction — native Home Assistant integrations for
-Govee, Wemo and Eufy, with Home Assistant's own HomeKit Bridge pushing
-them back to Apple Home — is a bigger migration, and it moves the
-device credentials out of Homebridge. It is also the only one of these
-that can be done incrementally, which makes it the one to start with:
+The alternative direction — get the devices into Home Assistant some
+other way, and let Home Assistant's own HomeKit Bridge push them back
+to Apple Home — is the only one that can be done incrementally, which
+makes it the one to start with. It is also much narrower than it first
+looks. Of the five plugins here, exactly one has a native Home
+Assistant equivalent, and presence turns out not to want an
+integration at all:
 
-- **`nmap_tracker` or `ping`** replaces `homebridge-network-presence`
-  outright. Both are shipped, `nmap` is in the image, and the
-  container runs host-networked, so the default ARP scan works.
+- **Presence** does not want a network scanner. The Companion app on
+  each phone already produces a GPS tracker, and it is immune to the
+  three things that visibly break `homebridge-network-presence`: four
+  of its six MACs are randomised iOS private addresses, phones in
+  WiFi power save stop answering its TCP probe, and DHCP moves them
+  anyway. `nmap_tracker` is shipped and `nmap` is in the image, but
+  running its own `DEFAULT_OPTIONS` against a phone the kernel
+  neighbour table called `REACHABLE` found it in two `/24` sweeps out
+  of three, and in none of three single-host probes. It inherits the
+  MAC problem rather than solving it. The seventh accessory,
+  "Anyone", has no device behind it — the plugin recomputes it from
+  the other six every ten seconds — and is rebuilt as a template
+  binary sensor in `configuration.yaml`. Note what this is *not*: a
+  reason to remove the plugin. Its seven accessories are
+  `OccupancySensor`s paired into Apple Home, and Home Assistant
+  cannot publish replacements into a bridge Apple Home already owns.
+  Delete the platform block and those seven vanish along with
+  anything keyed on them. Run both; the duplication is the point.
 - **Belkin Wemo** is native and needs no credentials. Blocked today:
   `snoc-wemo-a` is off the network and Homebridge has been logging
-  `still not been initially found` for it continuously.
-- **Govee, Eufy and Emporia** stay on Homebridge. Their native
-  integrations want the same cloud credentials Homebridge already
-  holds, and moving them buys nothing until something forces it.
+  `still not been initially found` for it continuously. Nothing on
+  this segment answers an SSDP `M-SEARCH`, so it cannot even be
+  smoke-tested until the outlet is back.
+- **Govee, Eufy and Emporia** stay on Homebridge, and not because
+  moving them is merely unattractive. The three Govee accessories are
+  H5059 water leak sensors; `govee_light_local` only ever creates
+  lights, and `govee_ble`'s parser has no entry for them. The only
+  `eufy` that ships is EufyHome — legacy, YAML-only, bulbs and plugs
+  — which is a different product line from the Security cameras on
+  the bridge. There is no `emporia` component at all. Homebridge is
+  the only place these devices exist.
 
-Until one of those lands there is genuinely nothing controllable to
+None of the integrations above can be written into this repository.
+All are `config_flow: true` with no YAML path, so they live in the
+half of `.storage` Home Assistant owns, and re-running `deploy.sh`
+will not recreate them. The template binary sensor is the one piece
+version control can hold.
+
+Until presence lands there is genuinely nothing controllable to
 expose, and the MCP chain below will report a connection with no
 entity tools. That is the correct result, not a broken deployment.
+Worth saying plainly, though: presence is the only thing on that list
+that moves. Sort the twenty-five accessories by what they can *do*
+and twenty-four are read-only — energy, cameras, leak sensors,
+presence. The one device in this house that answers a command is a
+single Wemo outlet, and it is offline.
 
 ## MCP, and what Hermes can actually see
 

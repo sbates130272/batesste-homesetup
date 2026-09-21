@@ -171,10 +171,13 @@ $ git diff -- homebridge/config.redacted.json
 
 ## Home Assistant
 
-[`../home-assistant`](../home-assistant) runs alongside this and
-imports these same accessories over HomeKit rather than talking to the
-devices again itself. Homebridge stays the single place where device
-credentials live.
+[`../home-assistant`](../home-assistant) runs alongside this and does
+*not* import these accessories over HomeKit — the bridges are already
+paired to Apple Home, so that flow aborts before it asks for a PIN.
+Nor does it pick them up natively: of the five plugins here, only Wemo
+has a Home Assistant equivalent, and that outlet is off the network.
+Homebridge stays the single place these devices exist at all, and the
+single place their credentials live.
 
 ## Plugin setup notes
 
