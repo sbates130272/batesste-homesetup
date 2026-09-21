@@ -80,3 +80,4 @@ allow:
 #
 # The container is what bounds the browser instead: no host mounts, 2 GB, one
 # named volume for /home/agent, and `docker compose down -v` as the reset.
+# Chrome is driven through AT-SPI accessibility via --force-renderer-accessibility.

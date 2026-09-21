@@ -23,7 +23,7 @@ services:
         # warns when the driver is older than the version it was tested
         # against, so this moves on purpose, not on rebuild.
         CUA_DRIVER_VERSION: "0.28.2"
-    image: batesste-cua-driver:0.28.2
+    image: batesste-cua-driver:0.28.2-chrome
     hostname: batesste-cua-driver
     container_name: batesste-cua-driver
     restart: unless-stopped
@@ -36,7 +36,7 @@ services:
     memswap_limit: 2g
     cpus: 2.0
 
-    # /dev/shm defaults to 64 MB, which Firefox exhausts on the first
+    # /dev/shm defaults to 64 MB, which Chrome exhausts on the first
     # content-heavy tab and reports as a renderer crash.
     shm_size: 512m
 

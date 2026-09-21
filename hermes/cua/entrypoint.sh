@@ -63,8 +63,21 @@ openbox --sm-disable &
 # open from the start, and the root menu (see openbox-menu.xml) is how it
 # opens anything else.
 if [[ "${CUA_AUTOSTART_BROWSER:-1}" == "1" ]]; then
-    log "starting firefox-esr"
-    firefox-esr >/dev/null 2>&1 &
+    log "starting google-chrome-stable"
+    # Chrome needs --force-renderer-accessibility for AT-SPI,
+    # --no-sandbox for running inside containers, and --disable-gpu
+    # to avoid hardware issues in the virtual X display.
+    ACCESSIBILITY_ENABLED=1 google-chrome-stable \
+        --no-sandbox \
+        --disable-gpu \
+        --disable-software-rasterizer \
+        --disable-dev-shm-usage \
+        --force-renderer-accessibility \
+        --start-maximized \
+        --user-data-dir=/home/agent/.config/google-chrome \
+        --new-window \
+        'data:text/html,<h1>Chrome is ready</h1>' \
+        >/dev/null 2>&1 &
 fi
 
 if [[ "${VNC_ENABLED}" == "1" ]]; then
