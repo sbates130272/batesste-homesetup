@@ -625,7 +625,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.",
+      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.\n\nThe Exporter query is gated on node_uname_info because Prometheus synthesises up=0 for a statically configured target forever, powered on or not -- ungated, a machine that is switched off still produces a row here with every other column blank. Gating it matches Node Fleet: a host that stops reporting drops out of the table, and the Service Health tiles are what tell you it is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -907,7 +907,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (server_name) (up{job=\"amd-gpu-metrics-exporter\"})",
+          "expr": "max by (server_name) (up{job=\"amd-gpu-metrics-exporter\"})\nand on (server_name)\nmax by (server_name) (node_uname_info)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -2541,11 +2541,12 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Download throughput from the most recent speedtest run, converted from the exporter's bytes/s to bits/s.",
+      "description": "Download throughput from the most recent speedtest run, converted from the exporter's bytes/s to bits/s. The speedtest probe runs every 15 minutes, which is longer than Prometheus's 5m staleness window, so the raw series is full of gaps and every marker is one actual run, not a sampled trend. spanNulls is one hour rather than true so those four-sample gaps close, but a real outage longer than an hour still draws as a break instead of a line through it.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2556,23 +2557,23 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
+            "fillOpacity": 25,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "linear",
             "lineWidth": 2,
-            "pointSize": 5,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "always",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -2611,11 +2612,11 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "desc"
         }
       },
@@ -2641,11 +2642,12 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Upload throughput from the same run, likewise in bits/s.",
+      "description": "Upload throughput from the same run, likewise in bits/s. Drawn like WAN Download, and for the same reason: one marker per 15-minute run.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "#199e70",
+            "mode": "fixed"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2656,23 +2658,23 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
+            "fillOpacity": 25,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "linear",
             "lineWidth": 2,
-            "pointSize": 5,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "always",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -2711,11 +2713,11 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "desc"
         }
       },
@@ -2741,7 +2743,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Idle latency and jitter from the speedtest run. The jitter series uses speedtest_jittter_seconds -- the exporter's own misspelling, not a typo here.",
+      "description": "Idle latency and jitter from the speedtest run. The jitter series uses speedtest_jittter_seconds -- the exporter's own misspelling, not a typo here. Unfilled, unlike the two throughput panels: jitter sits an order of magnitude below latency, and a fill under the larger series buries it.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2756,7 +2758,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2764,15 +2766,15 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "linear",
             "lineWidth": 2,
-            "pointSize": 5,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "always",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -2793,7 +2795,38 @@
           },
           "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#c98500",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Jitter"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9085e9",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 6,
