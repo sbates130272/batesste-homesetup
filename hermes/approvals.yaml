@@ -24,6 +24,20 @@ command_allowlist:
   - sudo with privilege flag (stdin/askpass/shell/list)
   - tirith:raw_ip_url
 
+  # ---- Captured 2026-09-21, ahead of the v0.21.3 -> current update ----
+  #
+  # These four were answered "always" at a prompt and so existed only in
+  # ~/.hermes/config.yaml -- the state the header warns about. They are the
+  # grants the three scheduled jobs rely on: Homelan Check restarts
+  # containers, and the Firefly and memory-hygiene jobs run scripts via -c.
+  # Recorded here so the next apply keeps them rather than silently
+  # reverting the three jobs to prompting, which in an unattended context
+  # is a refusal rather than a pause.
+  - docker restart/stop/kill (container lifecycle)
+  - recursive delete
+  - script execution via -e/-c flag
+  - tirith:pipe_to_interpreter
+
   # ---- computer_use ----
   #
   # Hermes gates every action its _ACTIONS table marks `destructive` through
