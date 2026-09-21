@@ -1,6 +1,6 @@
 [
   {
-    "targets": ["10.0.0.70:9488"],
+    "targets": ["snoc-strix.fold-leaffish.ts.net:9488"],
     "labels": {
       "server_name": "snoc-strix"
     }

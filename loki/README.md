@@ -119,7 +119,7 @@ the hostname and writes to `/etc/default/alloy`:
 |---|---|
 | `snoc-beelink` | `http://127.0.0.1:3100/...` |
 | `snoc-thinkstation` (10.0.0.131) | `http://10.0.0.15:3100/...` |
-| `snoc-strix` (10.0.0.70) | `http://10.0.0.15:3100/...` |
+| `snoc-strix` (10.0.0.242 wired, 10.0.0.70 wifi) | `http://10.0.0.15:3100/...` |
 | `amd-laptop` (10.0.0.107) | `http://10.0.0.15:3100/...` |
 
 Everything but the beelink pushes over the LAN. A host on the
