@@ -22,6 +22,8 @@ grafana/
       notification-policies.yaml
       rules.yaml              # backup alert rules
   dashboards/                 # first-party, one dir per Grafana folder
+    amd-related/              # folder: AMD Related
+      amd-llm-metrics.json
     general/                  # folder: (root)
       lan-overview.json
     home-network-related/     # folder: Home Network Related
@@ -172,7 +174,7 @@ deploy and never stop — and a permanently firing alert gets
 muted, which is the state this whole exercise exists to escape.
 Add it when the bucket exists and the timer is enabled.
 
-## Dashboards (11 total)
+## Dashboards (12 total)
 
 `provisioning/dashboards/dashboards.yaml` tells Grafana to
 watch `/var/lib/grafana/dashboards/<folder>/` for JSON
@@ -194,6 +196,7 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
+| AMD Related | AMD LLM Metrics | Usage and approximate spend on the AMD internal LLM gateway |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
@@ -535,6 +538,59 @@ under the staleness marker — leaving a nameless row carrying
 nothing but a CPU percentage. Spining it on the same series as
 the rest of the table makes the host either fully present or
 fully absent.
+
+### AMD LLM metrics are window gauges, not counters
+
+Every `amd_llm_*` series is a gauge holding a **total over the
+gateway's rolling reporting window** — 30 days, published as
+`amd_llm_window_days`. The reporter on `amd-laptop` polls the
+AMD gateway's own usage API and republishes whatever report it
+gets back.
+
+Two consequences that are easy to get wrong:
+
+- **`rate()` and `increase()` are meaningless on them.** The
+  series falls whenever a busy day ages out of the back of the
+  window, and `increase()` reads every one of those decreases
+  as a counter reset — so it invents usage that never happened.
+  `amd_llm_fetch_errors_total` is the single exception on the
+  dashboard: it is a real counter, and it is charted with
+  `increase()` deliberately.
+- **A "per day" number here is a same-series offset**, and it
+  is *net*. The Net Charge Change panel is
+  `amd_llm_approx_charge_usd - (... offset 1d)`, which is spend
+  added minus spend aged off. On a steady workload it hovers
+  near zero while real money is being spent, and it can go
+  negative. It answers "up or down against a month ago", not
+  "what did today cost".
+
+The per-model families carry two labels, `provider` and
+`model`, and the same model shows up under both `AzureOpenAI`
+and `VertexGenAI` because the gateway routes between them. The
+split is deliberate rather than noise — it is the only
+visibility we get into that routing — so the Per-Model
+Breakdown table keys on both. `seriesToColumns` joins on a
+single field, so the queries build a synthetic `key` label with
+`label_join` and join on that, then drop it in the `organize`
+step.
+
+Finally, `amd_llm_model_total_tokens` is **not**
+`prompt + completion`. On this gateway the residual is well
+over 99% of the count, and it is what the charge figures are
+computed against. Cache reads are the obvious explanation and
+the blended Cost / 1M Tokens is consistent with it, but the
+reporter does not label the field, so the dashboard calls the
+column "Other" and says what it is arithmetically rather than
+guessing in the UI.
+
+`up{job="amd-llm-exporter"}` is a weak health signal for the
+same reason the Cursor and OpenAI tiles are: the reporter
+serves a cached report, so it answers every scrape happily
+while its upstream fetch has been failing for days. Last
+Successful Fetch (`time() - amd_llm_last_fetch_timestamp_seconds`)
+is the tile that catches that, and it is why the LAN Overview
+`AMD LLM` tile's description points at this dashboard rather
+than claiming green means healthy.
 
 ### Emporia plug colors are pinned, not automatic
 

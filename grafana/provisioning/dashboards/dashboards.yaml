@@ -62,6 +62,24 @@ providers:
       path: /var/lib/grafana/dashboards/personal-finance
       foldersFromFilesStructure: false
 
+  # No folderUid, and for the same reason vendor-home-network-related
+  # below has none: vendor-amd-related already claims bfhho76dk60hsf,
+  # and Grafana rejects two providers claiming one uid. Matching AMD
+  # Related on title alone is safe while that provider exists, because
+  # title matching only spawns a duplicate folder when no provisioned
+  # folder of that name does. If vendor-amd-related is ever retired,
+  # move the uid here rather than leaving it unclaimed.
+  - name: amd-related
+    orgId: 1
+    folder: AMD Related
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/amd-related
+      foldersFromFilesStructure: false
+
   # ── Adopted third-party dashboards ─────────────────────────────
 
   # This one *does* pin folderUid, unlike its sibling below. Retiring

@@ -2315,6 +2315,98 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Scrape state of the AMD LLM usage reporter on amd-laptop (10.0.0.107:9876). Read it the way the Cursor and OpenAI tiles are read -- up=1 only means the endpoint answered. This reporter republishes a cached 30-day report from the gateway API, so it keeps serving happily when that fetch has been failing for days. Last Successful Fetch on the AMD LLM Metrics dashboard is the tile that actually catches that.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 29
+      },
+      "id": 50,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "up{job=\"amd-llm-exporter\"}",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -3220,12 +3312,305 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Requests served by the AMD internal LLM gateway. Covers the gateway's rolling reporting window, not the dashboard time range -- 30 days as of writing, and the title says so literally. amd_llm_window_days is the authority; if the gateway ever changes it, this title is what goes stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 53
+      },
+      "id": 51,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_llm_total_requests",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Requests (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Total tokens through the AMD internal LLM gateway. Counts far more than prompt + completion -- see the Token Mix panel on AMD LLM Metrics for what the rest is. Covers the gateway's rolling reporting window, not the dashboard time range -- 30 days as of writing, and the title says so literally. amd_llm_window_days is the authority; if the gateway ever changes it, this title is what goes stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 53
+      },
+      "id": 52,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_llm_total_tokens",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Tokens (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "The gateway's own approximate charge. List-price arithmetic over token counts, not an invoice and not aware of any internal rate -- a size, not an amount owed. Covers the gateway's rolling reporting window, not the dashboard time range -- 30 days as of writing, and the title says so literally. amd_llm_window_days is the authority; if the gateway ever changes it, this title is what goes stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange"
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 53
+      },
+      "id": 53,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_llm_approx_charge_usd",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Spend (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "The three models carrying the most approximate spend in the window. topk is evaluated by Prometheus rather than trimmed in the panel, so a model that drops out of the top three disappears from the tile rather than lingering at zero. The full breakdown, including the provider split for a model served by both, is on AMD LLM Metrics.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text"
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "id": 54,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "maxVizHeight": 300,
+        "minVizHeight": 12,
+        "minVizWidth": 8,
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "topk(3, amd_llm_model_approx_charge_usd)",
+          "instant": true,
+          "legendFormat": "{{model}} \u00b7 {{provider}}",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Top Models by Spend (30d)",
+      "type": "bargauge"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 57
       },
       "id": 44,
       "title": "Storage",
@@ -3268,7 +3653,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 54
+        "y": 58
       },
       "id": 49,
       "options": {
@@ -3461,7 +3846,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 61
       },
       "id": 31,
       "options": {
@@ -3624,7 +4009,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 67
       },
       "id": 32,
       "options": {
@@ -3664,7 +4049,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 69
+        "y": 73
       },
       "id": 45,
       "title": "System Load",
@@ -3707,7 +4092,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 70
+        "y": 74
       },
       "id": 34,
       "options": {
@@ -3774,7 +4159,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 70
+        "y": 74
       },
       "id": 35,
       "options": {

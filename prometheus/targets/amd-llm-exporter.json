@@ -1,0 +1,10 @@
+[
+  {
+    "targets": [
+      "10.0.0.107:9876"
+    ],
+    "labels": {
+      "server_name": "amd-laptop"
+    }
+  }
+]

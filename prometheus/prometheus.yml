@@ -224,6 +224,27 @@ scrape_configs:
           - /etc/prometheus/targets/discovered/cursor-exporter.json
         refresh_interval: 30s
 
+  # The AMD internal LLM gateway usage reporter on amd-laptop. It
+  # polls the gateway's own reporting API and re-exposes the answer,
+  # so the numbers move on the reporter's fetch cadence, not ours --
+  # 60s here is about bounding staleness, not sampling rate. Watch
+  # amd_llm_last_fetch_timestamp_seconds rather than `up` to tell
+  # whether the data behind a green target is actually fresh.
+  #
+  # Manual target only, and an IP rather than a name: amd-laptop does
+  # not resolve from this box (no mDNS, not in /etc/hosts), which is
+  # why every other job targeting it -- node, amd-gpu-metrics-exporter
+  # -- also carries 10.0.0.107 literally. There is deliberately no
+  # _amd-llm-exporter._tcp Avahi service and no discovered/ path: a
+  # host that cannot be resolved cannot be discovered either, so the
+  # second file would never be anything but absent.
+  - job_name: amd-llm-exporter
+    scrape_interval: 60s
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/amd-llm-exporter.json
+        refresh_interval: 30s
+
   # Loki serves its own metrics on the same port it ingests on.
   # Worth scraping for more than tidiness: retention is enforced
   # by time, not size, so ingestion rate is the only advance
