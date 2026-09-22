@@ -1,0 +1,36 @@
+# Speech in and speech out.
+#
+# Apply it with ./apply-model-config.py. Merged, not replaced: these are the
+# keys the homelab has an opinion about, and the installer's other stt/tts
+# provider blocks are left where they are so switching back is one word.
+#
+# `hermes update` rewrites ~/.hermes/config.yaml, so a voice setting that
+# lives only there is a setting with an expiry date nobody wrote down.
+
+stt:
+  enabled: true
+
+  # NOT the remote endpoint. STT_OPENAI_BASE_URL points the `openai` provider
+  # at lemonade on snoc-strix, which answers /audio/transcriptions but cannot
+  # decode what hermes uploads: WhatsApp voice notes are Opus-in-Ogg, and the
+  # one retry hermes has transcodes to m4a (hardcoded in
+  # tools/transcription_audio.py), which fails the same way. Every voice note
+  # came back `500 failed to read audio data` and reached the model as
+  # "[voice message could not be transcribed automatically]" -- so the model
+  # answered the existence of an audio file rather than anything that was said.
+  #
+  # faster-whisper decodes Opus natively, which removes the container problem
+  # instead of negotiating with it. Installed lazily on first use.
+  provider: local
+  local:
+    # `base` is accurate on clear dictation and cheap on a 20-second clip.
+    # Raise to `small` if longer or noisier notes come back sloppy.
+    model: base
+    language: ''
+
+tts:
+  # Edge needs no API key and no local model, which is what makes it the right
+  # default here: nothing to rotate and nothing to keep resident.
+  provider: edge
+  edge:
+    voice: en-US-AriaNeural

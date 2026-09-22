@@ -387,6 +387,43 @@ Note that `hsa_errors_total` and `ais_tx_errors_total` are
 declared upstream but only materialise once a labelled child
 exists, so those panels read empty on a healthy exporter.
 
+### The amd-llm-exporter job
+
+`amd-laptop` runs a small reporter on `:9876` that polls the
+AMD internal LLM gateway's usage API and re-exposes the
+answer as `amd_llm_*`. It backs the **AMD LLM Metrics**
+dashboard and the summary tiles under LAN Overview's AI &
+Developer Usage row.
+
+Scraped at 60s, which is about bounding staleness rather
+than sampling rate: the numbers only move when the reporter
+fetches again, and that is on its own cadence, not ours. Watch
+`amd_llm_last_fetch_timestamp_seconds` rather than `up` to
+tell whether a green target is serving current data — the
+reporter answers every scrape from cache, so `up=1` survives
+an upstream API that has been failing for days.
+
+Every `amd_llm_*` series is a **gauge holding a total over a
+rolling 30-day window** (`amd_llm_window_days`), not a
+counter. `rate()` and `increase()` over them are wrong, not
+merely noisy: the window ageing out looks exactly like a
+counter reset. The exception is
+`amd_llm_fetch_errors_total`, which is a genuine counter.
+See [the Grafana README](../grafana/README.md) for how the
+dashboards work around this.
+
+**Manual target only, and an IP rather than a name.**
+`amd-laptop` does not resolve from `snoc-beelink` — no mDNS,
+no `/etc/hosts` entry — which is why `node` and
+`amd-gpu-metrics-exporter` also carry `10.0.0.107` literally.
+For the same reason this job has no `_amd-llm-exporter._tcp`
+Avahi service and no `discovered/` path in its
+`file_sd_configs`: a host that cannot be resolved cannot be
+discovered either, so that second file would never be
+anything but absent. Adding a `/etc/hosts` entry on the
+beelink would let the target use a name, but would not make
+discovery work.
+
 ## The S3 backup age textfile collector
 
 `textfile-collectors/s3-backup-age.sh` publishes

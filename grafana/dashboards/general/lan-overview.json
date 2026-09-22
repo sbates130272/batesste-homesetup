@@ -992,7 +992,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Throughput per host, joined on instance the same way Node Fleet is. Split out of Node Fleet rather than bolted onto it because these answer a different question -- what a host is doing right now, not what it is.\n\nDisk is bytes/sec and network is bits/sec, which is why a saturated gigabit link reads ~1 Gbps here and a busy NVMe reads in MB/s; they are not on the same scale and are not meant to be compared across the table.\n\nNetwork is filtered to (en|eth|wl).* on purpose. The unfiltered max this was ported from reported amd-laptop's loopback0 at 518 kbps as the host's network throughput while its real eth1 carried 63 kbps -- loopback, docker0, veth* and tailscale0 all count traffic that never touches the LAN, and tailscale0 counts it twice. Disk is deliberately unfiltered: dm-0 reports the same bytes as the nvme0n1 beneath it, and max() collapses the pair rather than double-counting it the way sum() would.\n\nEvery rate is gated on node_uname_info. Without that guard snoc-shannon returns a sixth row with an IP and no name: its scrape has been failing for long enough that an instant selector finds nothing, but rate() still sees samples inside its window and reports throughput for a host that is down.",
+      "description": "Throughput per host, joined on instance the same way Node Fleet is. Split out of Node Fleet rather than bolted onto it because these answer a different question -- what a host is doing, not what it is.\n\nEvery figure covers the dashboard time range rather than the present moment, and all three columns in a category are derived from one series: at each minute the host's busiest device is taken, and Avg/Min/Max are the mean, floor and ceiling of that minute-by-minute series across the range. Reading a row tells you the sustained load and the shape of it -- an avg near the max means steady traffic, an avg far below it means an idle host with spikes.\n\nAggregating across devices first, then over time, is deliberate and was not the obvious way to write it. Applying max by (instance) to each statistic separately is simpler and wrong: the columns then pick their device independently, so Min can report one NIC and Avg another. snoc-strix did exactly that, returning a Net TX min of 939 kbps against an avg of 675 kbps -- a floor above the mean, which is impossible for one device and merely inconsistent for two.\n\nDisk Min is usually 0 and that is the honest answer; over any useful range every disk has a quiet minute. Network Min rarely reaches 0, because a host on a LAN is never completely silent, so that column reads as the background chatter floor.\n\nDisk is bytes/sec and network is bits/sec, which is why a saturated gigabit link reads ~1 Gbps here and a busy NVMe reads in MB/s; they are not on the same scale and are not meant to be compared across the table.\n\nNetwork is filtered to (en|eth|wl).* on purpose. The unfiltered max this was ported from reported amd-laptop's loopback0 at 518 kbps as the host's network throughput while its real eth1 carried 63 kbps -- loopback, docker0, veth* and tailscale0 all count traffic that never touches the LAN, and tailscale0 counts it twice. Disk is deliberately unfiltered: dm-0 reports the same bytes as the nvme0n1 beneath it, and max() collapses the pair rather than double-counting it the way sum() would.\n\nEvery rate is gated on node_uname_info. Without that guard snoc-shannon returns a sixth row with an IP and no name: its scrape has been failing for long enough that an instant selector finds nothing, but rate() still sees samples inside its window and reports throughput for a host that is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1031,8 +1031,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "Disk R"
+              "id": "byRegexp",
+              "options": "Disk .*"
             },
             "properties": [
               {
@@ -1045,34 +1045,14 @@
               },
               {
                 "id": "custom.width",
-                "value": 150
+                "value": 115
               }
             ]
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "Disk W"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "Bps"
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              },
-              {
-                "id": "custom.width",
-                "value": 150
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Net RX"
+              "id": "byRegexp",
+              "options": "Net .*"
             },
             "properties": [
               {
@@ -1085,27 +1065,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 150
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Net TX"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bps"
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              },
-              {
-                "id": "custom.width",
-                "value": 150
+                "value": 115
               }
             ]
           }
@@ -1149,7 +1109,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_disk_read_bytes_total[5m]))\nand on (instance) node_uname_info",
+          "expr": "avg_over_time((max by (instance) (rate(node_disk_read_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1162,7 +1122,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_disk_written_bytes_total[5m]))\nand on (instance) node_uname_info",
+          "expr": "min_over_time((max by (instance) (rate(node_disk_read_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1175,7 +1135,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[5m]) * 8)\nand on (instance) node_uname_info",
+          "expr": "max_over_time((max by (instance) (rate(node_disk_read_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1188,15 +1148,119 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[5m]) * 8)\nand on (instance) node_uname_info",
+          "expr": "avg_over_time((max by (instance) (rate(node_disk_written_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
           "range": false,
           "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min_over_time((max by (instance) (rate(node_disk_written_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((max by (instance) (rate(node_disk_written_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time((max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min_over_time((max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time((max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "K"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min_over_time((max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "L"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "M"
         }
       ],
-      "title": "Node I/O",
+      "title": "Node IO",
       "transformations": [
         {
           "id": "seriesToColumns",
@@ -1213,15 +1277,31 @@
               "Time 3": true,
               "Time 4": true,
               "Time 5": true,
+              "Time 6": true,
+              "Time 7": true,
+              "Time 8": true,
+              "Time 9": true,
+              "Time 10": true,
+              "Time 11": true,
+              "Time 12": true,
+              "Time 13": true,
               "Value #A": true,
               "instance": true
             },
             "renameByName": {
               "server_name": "Node",
-              "Value #B": "Disk R",
-              "Value #C": "Disk W",
-              "Value #D": "Net RX",
-              "Value #E": "Net TX"
+              "Value #B": "Disk R avg",
+              "Value #C": "Disk R min",
+              "Value #D": "Disk R max",
+              "Value #E": "Disk W avg",
+              "Value #F": "Disk W min",
+              "Value #G": "Disk W max",
+              "Value #H": "Net RX avg",
+              "Value #I": "Net RX min",
+              "Value #J": "Net RX max",
+              "Value #K": "Net TX avg",
+              "Value #L": "Net TX min",
+              "Value #M": "Net TX max"
             },
             "indexByName": {
               "server_name": 0,
@@ -1229,13 +1309,29 @@
               "Value #C": 2,
               "Value #D": 3,
               "Value #E": 4,
-              "Time 1": 5,
-              "Time 2": 6,
-              "Time 3": 7,
-              "Time 4": 8,
-              "Time 5": 9,
-              "Value #A": 10,
-              "instance": 11
+              "Value #F": 5,
+              "Value #G": 6,
+              "Value #H": 7,
+              "Value #I": 8,
+              "Value #J": 9,
+              "Value #K": 10,
+              "Value #L": 11,
+              "Value #M": 12,
+              "Time 1": 13,
+              "Time 2": 14,
+              "Time 3": 15,
+              "Time 4": 16,
+              "Time 5": 17,
+              "Time 6": 18,
+              "Time 7": 19,
+              "Time 8": 20,
+              "Time 9": 21,
+              "Time 10": 22,
+              "Time 11": 23,
+              "Time 12": 24,
+              "Time 13": 25,
+              "Value #A": 26,
+              "instance": 27
             }
           }
         }
@@ -2219,6 +2315,98 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Scrape state of the AMD LLM usage reporter on amd-laptop (10.0.0.107:9876). Read it the way the Cursor and OpenAI tiles are read -- up=1 only means the endpoint answered. This reporter republishes a cached 30-day report from the gateway API, so it keeps serving happily when that fetch has been failing for days. Last Successful Fetch on the AMD LLM Metrics dashboard is the tile that actually catches that.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 29
+      },
+      "id": 50,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "up{job=\"amd-llm-exporter\"}",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -3124,16 +3312,382 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Requests served by the AMD internal LLM gateway. Covers the gateway's rolling reporting window, not the dashboard time range -- 30 days as of writing, and the title says so literally. amd_llm_window_days is the authority; if the gateway ever changes it, this title is what goes stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 53
+      },
+      "id": 51,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_llm_total_requests",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Requests (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Total tokens through the AMD internal LLM gateway. Counts far more than prompt + completion -- see the Token Mix panel on AMD LLM Metrics for what the rest is. Covers the gateway's rolling reporting window, not the dashboard time range -- 30 days as of writing, and the title says so literally. amd_llm_window_days is the authority; if the gateway ever changes it, this title is what goes stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "purple"
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "purple"
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 53
+      },
+      "id": 52,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_llm_total_tokens",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Tokens (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "The gateway's own approximate charge. List-price arithmetic over token counts, not an invoice and not aware of any internal rate -- a size, not an amount owed. Covers the gateway's rolling reporting window, not the dashboard time range -- 30 days as of writing, and the title says so literally. amd_llm_window_days is the authority; if the gateway ever changes it, this title is what goes stale.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange"
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 53
+      },
+      "id": 53,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "amd_llm_approx_charge_usd",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Spend (30d)",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "The three models carrying the most approximate spend in the window. topk is evaluated by Prometheus rather than trimmed in the panel, so a model that drops out of the top three disappears from the tile rather than lingering at zero. The full breakdown, including the provider split for a model served by both, is on AMD LLM Metrics.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "continuous-BlPu"
+          },
+          "decimals": 0,
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text"
+              }
+            ]
+          },
+          "unit": "currencyUSD"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "id": 54,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "AMD LLM Metrics",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ],
+      "options": {
+        "displayMode": "gradient",
+        "maxVizHeight": 300,
+        "minVizHeight": 12,
+        "minVizWidth": 8,
+        "namePlacement": "left",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "topk(3, amd_llm_model_approx_charge_usd)",
+          "instant": true,
+          "legendFormat": "{{model}} \u00b7 {{provider}}",
+          "refId": "A"
+        }
+      ],
+      "title": "AMD LLM Top Models by Spend (30d)",
+      "type": "bargauge"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 53
+        "y": 57
       },
       "id": 44,
       "title": "Storage",
       "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Time since the newest object in s3://batesste-homelab-backups. The backup timer is daily, so yellow at 26h means one run was missed; red is 48h, the same query and threshold the BackupStale alert fires on, so the tile and the page agree by construction. Age alone trusts the backup script further than it has earned -- batesste-s3-backup pipes dd into pigz without pipefail, so a truncated image still lands with a fresh timestamp and reads green here. BackupTooSmall and the weekly restore test are what cover that.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 93600
+              },
+              {
+                "color": "red",
+                "value": 172800
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 58
+      },
+      "id": 49,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "time() - batesste_s3_backup_last_object_timestamp_seconds{bucket=\"batesste-homelab-backups\"}",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Backup Age",
+      "type": "stat"
     },
     {
       "datasource": {
@@ -3292,7 +3846,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 61
       },
       "id": 31,
       "options": {
@@ -3455,7 +4009,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 67
       },
       "id": 32,
       "options": {
@@ -3495,7 +4049,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 73
       },
       "id": 45,
       "title": "System Load",
@@ -3538,7 +4092,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 67
+        "y": 74
       },
       "id": 34,
       "options": {
@@ -3605,7 +4159,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 67
+        "y": 74
       },
       "id": 35,
       "options": {

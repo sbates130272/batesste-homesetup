@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Merge this repo's Hermes config overlays into ~/.hermes/config.yaml.
 
-Four files, each owning one decision: models.yaml the model routing,
+Five files, each owning one decision: models.yaml the model routing,
 mcp.yaml the MCP servers, cua/hermes-config.yaml the computer-use toolset,
-approvals.yaml the permanent approval allowlist.
+approvals.yaml the permanent approval allowlist, voice.yaml the STT and
+TTS providers.
 
 The Hermes installer owns config.yaml: it rewrites it on every update and
 adds keys as the schema version moves. So this does not template the file,
@@ -26,7 +27,7 @@ it is a list, and deep_merge replaces lists.
 Usage:
     ./apply-model-config.py [--dry-run] [--config PATH] [--models PATH]
                             [--mcp PATH] [--computer-use PATH]
-                            [--approvals PATH]
+                            [--approvals PATH] [--voice PATH]
 """
 
 import argparse
@@ -58,6 +59,7 @@ DEFAULT_MODELS = HERE / "models.yaml"
 DEFAULT_MCP = HERE / "mcp.yaml"
 DEFAULT_COMPUTER_USE = HERE / "cua" / "hermes-config.yaml"
 DEFAULT_APPROVALS = HERE / "approvals.yaml"
+DEFAULT_VOICE = HERE / "voice.yaml"
 
 
 def deep_merge(base, overlay):
@@ -156,6 +158,8 @@ def main():
                         help="computer-use toolset settings; skipped if the file is absent")
     parser.add_argument("--approvals", type=pathlib.Path, default=DEFAULT_APPROVALS,
                         help="permanent approval allowlist; skipped if the file is absent")
+    parser.add_argument("--voice", type=pathlib.Path, default=DEFAULT_VOICE,
+                        help="STT and TTS providers; skipped if the file is absent")
     args = parser.parse_args()
 
     if not args.config.exists():
@@ -183,6 +187,11 @@ def main():
     # to the same question.
     if args.approvals.exists():
         deep_merge(desired, yaml.safe_load(args.approvals.read_text()) or {})
+
+    # Not pushed down to profiles either: a profile that picked its own STT
+    # provider would be a second whisper model resident for the same microphone.
+    if args.voice.exists():
+        deep_merge(desired, yaml.safe_load(args.voice.read_text()) or {})
 
     changed = apply_to(args.config, desired, "config.yaml", args.dry_run,
                        replace_keys=("mcp_servers",))
