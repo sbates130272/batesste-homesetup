@@ -992,7 +992,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Throughput per host, joined on instance the same way Node Fleet is. Split out of Node Fleet rather than bolted onto it because these answer a different question -- what a host is doing right now, not what it is.\n\nDisk is bytes/sec and network is bits/sec, which is why a saturated gigabit link reads ~1 Gbps here and a busy NVMe reads in MB/s; they are not on the same scale and are not meant to be compared across the table.\n\nNetwork is filtered to (en|eth|wl).* on purpose. The unfiltered max this was ported from reported amd-laptop's loopback0 at 518 kbps as the host's network throughput while its real eth1 carried 63 kbps -- loopback, docker0, veth* and tailscale0 all count traffic that never touches the LAN, and tailscale0 counts it twice. Disk is deliberately unfiltered: dm-0 reports the same bytes as the nvme0n1 beneath it, and max() collapses the pair rather than double-counting it the way sum() would.\n\nEvery rate is gated on node_uname_info. Without that guard snoc-shannon returns a sixth row with an IP and no name: its scrape has been failing for long enough that an instant selector finds nothing, but rate() still sees samples inside its window and reports throughput for a host that is down.",
+      "description": "Throughput per host, joined on instance the same way Node Fleet is. Split out of Node Fleet rather than bolted onto it because these answer a different question -- what a host is doing, not what it is.\n\nEvery figure covers the dashboard time range rather than the present moment, and all three columns in a category are derived from one series: at each minute the host's busiest device is taken, and Avg/Min/Max are the mean, floor and ceiling of that minute-by-minute series across the range. Reading a row tells you the sustained load and the shape of it -- an avg near the max means steady traffic, an avg far below it means an idle host with spikes.\n\nAggregating across devices first, then over time, is deliberate and was not the obvious way to write it. Applying max by (instance) to each statistic separately is simpler and wrong: the columns then pick their device independently, so Min can report one NIC and Avg another. snoc-strix did exactly that, returning a Net TX min of 939 kbps against an avg of 675 kbps -- a floor above the mean, which is impossible for one device and merely inconsistent for two.\n\nDisk Min is usually 0 and that is the honest answer; over any useful range every disk has a quiet minute. Network Min rarely reaches 0, because a host on a LAN is never completely silent, so that column reads as the background chatter floor.\n\nDisk is bytes/sec and network is bits/sec, which is why a saturated gigabit link reads ~1 Gbps here and a busy NVMe reads in MB/s; they are not on the same scale and are not meant to be compared across the table.\n\nNetwork is filtered to (en|eth|wl).* on purpose. The unfiltered max this was ported from reported amd-laptop's loopback0 at 518 kbps as the host's network throughput while its real eth1 carried 63 kbps -- loopback, docker0, veth* and tailscale0 all count traffic that never touches the LAN, and tailscale0 counts it twice. Disk is deliberately unfiltered: dm-0 reports the same bytes as the nvme0n1 beneath it, and max() collapses the pair rather than double-counting it the way sum() would.\n\nEvery rate is gated on node_uname_info. Without that guard snoc-shannon returns a sixth row with an IP and no name: its scrape has been failing for long enough that an instant selector finds nothing, but rate() still sees samples inside its window and reports throughput for a host that is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1031,8 +1031,8 @@
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "Disk R"
+              "id": "byRegexp",
+              "options": "Disk .*"
             },
             "properties": [
               {
@@ -1045,34 +1045,14 @@
               },
               {
                 "id": "custom.width",
-                "value": 150
+                "value": 95
               }
             ]
           },
           {
             "matcher": {
-              "id": "byName",
-              "options": "Disk W"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "Bps"
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              },
-              {
-                "id": "custom.width",
-                "value": 150
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Net RX"
+              "id": "byRegexp",
+              "options": "Net .*"
             },
             "properties": [
               {
@@ -1085,27 +1065,7 @@
               },
               {
                 "id": "custom.width",
-                "value": 150
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Net TX"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "bps"
-              },
-              {
-                "id": "decimals",
-                "value": 1
-              },
-              {
-                "id": "custom.width",
-                "value": 150
+                "value": 95
               }
             ]
           }
@@ -1149,7 +1109,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_disk_read_bytes_total[5m]))\nand on (instance) node_uname_info",
+          "expr": "avg_over_time((max by (instance) (rate(node_disk_read_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1162,7 +1122,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_disk_written_bytes_total[5m]))\nand on (instance) node_uname_info",
+          "expr": "min_over_time((max by (instance) (rate(node_disk_read_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1175,7 +1135,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[5m]) * 8)\nand on (instance) node_uname_info",
+          "expr": "max_over_time((max by (instance) (rate(node_disk_read_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1188,15 +1148,119 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[5m]) * 8)\nand on (instance) node_uname_info",
+          "expr": "avg_over_time((max by (instance) (rate(node_disk_written_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
           "format": "table",
           "instant": true,
           "legendFormat": "",
           "range": false,
           "refId": "E"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min_over_time((max by (instance) (rate(node_disk_written_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "F"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((max by (instance) (rate(node_disk_written_bytes_total[1m])))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "G"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time((max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min_over_time((max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "I"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((max by (instance) (rate(node_network_receive_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "avg_over_time((max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "K"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "min_over_time((max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "L"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max_over_time((max by (instance) (rate(node_network_transmit_bytes_total{device=~\"(en|eth|wl).*\"}[1m]) * 8))[$__range:1m])\nand on (instance) node_uname_info",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "M"
         }
       ],
-      "title": "Node I/O",
+      "title": "Node IO",
       "transformations": [
         {
           "id": "seriesToColumns",
@@ -1213,15 +1277,31 @@
               "Time 3": true,
               "Time 4": true,
               "Time 5": true,
+              "Time 6": true,
+              "Time 7": true,
+              "Time 8": true,
+              "Time 9": true,
+              "Time 10": true,
+              "Time 11": true,
+              "Time 12": true,
+              "Time 13": true,
               "Value #A": true,
               "instance": true
             },
             "renameByName": {
               "server_name": "Node",
-              "Value #B": "Disk R",
-              "Value #C": "Disk W",
-              "Value #D": "Net RX",
-              "Value #E": "Net TX"
+              "Value #B": "Disk R avg",
+              "Value #C": "Disk R min",
+              "Value #D": "Disk R max",
+              "Value #E": "Disk W avg",
+              "Value #F": "Disk W min",
+              "Value #G": "Disk W max",
+              "Value #H": "Net RX avg",
+              "Value #I": "Net RX min",
+              "Value #J": "Net RX max",
+              "Value #K": "Net TX avg",
+              "Value #L": "Net TX min",
+              "Value #M": "Net TX max"
             },
             "indexByName": {
               "server_name": 0,
@@ -1229,13 +1309,29 @@
               "Value #C": 2,
               "Value #D": 3,
               "Value #E": 4,
-              "Time 1": 5,
-              "Time 2": 6,
-              "Time 3": 7,
-              "Time 4": 8,
-              "Time 5": 9,
-              "Value #A": 10,
-              "instance": 11
+              "Value #F": 5,
+              "Value #G": 6,
+              "Value #H": 7,
+              "Value #I": 8,
+              "Value #J": 9,
+              "Value #K": 10,
+              "Value #L": 11,
+              "Value #M": 12,
+              "Time 1": 13,
+              "Time 2": 14,
+              "Time 3": 15,
+              "Time 4": 16,
+              "Time 5": 17,
+              "Time 6": 18,
+              "Time 7": 19,
+              "Time 8": 20,
+              "Time 9": 21,
+              "Time 10": 22,
+              "Time 11": 23,
+              "Time 12": 24,
+              "Time 13": 25,
+              "Value #A": 26,
+              "instance": 27
             }
           }
         }
