@@ -397,7 +397,7 @@ Developer Usage row.
 
 Scraped at 60s, which is about bounding staleness rather
 than sampling rate: the numbers only move when the reporter
-refetches, and that is on its own cadence, not ours. Watch
+fetches again, and that is on its own cadence, not ours. Watch
 `amd_llm_last_fetch_timestamp_seconds` rather than `up` to
 tell whether a green target is serving current data — the
 reporter answers every scrape from cache, so `up=1` survives
