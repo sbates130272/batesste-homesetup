@@ -132,6 +132,7 @@ keyrings
 latency
 Lemonade
 livelock
+llm
 LLM
 LLMs
 LMCache
