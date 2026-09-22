@@ -55,12 +55,19 @@ only write, and it is refused without an explicit confirmation argument
 — the same rule the `apple-calendar` skill states, so it is guarded in
 two places.
 
-**Nothing here may depend on Node.** There is no Node on this box and no
-plan to add one. Both retired servers were `command: npx`, and Hermes
+**No MCP server here may depend on Node.** The old reason for this rule
+— there is no Node on this box — stopped being true on 2026-09-21, when
+the WhatsApp bridge forced an install (see [The WhatsApp
+bridge](#the-whatsapp-bridge)). The rule stays anyway, on the evidence
+that produced it: both retired servers were `command: npx`, and Hermes
 parked them at every startup for months without ever failing loudly —
 `hermes mcp list` reported them `✓ enabled` throughout, because that
 column reflects the config, not a connection. `hermes mcp test <name>` is
 the one that actually connects.
+
+Node's arrival makes that failure mode *harder* to spot, not easier: an
+`npx` server will now get far enough to look alive. Nothing here has been
+reintroduced on that basis.
 
 Note that testing from an interactive shell fails on TLS
 (`CERTIFICATE_VERIFY_FAILED`) for any non-tailnet endpoint, because
@@ -107,10 +114,18 @@ status` sweep and need `--user` on every command.
 | `hermes-dashboard.service` | user | `127.0.0.1:9119` | `tailscale serve :9119` → nginx `:9120` |
 | `hermes-webui.service` | user | `127.0.0.1:8787` | nginx `/hermes`, basic auth |
 | `batesste-cua-driver` (container) | docker | `127.0.0.1:6080` | noVNC, view-only; the driver itself is `docker exec` only |
+| WhatsApp bridge (child of the gateway) | none — spawned process | `127.0.0.1:3020` | the gateway only |
 
-The gateway unit does the messaging-platform work (Telegram is the only
+The gateway unit does the messaging-platform work (WhatsApp is the only
 platform configured) and also hosts Hermes's own OpenAI-compatible API
 server on 8642, enabled by `API_SERVER_*` in `~/.hermes/.env`.
+
+**Telegram was disabled on 2026-09-21** and is no longer in use. There is
+no `TELEGRAM_ENABLED` flag — the platform activates purely on a valid
+`TELEGRAM_BOT_TOKEN` in `~/.hermes/.env`, so disabling it means
+commenting that line out. It is commented rather than deleted, so
+re-enabling is removing one `#` and restarting the gateway.
+`TELEGRAM_ALLOWED_USERS` was left in place for the same reason.
 
 `hermes-webui` is a **separate project** (`~/Projects/hermes-webui`), not
 part of the agent. It happens to run out of the Hermes venv. Its unit is
@@ -129,6 +144,76 @@ that checkout carries.
 
 The dashboard's path through nginx is not incidental — see
 [Appendix: why nginx is in the path](#appendix-a--the-dashboard-and-port-9119).
+
+## The WhatsApp bridge
+
+WhatsApp runs in **self-chat** mode: there is no second phone number, so
+messaging yourself is the interface. Hermes talks to it through a Node
+process (`scripts/whatsapp-bridge/bridge.js`, Baileys) that the gateway
+spawns as a child. It is not a systemd unit and should not become one —
+the adapter already spawns it, health-checks it, adopts an
+already-running one, and reclaims its port by sending SIGTERM to any
+node process listening on it.
+A second supervisor would fight all four. Verified by `kill -9` on the
+bridge: the gateway rebuilt it within 45 s unattended.
+
+### It needs Node, and the install has a trap
+
+This is why Node 22 exists on the box at all. Install it from NodeSource,
+which is already configured in `/etc/apt/sources.list.d/nodesource.list`:
+
+```bash
+sudo apt install -y nodejs     # NOT `apt install npm`
+```
+
+**Never `apt install npm` here.** Ubuntu's `npm` (9.2.0, noble/universe)
+declares `Conflicts: npm` against the NodeSource package and would drag
+in Ubuntu's older `nodejs` alongside it. The NodeSource package already
+`Provides: npm`, so the one install covers both.
+
+### Port 3020, because Grafana owns 3000
+
+`bridge.js` defaults to port 3000. **Grafana is already on 3000** — its
+own default, serving the dashboards for the whole Prometheus and Loki
+stack. The bridge therefore died with `EADDRINUSE` on every single start,
+and WhatsApp never once connected, while the QR pairing itself succeeded
+and looked fine. The visible symptom was only `✗ whatsapp failed to
+connect` plus a bridge that vanished.
+
+The port is moved on the bridge, never on Grafana:
+
+```yaml
+platforms:
+  whatsapp:
+    enabled: true
+    extra:
+      bridge_port: 3020
+```
+
+Any unknown key at the platform level is folded into `extra` by
+`PlatformConfig.from_dict`, so `bridge_port:` one level up works too — an
+explicit `extra:` wins on a clash.
+
+Grafana was never actually at risk from the bridge's port reclaim:
+`_kill_port_process` only signals a process that
+`_pid_looks_like_node_bridge` confirms is `node`, and Grafana is a Go
+binary. It logs `Not killing PID … process is not a node bridge` and
+moves on. That guard is the only
+reason a port collision here was merely broken rather than destructive.
+
+### The home channel is not derived
+
+`hermes whatsapp` does not set one, and nothing infers it from the
+self-chat number, so `hermes send --to whatsapp` fails with *"No home
+channel set"* until it is set by hand. In self-chat mode it is your own
+number as a JID:
+
+```bash
+hermes config set WHATSAPP_HOME_CHANNEL <number>@s.whatsapp.net
+```
+
+Cron delivery reads the same variable (`scheduler_delivery.py`), so a
+scheduled job set to `deliver: origin` with no recorded origin lands here.
 
 ## Model routing
 
@@ -369,11 +454,17 @@ merely-incompetent agent.
 
 ## Scheduled jobs
 
-Ten jobs run out of Hermes's own scheduler (`hermes cron list`), not
-crontab, and deliver to a Telegram group: a daily morning briefing, a
-six-hourly service health check, daily Lemonade usage and update
-monitoring, and weekly memory hygiene, kernel-watch, changelog, and
-usage reports.
+Three jobs run out of Hermes's own scheduler (`hermes cron list`), not
+crontab: a daily Homelan check, a weekly memory-hygiene pass, and a
+monthly Firefly III report. This README claimed ten until 2026-09-21;
+the other seven are gone.
+
+All three are `deliver: origin` with **no origin recorded**, so they fall
+through to the platform home channel. That used to be a Telegram group.
+Disabling Telegram did not break them — none was bound to a Telegram
+chat, and `last_delivery_error` was null on all three — but it does mean
+they now land in WhatsApp self-chat, which is why
+`WHATSAPP_HOME_CHANNEL` has to be set.
 
 After changing the default model, run `hermes cron resnap --all` so
 unpinned jobs adopt it. Two jobs are pinned explicitly; both are pinned

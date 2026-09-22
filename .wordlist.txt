@@ -99,6 +99,7 @@ Homebridge's
 homekit
 HomeKit
 homelab
+Homelan
 homesetup
 hostname
 hsa
@@ -118,6 +119,7 @@ iptables
 IPv
 IRQ
 ISIZE
+JID
 jitter
 journald's
 jq
@@ -168,6 +170,7 @@ nginx
 NICs
 NIXL
 nl
+NodeSource
 noVNC
 npm
 ntfy
@@ -225,6 +228,7 @@ scrape
 scrollback
 sd
 SHA
+SIGTERM
 SimpleFIN
 smartplug
 smartplugs
@@ -311,6 +315,7 @@ WebUI
 webui
 WebUI's
 Wemo
+WhatsApp
 WiFi
 wifi
 WLAN
