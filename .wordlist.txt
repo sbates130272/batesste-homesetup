@@ -1,3 +1,4 @@
+AAC
 ACLs
 AER
 AIAgent
@@ -178,6 +179,7 @@ nvme
 NVMe
 observability
 offen
+Ogg
 OMNI
 onboarding
 oneshot
@@ -186,6 +188,7 @@ oomctl
 oomd
 openai
 OpenAI
+OpenAI's
 openbox
 OUI
 PCIe

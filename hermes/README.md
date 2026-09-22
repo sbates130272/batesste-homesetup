@@ -14,6 +14,7 @@ of decisions that would otherwise be lost on the next update:
 | [`models.yaml`](./models.yaml) | Which models serve which role, and why |
 | [`mcp.yaml`](./mcp.yaml) | The whole set of MCP servers, and their credential references |
 | [`approvals.yaml`](./approvals.yaml) | The whole permanent approval allowlist |
+| [`voice.yaml`](./voice.yaml) | Which STT and TTS providers, and why not the obvious one |
 | [`apply-model-config.py`](./apply-model-config.py) | Merges those into `~/.hermes/config.yaml` and any profiles |
 | [`sync-secrets.sh`](./sync-secrets.sh) | Projects `LEMONADE_API_KEY` and the GitHub PAT from the dotfiles into `~/.hermes/.env` |
 | [`cua/`](./cua/) | The containerised desktop the agent drives, and its config block |
@@ -214,6 +215,47 @@ hermes config set WHATSAPP_HOME_CHANNEL <number>@s.whatsapp.net
 
 Cron delivery reads the same variable (`scheduler_delivery.py`), so a
 scheduled job set to `deliver: origin` with no recorded origin lands here.
+
+### Voice notes transcribe locally, on purpose
+
+Everything else here routes to Lemonade on `snoc-strix`, so STT was pointed
+there too — `stt.provider: openai` with `STT_OPENAI_BASE_URL` overridden to
+`https://snoc-strix.fold-leaffish.ts.net:13305/api/v1`. It never once
+worked. The route exists (it answers 500, not 404) but the backend cannot
+decode what Hermes uploads:
+
+```
+Retrying openai STT after transcoding aud_14a8908b6b9d.ogg to m4a
+Voice transcription failed: 500 - {'error': 'failed to read audio data'}
+```
+
+WhatsApp voice notes are Opus-in-Ogg. Hermes gets exactly one retry, and
+`_transcode_audio_for_stt()` hardcodes its target to 16 kHz mono AAC/m4a —
+written for OpenAI's hosted models, which reject Ogg. There is no config
+key for the container, so **that retry can never succeed against this
+endpoint**, and no amount of tuning `stt.openai` would have helped.
+
+The failure is quiet in the worst way. Transcription failing does not fail
+the message: the gateway substitutes
+
+```
+[voice message could not be transcribed automatically; the audio is available at ...]
+```
+
+and the model answers *that*. You get a reply, it is fluent, and it is
+about the existence of an audio file rather than a word you said.
+
+`voice.yaml` therefore pins `stt.provider: local`. faster-whisper decodes
+Opus natively, which removes the container negotiation instead of losing
+it, and `base` on a 20-second clip is not work the beelink notices. It is
+installed lazily on first use, so nothing is resident until a voice note
+arrives.
+
+TTS stays on `edge` — no API key, no local model, nothing to rotate. It is
+not automatic: replies are text unless the model calls `text_to_speech`, or
+the chat is switched with `/voice`, whose modes are `off`, `voice_only` and
+`all`. `voice.auto_tts` is the fleet-wide default behind them and is left
+`false`.
 
 ## Model routing
 
