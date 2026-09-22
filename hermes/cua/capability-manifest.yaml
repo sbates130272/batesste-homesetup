@@ -1,0 +1,83 @@
+# The cua-driver capability manifest for the contained desktop.
+#
+# NOT IN EFFECT TODAY, and kept anyway. A manifest only applies when
+# permission_mode is not `standard`, and this box cannot use any other mode:
+# the driver here is a `docker exec` shim, so the embedded daemon's socket and
+# this file's path both resolve inside the container while Hermes resolves
+# them on the host. ../cua/README.md#permissions has the detail. The ceiling
+# that does hold is the container itself.
+#
+# It stays written and installed because it is correct, and because moving the
+# driver onto the host is the one change that would make it live -- at which
+# point the right state is "flip permission_mode", not "now write a manifest
+# under time pressure".
+#
+# deploy.sh installs this to ~/.hermes/cua-capability-manifest.yaml. A stable
+# absolute path rather than the repo checkout, because the checkout location
+# is not guaranteed on a new box and the driver resolves this path itself.
+#
+# What it would do: bounded mode is deny by default -- a tool must appear in
+# allow.tools, and every resource the call crosses must match, before anything
+# else is considered. A manifest can narrow the permission mode but never
+# widen it, and a bounded daemon with no approved manifest does not bind its
+# action socket at all, so a mistake here is a hard failure at session start
+# rather than a silent downgrade to standard.
+
+version: 3
+
+# Mandatory in bounded mode; both are enforced. Set long because the gateway
+# holds conversations open for hours -- the failure mode of setting them
+# short is a computer_use call dying mid-task rather than at startup.
+expires_after: 12h
+idle_timeout: 1h
+
+allow:
+  # Exactly the driver tools Hermes calls, cross-referenced from
+  # tools/computer_use/cua_backend*.py against `cua-driver list-tools`.
+  # Deny by default means a tool missing here is a broken agent, not a
+  # tightened one, so this list is verified by a real run and not by reading.
+  tools:
+    # Lifecycle and configuration
+    - start_session
+    - end_session
+    - get_config
+    - set_config
+    - set_agent_cursor_enabled
+    # Observation
+    - get_desktop_state
+    - get_window_state
+    - get_screen_size
+    - get_cursor_position
+    - list_apps
+    - list_windows
+    # Input. Hermes' right_click and middle_click are `click` with a button
+    # argument, not tools of their own, so they need no entry.
+    - click
+    - double_click
+    - drag
+    - scroll
+    - type_text
+    - press_key
+    - hotkey
+    - set_value
+    - bring_to_front
+    - launch_app
+    # Diagnostics, so `hermes computer-use doctor` keeps working against the
+    # bounded daemon rather than reporting a permission failure as a broken
+    # desktop.
+    - check_permissions
+    - health_report
+
+# No resources.browser.origins, and this is not an oversight.
+#
+# Declaring origins binds the typed browser adapter, and the runtime then
+# *refuses to start* if the manifest also allows a tool that could reach a
+# page around that adapter -- click, double_click, right_click, drag, scroll,
+# type_text, press_key, hotkey, set_value and the mouse primitives are all on
+# that exclusion list. This whole setup drives Firefox through raw input
+# against Xvfb, so origins and the tools above are mutually exclusive and the
+# tools are the ones we need.
+#
+# The container is what bounds the browser instead: no host mounts, 2 GB, one
+# named volume for /home/agent, and `docker compose down -v` as the reset.
+# Chrome is driven through AT-SPI accessibility via --force-renderer-accessibility.

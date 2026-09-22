@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Merge this repo's Hermes config overlays into ~/.hermes/config.yaml.
 
-Three files, each owning one decision: models.yaml the model routing,
-mcp.yaml the MCP servers, cua/hermes-config.yaml the computer-use toolset.
+Four files, each owning one decision: models.yaml the model routing,
+mcp.yaml the MCP servers, cua/hermes-config.yaml the computer-use toolset,
+approvals.yaml the permanent approval allowlist.
 
 The Hermes installer owns config.yaml: it rewrites it on every update and
 adds keys as the schema version moves. So this does not template the file,
@@ -19,9 +20,13 @@ same reason stated the other way round: a merge can only ever add servers.
 Two dead `command: npx` entries survived months of applies because nothing
 in this repo was able to remove them. mcp.yaml names the whole set.
 
+`command_allowlist` is replaced for the same reason, and gets it for free:
+it is a list, and deep_merge replaces lists.
+
 Usage:
     ./apply-model-config.py [--dry-run] [--config PATH] [--models PATH]
                             [--mcp PATH] [--computer-use PATH]
+                            [--approvals PATH]
 """
 
 import argparse
@@ -52,6 +57,7 @@ DEFAULT_PROFILES = pathlib.Path.home() / ".hermes" / "profiles"
 DEFAULT_MODELS = HERE / "models.yaml"
 DEFAULT_MCP = HERE / "mcp.yaml"
 DEFAULT_COMPUTER_USE = HERE / "cua" / "hermes-config.yaml"
+DEFAULT_APPROVALS = HERE / "approvals.yaml"
 
 
 def deep_merge(base, overlay):
@@ -148,6 +154,8 @@ def main():
                         help="MCP server definitions; skipped if the file is absent")
     parser.add_argument("--computer-use", type=pathlib.Path, default=DEFAULT_COMPUTER_USE,
                         help="computer-use toolset settings; skipped if the file is absent")
+    parser.add_argument("--approvals", type=pathlib.Path, default=DEFAULT_APPROVALS,
+                        help="permanent approval allowlist; skipped if the file is absent")
     args = parser.parse_args()
 
     if not args.config.exists():
@@ -169,6 +177,12 @@ def main():
     # fighting over the same mouse.
     if args.computer_use.exists():
         deep_merge(desired, yaml.safe_load(args.computer_use.read_text()) or {})
+
+    # Also not pushed down to profiles: approvals are asked of one human at
+    # one keyboard, and a profile with its own allowlist is a second answer
+    # to the same question.
+    if args.approvals.exists():
+        deep_merge(desired, yaml.safe_load(args.approvals.read_text()) or {})
 
     changed = apply_to(args.config, desired, "config.yaml", args.dry_run,
                        replace_keys=("mcp_servers",))

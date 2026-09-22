@@ -254,12 +254,28 @@ scrape_configs:
           - /etc/prometheus/targets/discovered/alloy.json
         refresh_interval: 30s
 
-  # Lemonade exposes its own metrics endpoint over Tailscale
-  # (TLS, token auth). Static rather than file_sd because
-  # there is one such endpoint, not a discoverable fleet.
-  # server_name matches the label file_sd applies to other
-  # jobs; the Lemonade dashboard keys its instance variable
-  # on it.
+  # Lemonade serves its own /metrics on its API port; there is
+  # no separate exporter (the :9091 one this replaced is gone).
+  # lemond binds loopback only on both hosts -- the tailnet
+  # listener and its TLS are `tailscale serve` proxying
+  # https://<host>:13305 to http://127.0.0.1:13305, which is
+  # also where the valid ts.net cert comes from, so these jobs
+  # verify TLS and need no tls_config.
+  #
+  # Static rather than file_sd because these are hand-placed
+  # servers, not a discoverable fleet -- one job per host so a
+  # host that is off is a red target rather than a silently
+  # shorter target list. server_name matches the label file_sd
+  # applies to other jobs; the Lemonade dashboard keys its
+  # instance variable on it, and the LAN overview counts up
+  # servers with count(lemonade_server_up == 1), so a new host
+  # lands on both without a dashboard change.
+  #
+  # Both jobs send the same bearer token, but only snoc-strix
+  # currently enforces it -- snoc-gaming has no API key set, so
+  # its /metrics and /api/v1 answer 200 unauthenticated to
+  # anything on the tailnet. The scrape works either way; set a
+  # key there when you want that closed.
   - job_name: lemonade-snoc-strix
     scheme: https
     authorization:
@@ -269,3 +285,26 @@ scrape_configs:
       - targets: ['snoc-strix.fold-leaffish.ts.net:13305']
         labels:
           server_name: snoc-strix
+
+  # Same shape as the strix job, but the serve config lives on
+  # the Windows side: snoc-gaming runs Tailscale natively on
+  # Windows while lemond runs inside WSL2, which is in Mirrored
+  # networking mode -- so Windows and Linux share 127.0.0.1 and
+  # the Windows proxy reaches a Linux loopback listener.
+  #
+  #   tailscale serve --bg --https=13305 http://127.0.0.1:13305
+  #
+  # The Windows firewall is not in this path and needs no rule
+  # for 13305; serve traffic terminates inside tailscaled.
+  # snoc-gaming.md's New-NetFirewallRule/New-NetFirewallHyperVRule
+  # pair is for node_exporter, which binds a real interface --
+  # do not copy it here and conclude the port is open.
+  - job_name: lemonade-snoc-gaming
+    scheme: https
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/lemonade-api-key
+    static_configs:
+      - targets: ['snoc-gaming.fold-leaffish.ts.net:13305']
+        labels:
+          server_name: snoc-gaming

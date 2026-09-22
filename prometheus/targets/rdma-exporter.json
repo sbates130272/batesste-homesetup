@@ -9,7 +9,7 @@
   },
   {
     "targets": [
-      "10.0.0.70:9879"
+      "snoc-strix.fold-leaffish.ts.net:9879"
     ],
     "labels": {
       "server_name": "snoc-strix"

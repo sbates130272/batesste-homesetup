@@ -1,0 +1,122 @@
+#
+# home-assistant.dc.yml
+#
+# Home Assistant Container on snoc-beelink.
+#
+#   docker compose -f home-assistant.dc.yml up -d
+#
+# Container, not Supervised and not an OS install. Supervised wants to
+# own the whole machine -- its own docker daemon policy, its own
+# network stack, its own update cadence -- and this box already runs
+# Homebridge, the Firefly stack, Hermes, the computer-use sandbox and
+# the monitoring stack. Container gives up the add-on store and
+# nothing else that matters here.
+#
+# The web UI is on loopback only and published to the tailnet by
+# `tailscale serve`; see ../homebridge/README.md for why that split
+# exists and README.md here for what it costs.
+#
+
+services:
+
+  home-assistant:
+    # Pinned rather than :stable. An unpinned tag turns `docker compose
+    # up -d` -- which this repo's deploy script runs on every
+    # invocation -- into an unannounced major upgrade, and Home
+    # Assistant ships breaking changes monthly. Moving this line is how
+    # upgrades happen, deliberately and in a commit.
+    image: ghcr.io/home-assistant/home-assistant:2026.9.2
+    container_name: batesste-home-assistant
+    restart: unless-stopped
+
+    # Host networking is not optional here, and it is the reason this
+    # file has no `ports:` key.
+    #
+    # Everything Home Assistant is meant to find on this network it
+    # finds by multicast: mDNS/zeroconf for the Homebridge bridge it
+    # imports, SSDP for the Wemo outlets, broadcast for Govee LAN
+    # control. Multicast does not cross a bridge network -- the
+    # containers see it not at all -- so a bridged Home Assistant
+    # discovers nothing and every integration has to be added by IP by
+    # hand, which then breaks on the next DHCP lease.
+    #
+    # The cost is that `ports:` no longer isolates anything: the
+    # container's listener is the host's listener. That is handled by
+    # the server_host in the stable slot of /config/.storage/http,
+    # which deploy.sh writes -- not by configuration.yaml, which Home
+    # Assistant stopped reading for this after 2026.9. If that setting
+    # is ever lost, Home Assistant binds 0.0.0.0 and :: and lands on
+    # WiFi unauthenticated at the onboarding screen -- which is to say,
+    # offering to create the first administrator account to whoever
+    # asks. deploy.sh checks the actual bound socket for that reason,
+    # and it has already happened here once.
+    network_mode: host
+
+    environment:
+      TZ: America/Edmonton
+
+    # Docker's default json-file driver has no cap, and / is at 84% of
+    # 98 GB shared with Prometheus, Loki, the image store and the
+    # Firefly database. Home Assistant is perfectly capable of emitting
+    # a per-second error loop -- it did exactly that here over a
+    # Bluetooth adapter -- so the log is bounded rather than trusted.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+    # snoc-beelink has 8 GB, and in September 2026 it spent 45 minutes
+    # in a swap-thrash livelock that ended in a power cycle -- see
+    # ../oomd. Home Assistant's memory use grows with the number of
+    # entities and the recorder's appetite, so it gets a ceiling: the
+    # container dies alone and restarts, instead of the whole box going
+    # down with it. memswap_limit equal to mem_limit means it cannot
+    # reach for swap on the way, which is the specific failure mode
+    # that took the machine out.
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 2.0
+
+    volumes:
+      # A bind mount rather than a named volume: deploy.sh installs
+      # configuration.yaml from this repo into it, and reaching into
+      # /var/lib/docker/volumes to do that would be worse.
+      - /var/lib/home-assistant:/config
+      # No /run/dbus mount. It was here for Bluetooth, and it does not
+      # work: bluetooth.service is inactive on this host, so BlueZ owns
+      # no name on the bus. Home Assistant found hci0, tried to start
+      # discovery on it, and threw an AttributeError in bleak every few
+      # seconds into an unrotated docker log. Nothing here needs
+      # Bluetooth -- the devices arrive over WiFi, mDNS and HomeKit --
+      # so the mount is gone rather than papered over. Enabling
+      # Bluetooth means starting bluetoothd on the host first, and that
+      # is a deliberate change, not a side effect of a volume line.
+      - /etc/localtime:/etc/localtime:ro
+
+    healthcheck:
+      # python3 rather than curl: the image is built on Alpine and
+      # carries no curl, so the obvious `curl -f` healthcheck reports
+      # the container permanently unhealthy while it works perfectly.
+      #
+      # manifest.json rather than /: it is served without
+      # authentication and without a redirect, so a 200 means the HTTP
+      # stack is genuinely up rather than that something answered.
+      test:
+        - CMD
+        - python3
+        - -c
+        - |
+          import sys, urllib.request
+          try:
+              r = urllib.request.urlopen(
+                  "http://127.0.0.1:8123/manifest.json", timeout=5)
+              sys.exit(0 if r.status == 200 else 1)
+          except Exception:
+              sys.exit(1)
+      interval: 30s
+      timeout: 10s
+      # Home Assistant takes a while on a cold start -- longer on the
+      # first run, when it is setting up its database.
+      start_period: 180s
+      retries: 3

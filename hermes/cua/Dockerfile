@@ -20,21 +20,22 @@ ARG GID=1000
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Three groups: the X stack, the accessibility stack, and the apps the
-# agent is meant to drive. at-spi2-core plus libatk-adaptor is what makes
-# GTK apps expose an accessibility tree -- without it cua-driver can still
-# see pixels but every capture comes back with zero addressable elements,
-# which is the sparse-AX-tree failure mode rather than an obvious error.
+# Add Google's Chrome repo for the latest stable Chrome (need curl+gnupg first)
+# then install the X stack, accessibility stack, Chrome, and cua-driver.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl \
-        xvfb x11-utils x11-xserver-utils xauth \
-        openbox xterm \
-        dbus dbus-x11 \
-        at-spi2-core libatk-adaptor libgail-common \
-        x11vnc novnc websockify \
-        fonts-dejavu fonts-liberation \
-        firefox-esr \
-        xdg-utils procps \
+        ca-certificates curl gnupg \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+            xvfb x11-utils x11-xserver-utils xauth \
+            openbox xterm \
+            dbus dbus-x11 \
+            at-spi2-core libatk-adaptor libgail-common \
+            x11vnc novnc websockify \
+            fonts-dejavu fonts-liberation \
+            google-chrome-stable \
+            xdg-utils procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Installed by hand rather than through upstream's install.sh: the

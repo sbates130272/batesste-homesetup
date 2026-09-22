@@ -18,6 +18,7 @@ container boundary.
 | [`cua-driver-docker`](./cua-driver-docker) | Host shim: `docker exec -i` as an MCP transport |
 | [`batesste-cua-driver.dc.yml`](./batesste-cua-driver.dc.yml) | Compose service, resource ceilings, noVNC port |
 | [`hermes-config.yaml`](./hermes-config.yaml) | The `computer_use` block merged into `~/.hermes/config.yaml` |
+| [`capability-manifest.yaml`](./capability-manifest.yaml) | The driver-side ceiling — written, installed, and inert while the driver lives in a container (see Permissions) |
 | [`openbox-menu.xml`](./openbox-menu.xml) | The desktop's root menu — see *No launch action* below |
 | [`deploy.sh`](./deploy.sh) | Builds, starts, installs the shim, sets the env var |
 
@@ -112,14 +113,46 @@ exists so recovery does not need a human on the host.
 
 ## Permissions
 
-`hermes-config.yaml` sets `permission_mode: standard` — every action is
-approved individually in the session. `bounded` takes a capability
-manifest instead; `--yolo` skips approval entirely and is for deliberate
-unattended runs only.
+There are **two** gates here, they are independent, and confusing them
+cost this README a wrong answer for a while.
 
-Unattended contexts (cron jobs, the scheduler) **refuse** actions rather
-than auto-approving them. A computer-use job on a schedule will not work
-without an explicit choice to let it, which is the intended default.
+**Hermes' approval gate** is the one that prompts. `handle_computer_use`
+calls `_request_approval` for every action its table marks destructive —
+click, double_click, right_click, middle_click, drag, scroll, type, key,
+set_value, focus_app — *before it constructs a backend at all*. So it
+never consults the driver's `permission_mode`, and switching that mode
+does nothing to it. Only three things quiet it: a session `--yolo`,
+`approvals.mode: off`, and a matching key in `command_allowlist`. The
+last is the one used here: [`../approvals.yaml`](../approvals.yaml) names
+every `cua:<action>:<background|foreground>` scope and owns that key
+wholesale.
+
+**cua-driver's capability manifest** is the one that would enforce — and
+it cannot be used here. `permission_mode` stays `standard`, because any
+other value makes Hermes take the `_EmbeddedCuaDaemon` path: it spawns
+`cua-driver serve --embedded --socket /tmp/hc-<token>.sock` and then
+connects to that socket itself. Through this shim the `serve` runs
+*inside* the container, so the socket is created in the container's
+filesystem and the host connects to a path that does not exist.
+`--capability-manifest` has the same split — `cua_backend_daemon.py`
+checks `os.path.isfile()` on the host and hands the identical string to a
+process that resolves it in the container. Making bounded work would mean
+bind-mounting the host's `/tmp` into the sandbox, which is most of the way
+to not having a sandbox.
+
+So the enforced ceiling is the container: no host filesystem, no reachable
+network but loopback noVNC, 2 GB and 512 pids.
+[`capability-manifest.yaml`](./capability-manifest.yaml) is still written
+and still installed to `~/.hermes/cua-capability-manifest.yaml` by
+`deploy.sh`, because it is correct and because the day the driver runs on
+the host is the day it starts applying. It is inert today. Do not read
+`permission_mode: standard` as an oversight — see the comment in
+[`hermes-config.yaml`](./hermes-config.yaml).
+
+Unattended contexts (cron jobs, the scheduler) still **refuse** actions
+rather than auto-approving them, but `command_allowlist` grants are
+consulted first — so the desktop actions listed in `approvals.yaml` now
+work from a cron job where before they could not.
 
 ## Known gaps
 

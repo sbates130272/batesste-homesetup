@@ -13,7 +13,6 @@ Avahi/mDNS.
 prometheus/
   prometheus.yml              Main Prometheus config
   prometheus.defaults         $ARGS -> /etc/default/prometheus
-  node-exporter-override.conf systemd drop-in for node-exporter
   deploy.sh                   Deploy config to /etc
   add-target.sh               Add a target manually
   discover-targets.sh         Discover targets via Avahi
@@ -605,18 +604,36 @@ missing all of it.
 | `--web.route-prefix=/` | A bare `/metrics`, which the `prometheus` job scrapes |
 | `--web.external-url=...` | Usable links in the UI and in alerts |
 
-`node-exporter-override.conf` →
-`/etc/systemd/system/prometheus-node-exporter.service.d/override.conf`
-adds `--collector.wifi`, which LAN Overview's *WiFi (dBm)*
-column depends on. Its empty `ExecStart=` line is load-bearing:
-systemd treats `ExecStart` as a list, so a drop-in that
-appends without first clearing the packaged entry fails the
-unit at `daemon-reload`.
+`deploy.sh` only acts when `$ARGS` actually changes — it needs
+a **restart** rather than a reload (EnvironmentFile is not
+re-read on reload), and a restart drops remote-write for as
+long as TSDB replay takes.
 
-`deploy.sh` handles both, and only acts when they actually
-change — `$ARGS` needs a **restart** rather than a reload
-(EnvironmentFile is not re-read on reload), and a restart
-drops remote-write for as long as TSDB replay takes.
+### node-exporter flags belong to ansible
+
+`--collector.wifi` is what LAN Overview's *WiFi (dBm)* column
+reads; without it `node_wifi_station_signal_dbm` does not
+exist, the scrape stays green, and the empty column looks like
+a dashboard bug.
+
+This repo used to add it through a drop-in that overrode
+`ExecStart`. It no longer does. `batesste-ansible`'s
+`fave_packages` role writes the same flag into `ARGS` in
+`/etc/default/prometheus-node-exporter`, and both reached the
+same command line: node-exporter exits 1 on a repeated flag
+(`flag 'collector.wifi' cannot be repeated`), so on
+2026-09-21 the unit failed the moment ansible ran, and stayed
+down. The symptom was not an obvious outage — beelink simply
+stopped appearing in Node Fleet's *Link* column, because that
+expression is built on `node_network_info` and has no
+fallback for a host that reports nothing at all.
+
+`ARGS` is now the single owner. It is the mechanism the
+packaged unit already expands, and the only one that reaches
+the hosts ansible manages but this repo does not.
+`deploy.sh` removes the old drop-in if it finds one, rather
+than treating its absence as the normal case — a host
+deployed before this change still has it on disk.
 
 ## Retired jobs
 

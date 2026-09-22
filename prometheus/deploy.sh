@@ -10,7 +10,6 @@ PROM_ETC="/etc/prometheus"
 PROM_TARGETS="${PROM_ETC}/targets"
 PROM_YML="${SCRIPT_DIR}/prometheus.yml"
 PROM_DEFAULTS="${SCRIPT_DIR}/prometheus.defaults"
-NODE_DROPIN="${SCRIPT_DIR}/node-exporter-override.conf"
 NODE_DROPIN_DIR="/etc/systemd/system/prometheus-node-exporter.service.d"
 
 usage() {
@@ -182,23 +181,29 @@ else
     echo "    unchanged"
 fi
 
-# node-exporter is a separate unit, so it needs its own reload/restart
-# and never a prometheus one. Editor backups in the drop-in directory
-# are removed rather than left: systemd ignores a *~ suffix, but the
-# one found here was a copy missing the `ExecStart=` reset line, which
-# fails the unit outright if it is ever renamed into place.
-echo "==> Deploying node-exporter drop-in..."
-run sudo mkdir -p "${NODE_DROPIN_DIR}"
-run sudo rm -f "${NODE_DROPIN_DIR}"/*~
-if ! sudo cmp -s "${NODE_DROPIN}" "${NODE_DROPIN_DIR}/override.conf"; then
-    run sudo cp "${NODE_DROPIN}" "${NODE_DROPIN_DIR}/override.conf"
-    run sudo chown root:root "${NODE_DROPIN_DIR}/override.conf"
-    run sudo chmod 644 "${NODE_DROPIN_DIR}/override.conf"
+# node-exporter flags are batesste-ansible's, not this repo's. This
+# script used to ship a drop-in whose ExecStart appended
+# --collector.wifi; ansible's fave_packages role now writes the same
+# flag into ARGS in /etc/default/prometheus-node-exporter. Both land
+# on the same command line, and node-exporter exits 1 on a repeated
+# flag -- "flag 'collector.wifi' cannot be repeated" -- so the unit
+# failed outright the moment ansible ran. The flag belongs in ARGS,
+# which is the mechanism the packaged unit already reads and the only
+# one that reaches the hosts ansible manages but this repo does not.
+#
+# The removal stays rather than becoming a no-op: a host deployed
+# before this change still has the drop-in on disk, and it breaks the
+# exporter there until something takes it away.
+echo "==> Removing obsolete node-exporter drop-in..."
+if [ -e "${NODE_DROPIN_DIR}/override.conf" ] \
+   || compgen -G "${NODE_DROPIN_DIR}/*~" >/dev/null; then
+    run sudo rm -f "${NODE_DROPIN_DIR}/override.conf" "${NODE_DROPIN_DIR}"/*~
+    run sudo rmdir --ignore-fail-on-non-empty "${NODE_DROPIN_DIR}"
     run sudo systemctl daemon-reload
     run sudo systemctl restart prometheus-node-exporter
-    echo "    changed (node-exporter restarted)"
+    echo "    removed (node-exporter restarted)"
 else
-    echo "    unchanged"
+    echo "    absent"
 fi
 
 # Same rationale as the target-file pruning above: /etc is managed

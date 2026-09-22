@@ -625,7 +625,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.",
+      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.\n\nThe Exporter query is gated on node_uname_info because Prometheus synthesises up=0 for a statically configured target forever, powered on or not -- ungated, a machine that is switched off still produces a row here with every other column blank. Gating it matches Node Fleet: a host that stops reporting drops out of the table, and the Service Health tiles are what tell you it is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -907,7 +907,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (server_name) (up{job=\"amd-gpu-metrics-exporter\"})",
+          "expr": "max by (server_name) (up{job=\"amd-gpu-metrics-exporter\"})\nand on (server_name)\nmax by (server_name) (node_uname_info)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1339,7 +1339,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Whether Lemonade reports itself up, and how many tokens it has processed over the dashboard time range. Reads lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here. The or vector(0) is what makes DOWN reachable: when the tailnet drops the metric is absent rather than 0, and without a fallback the tile renders No data instead of going red. The max() is not cosmetic -- vector(0) carries no labels, so without it the or matches nothing and the panel gets two series.\n\nThe second value is prefill plus decode: increase() over $__range of lemonade_input_tokens_total and lemonade_output_tokens_total, so it follows the time picker and survives a counter reset. Prefill is the *input* counter, not the prompt counter. Lemonade publishes prompt_tokens_total (everything submitted), cache_tokens_total (served from the backend prefix cache) and input_tokens_total, where input = prompt - cache. Roughly 70% of prompt tokens are currently cache hits, so prompt_tokens_total overstates the work done by about 3.4x; input_tokens_total is the prefill actually computed.\n\nEach half carries its own or vector(0) for the same reason the state query does -- without it a range with no traffic empties the whole expression and the tile reads No data. Reading 0 at the default 6h range is normal and correct; widen the range to see traffic.\n\nThe overrides on refId B are load-bearing. The 0 -> DOWN / 1 -> UP mappings and the red/green thresholds are field defaults, so they would otherwise apply to the token count as well: an idle range would render the word DOWN next to UP, and any non-zero count would paint a second green background that dilutes the health signal this tile exists to give. B is pinned to a fixed navy instead, which is visibly not a status color.",
+      "description": "How many Lemonade servers report themselves up, and how many tokens they have processed over the dashboard time range. Reads lemonade_server_up rather than scrape state, so a running-but-wedged server still shows here. count(== 1) rather than count() so a server that is scraped but reports 0 does not pad the total. The or vector(0) is what makes DOWN reachable: when the tailnet drops the metric is absent rather than 0, and count() over an empty vector yields nothing at all, so without a fallback the tile renders No data instead of going red.\n\nThere is one Lemonade server in the scrape config today (snoc-strix), so this reads 1 until a second appears. It is a count rather than the max() it used to be so that adding one needs no dashboard change.\n\nOnly the 0 -> DOWN mapping is left on refId A. A 1 -> UP mapping would hide the number the tile now exists to show -- one server would read UP while two read 2 -- so the health signal is carried by the thresholds alone, which still paint the background red at 0 and green at any non-zero count.\n\nThe second value is prefill plus decode, summed across every Lemonade server: increase() over $__range of lemonade_input_tokens_total and lemonade_output_tokens_total, so it follows the time picker and survives a counter reset. Prefill is the *input* counter, not the prompt counter. Lemonade publishes prompt_tokens_total (everything submitted), cache_tokens_total (served from the backend prefix cache) and input_tokens_total, where input = prompt - cache. Roughly 70% of prompt tokens are currently cache hits, so prompt_tokens_total overstates the work done by about 3.4x; input_tokens_total is the prefill actually computed.\n\nEach half carries its own or vector(0) for the same reason the count does -- without it a range with no traffic empties the whole expression and the tile reads No data. Reading 0 at the default 6h range is normal and correct; widen the range to see traffic.\n\nThe overrides on refId B are load-bearing. The 0 -> DOWN mapping and the red/green thresholds are field defaults, so they would otherwise apply to the token count as well: an idle range would render the word DOWN next to the server count, and any non-zero count would paint a second green background that dilutes the health signal this tile exists to give. B is pinned to a fixed navy instead, which is visibly not a status color.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1352,11 +1352,6 @@
                   "color": "red",
                   "index": 0,
                   "text": "DOWN"
-                },
-                "1": {
-                  "color": "green",
-                  "index": 1,
-                  "text": "UP"
                 }
               },
               "type": "value"
@@ -1378,6 +1373,22 @@
           "unit": "short"
         },
         "overrides": [
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "A"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "displayName",
+                "value": "up"
+              }
+            ]
+          },
           {
             "matcher": {
               "id": "byFrameRefID",
@@ -1438,9 +1449,9 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max(lemonade_server_up) or vector(0)",
+          "expr": "count(lemonade_server_up == 1) or vector(0)",
           "instant": true,
-          "legendFormat": "",
+          "legendFormat": "up",
           "refId": "A"
         },
         {
@@ -2413,7 +2424,7 @@
           {
             "matcher": {
               "id": "byName",
-              "options": "Playstation"
+              "options": "snoc-beelink"
             },
             "properties": [
               {
@@ -2530,11 +2541,12 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Download throughput from the most recent speedtest run, converted from the exporter's bytes/s to bits/s.",
+      "description": "Download throughput from the most recent speedtest run, converted from the exporter's bytes/s to bits/s. The speedtest probe runs every 15 minutes, which is longer than Prometheus's 5m staleness window, so the raw series is full of gaps and every marker is one actual run, not a sampled trend. spanNulls is one hour rather than true so those four-sample gaps close, but a real outage longer than an hour still draws as a break instead of a line through it.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "#3987e5",
+            "mode": "fixed"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2545,23 +2557,23 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
+            "fillOpacity": 25,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "linear",
             "lineWidth": 2,
-            "pointSize": 5,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "always",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -2600,11 +2612,11 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "desc"
         }
       },
@@ -2630,11 +2642,12 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Upload throughput from the same run, likewise in bits/s.",
+      "description": "Upload throughput from the same run, likewise in bits/s. Drawn like WAN Download, and for the same reason: one marker per 15-minute run.",
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "palette-classic"
+            "fixedColor": "#199e70",
+            "mode": "fixed"
           },
           "custom": {
             "axisBorderShow": false,
@@ -2645,23 +2658,23 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 15,
-            "gradientMode": "none",
+            "fillOpacity": 25,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "linear",
             "lineWidth": 2,
-            "pointSize": 5,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "always",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -2700,11 +2713,11 @@
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": true
+          "showLegend": false
         },
         "tooltip": {
           "hideZeros": false,
-          "mode": "multi",
+          "mode": "single",
           "sort": "desc"
         }
       },
@@ -2730,7 +2743,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Idle latency and jitter from the speedtest run. The jitter series uses speedtest_jittter_seconds -- the exporter's own misspelling, not a typo here.",
+      "description": "Idle latency and jitter from the speedtest run. The jitter series uses speedtest_jittter_seconds -- the exporter's own misspelling, not a typo here. Unfilled, unlike the two throughput panels: jitter sits an order of magnitude below latency, and a fill under the larger series buries it.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2745,7 +2758,7 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 15,
+            "fillOpacity": 0,
             "gradientMode": "none",
             "hideFrom": {
               "legend": false,
@@ -2753,15 +2766,15 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "linear",
             "lineWidth": 2,
-            "pointSize": 5,
+            "pointSize": 6,
             "scaleDistribution": {
               "type": "linear"
             },
-            "showPoints": "never",
+            "showPoints": "always",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": 3600000,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -2782,7 +2795,38 @@
           },
           "unit": "s"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Latency"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#c98500",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Jitter"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#9085e9",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 6,

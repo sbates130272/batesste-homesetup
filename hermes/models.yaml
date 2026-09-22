@@ -1,4 +1,5 @@
-# Hermes model routing for the Lemonade server on snoc-strix.
+# Hermes model routing for the Lemonade servers on snoc-strix and
+# snoc-gaming.
 #
 # This file is the source of truth for every model decision in
 # ~/.hermes/config.yaml. Apply it with ./apply-model-config.py, which
@@ -9,15 +10,42 @@
 # Why these models: see README.md. The short version is that snoc-strix
 # holds three LLMs resident at once (lemonade max_loaded_models: 3), so
 # the whole routing table is built to name exactly three and never a
-# fourth -- a fourth evicts one of the others on every call.
+# fourth -- a fourth evicts one of the others on every call. As of the
+# 2026-09-16 benchmarks it names two, leaving one slot spare.
+#
+# THE TWO HOSTS ARE NOT INTERCHANGEABLE, and not because of speed:
+#
+#   snoc-strix    always on. Everything on the critical path lives here.
+#   snoc-gaming   someone's gaming PC, powered off much of the time.
+#                 Faster when it is up (1.4-1.8x on generation), but an
+#                 intermittent host can only ever hold work that is
+#                 allowed to fail. That means fallback, and nothing else.
+#
+# So the second server buys availability, not throughput. Routing any
+# hot-path role to the faster box would trade a permanent dependency for
+# an intermittent one, which is a straight downgrade no matter how fast
+# it is on the days it is up.
 #
 # Keys are never stored here. custom_providers[].key_env names an
 # environment variable and sync-lemonade-key.sh fills it in.
+#
+# Throughput figures in the comments below are measured, not vendor
+# claims: `lemonade bench --scenarios all --runs 3`, rocm backend,
+# 2026-09-16. Where a comment cites a number, it is the chat-short mean
+# on snoc-strix unless it says otherwise.
 
 model:
-  # Fastest model measured on this box (74 tok/s) *and* the largest and
-  # newest. MTP speculative decoding is what makes that possible -- the
-  # same weights without it run 52 tok/s.
+  # Fastest model measured on this box *and* the largest and newest. MTP
+  # speculative decoding is what makes that possible. The "74 vs 52
+  # tok/s" this comment used to claim was verified on 2026-09-16 and is
+  # if anything conservative: 72.3-91.9 with MTP against 47.7-52.4
+  # without, across six scenarios.
+  #
+  # The cost MTP does carry, and which was previously unrecorded: it
+  # makes TTFT ~30% worse (257ms vs 195ms here). Speculative decoding
+  # does extra work up front to win it back over the generation. That is
+  # a good trade for a main-model turn and a bad one for a 20-token
+  # side-call -- see the auxiliary block.
   default: Qwen3.6-35B-A3B-MTP-GGUF
   provider: custom:lemonade
   # base_url, api_key and context_length are deliberately absent. The
@@ -31,6 +59,15 @@ providers:
     # A cold model load is ~40s and a long agent turn can run minutes.
     request_timeout_seconds: 600
     stale_timeout_seconds: 600
+  custom:lemonade-gaming:
+    # Deliberately much shorter than strix's 600. This host is often
+    # powered off, and it is only ever reached as a fallback -- i.e.
+    # when a turn has already failed once and the user is waiting. The
+    # timeout here is the ceiling on how long a dead machine can stall
+    # that turn, so it is set to "long enough for a real answer from a
+    # 4B" rather than "long enough for a cold 35B load".
+    request_timeout_seconds: 180
+    stale_timeout_seconds: 180
 
 custom_providers:
   - name: lemonade
@@ -44,24 +81,82 @@ custom_providers:
       Qwen3.6-35B-A3B-MTP-GGUF:
         context_length: 65536
         supports_vision: true
-      Qwen3-Coder-30B-A3B-Instruct-GGUF:
-        context_length: 65536
       Qwen3.5-4B-MTP-GGUF:
         context_length: 65536
         supports_vision: true
 
-# Second slot. Different weights from the main model on purpose: a
-# fallback that shares a lineage with the thing it is covering for is
-# not much of a fallback.
+  # snoc-gaming. Same key today (Prometheus points both scrape jobs at
+  # one credentials_file, so the key must stay shared until that moves).
+  #
+  # ONE model only, and not for tidiness: gaming runs lemonade's default
+  # max_loaded_models of 1 against strix's 3, so a second name here would
+  # evict the first on every call. It also has a 15.2 GB RAM ceiling
+  # (WSL2 default of half the Windows RAM), and lemonade filters out
+  # anything over 80% of that -- so the 35B and the 30B are not merely
+  # slow to load there, they are refused outright.
+  - name: lemonade-gaming
+    base_url: https://snoc-gaming.fold-leaffish.ts.net:13305/v1
+    key_env: LEMONADE_API_KEY
+    api_mode: chat_completions
+    model: Qwen3.5-4B-MTP-GGUF
+    models:
+      Qwen3.5-4B-MTP-GGUF:
+        context_length: 65536
+        supports_vision: true
+
+# Two fallbacks, in this order, because there are two different failures
+# to cover and one entry cannot cover both.
+#
+#   1. same host, different weights -- covers a model-level failure
+#      (failed load, a bad response, an evicted slot) while strix itself
+#      is healthy. This is the common case, and it is why a same-host
+#      fallback is worth keeping rather than replacing.
+#
+#   2. different host -- covers losing strix entirely. Until 2026-09-16
+#      this file had no such entry: the only fallback pointed at
+#      custom:lemonade, the same machine as the primary, so the one
+#      failure a fallback exists for was the one it could not survive.
+#
+# Ordering matters. If strix is down, (1) fails fast against a dead host
+# and (2) is reached; if strix is up and only the model failed, (2) is
+# never consulted and gaming's being powered off costs nothing.
+#
+# Both use the 4B rather than the 30B coder. A fallback's job is to
+# answer at all, and the 4B is the most reliable model measured here --
+# clean across all six scenarios on strix, where the coder emits a
+# single token on code-debug and fails multi-turn outright.
 fallback_providers:
   - provider: custom:lemonade
-    model: Qwen3-Coder-30B-A3B-Instruct-GGUF
+    model: Qwen3.5-4B-MTP-GGUF
+  - provider: custom:lemonade-gaming
+    model: Qwen3.5-4B-MTP-GGUF
 
-# Subagents get the coder. They do the file-editing and shell work, and
-# it measured 72 tok/s -- within noise of the main model.
+# Subagents used to get Qwen3-Coder-30B-A3B-Instruct on the strength of
+# "72 tok/s, within noise of the main model". The 2026-09-16 benchmarks
+# do not support that and the coder is now gone from this deployment:
+#
+#   code-short          73.7 tok/s   vs the 35B MTP's 91.9
+#   code-explain        72.3 tok/s   vs 81.6
+#   code-debug          emits ONE token, on both rocm and HRX
+#   context-multi-turn  fails 3/3, where the 35B passes
+#
+# So it was ~20% slower on the coding work it existed for, with two of
+# six scenarios unusable. Subagents do file-editing and shell work and
+# are the least supervised thing here, which is the worst place to keep
+# a model that silently returns one token.
+#
+# Pointing delegation at the default model is faster, strictly more
+# reliable, and costs no memory -- it is already resident. Dropping the
+# coder is what takes this deployment from three resident models to two.
+#
+# What this does NOT settle: whether the coder is *better at coding*
+# when it works. A throughput benchmark cannot answer that. If a
+# quality regression shows up in subagent work, the thing to re-test is
+# output quality on real tasks, not tok/s -- but a model that fails
+# multi-turn is a poor bet for subagents either way.
 delegation:
   provider: custom:lemonade
-  model: Qwen3-Coder-30B-A3B-Instruct-GGUF
+  model: Qwen3.6-35B-A3B-MTP-GGUF
 
 # Both keys name a profile, and a name that no longer exists fails soft
 # in two different ways: orchestrator_profile silently falls back to the
@@ -73,13 +168,36 @@ kanban:
   orchestrator_profile: default
   default_assignee: default
 
-# Third slot. Every short side-call -- titles, summaries, triage,
-# approvals -- goes to the 4B so it never queues behind a main-model
-# turn. It is vision-capable, which matters for the vision task below.
+# Second resident model. Every short side-call -- titles, summaries,
+# triage, approvals -- goes to the 4B so it never queues behind a
+# main-model turn. It is vision-capable, which matters for the vision
+# task below.
 #
 # The MTP variant is the same weights as Qwen3.5-4B-GGUF with
-# multi-token prediction: 85.5 tok/s against 56.9, tool-calling and
-# vision both verified.
+# multi-token prediction. The claimed "85.5 vs 56.9 tok/s" measured as
+# 90.3 vs 55.9 on 2026-09-16 -- accurate. Tool-calling and vision both
+# verified.
+#
+# Two findings that argue about this block but do not change it:
+#
+# 1. The throughput case for a small aux model has mostly evaporated.
+#    The 35B-A3B MTP does 85.5 tok/s against this 4B's 90.3 -- a 5% gap,
+#    because only ~3B of its parameters are active per token. What the
+#    4B still wins is TTFT (172ms vs 257ms), and side-calls are short
+#    enough that time-to-first-token is most of their wall clock. That
+#    is now the reason to keep it, not tok/s. Consolidating onto the 35B
+#    would free ~4.5 GB and a slot for a ~5% throughput cost and a
+#    meaningfully worse feel.
+#
+# 2. These tasks are the single best fit for snoc-gaming on paper --
+#    short, bursty, parallel, and it runs this exact model at 133-166
+#    tok/s against strix's 92-102. They stay on strix anyway, for two
+#    reasons. Gaming's TTFT is 1148ms against strix's 175ms, a flat
+#    ~1150ms floor that does not vary with prompt size and would
+#    dominate every short call; and aux tasks run on every turn, so
+#    pointing them at a machine that is usually powered off would make
+#    the common path depend on the intermittent host. Fallback is the
+#    only role an intermittent box can safely hold.
 auxiliary:
   _default: &aux
     provider: custom:lemonade
@@ -137,14 +255,29 @@ tts:
   provider: edge
 
 agent:
-  # Lemonade is configured with ctx_size 65536, so nothing served here
-  # can offer more. Asking for more makes Hermes reject the provider.
+  # Both Lemonade hosts are configured with ctx_size 65536, so nothing
+  # served here can offer more. Asking for more makes Hermes reject the
+  # provider.
+  #
+  # snoc-gaming had no config.json at all until 2026-09-16 and ran on
+  # defaults. If it is ever rebuilt and comes back on a default ctx_size
+  # below this floor, Hermes will reject it and the cross-host fallback
+  # silently stops existing -- a failure that only shows up on the day
+  # strix is down. The lemonade_setup role should pin ctx_size on both
+  # hosts for that reason.
+  #
+  # Raising the window is nearly free, which was not obvious: measured
+  # at ctx 4096 vs 32768 on the same host and model, throughput and TTFT
+  # are identical within noise (largest gap 2.6%, favouring the larger).
+  # It costs VRAM, not time -- 4.47 GB to 5.19 GB for 8x the window.
   minimum_context_length: 32768
 
 # Profiles are separate agents with their own config.yaml under
 # ~/.hermes/profiles/<name>/, and they inherit nothing from the above --
-# so each one that exists has to be held to the same three models, or it
-# names a fourth and evicts a resident one on every invocation.
+# so each one that exists has to be held to the same models, or it names
+# another and evicts a resident one on every invocation. There is now
+# one spare slot of the three, so a profile could name a third model
+# without eviction -- but only one, and only on strix.
 #
 # There are none. assistant, finance, ops, orchestrator and research were
 # created in June 2026 and never used: zero sessions and zero messages in
