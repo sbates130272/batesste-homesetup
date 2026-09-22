@@ -20,7 +20,7 @@ jobs:
       - name: Create the external docker volume
         run: docker volume create batesste-time-machine
       - name: Docker Compose based smoke-test
-        uses: hoverkraft-tech/compose-action@v3.1.0
+        uses: hoverkraft-tech/compose-action@v3.2.0
         with:
           compose-file: batesste-time-machine.dc.yml
           cwd: ./time-machine
