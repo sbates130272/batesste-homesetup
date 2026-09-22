@@ -3140,6 +3140,79 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
+      "description": "Time since the newest object in s3://batesste-homelab-backups. The backup timer is daily, so yellow at 26h means one run was missed; red is 48h, the same query and threshold the BackupStale alert fires on, so the tile and the page agree by construction. Age alone trusts the backup script further than it has earned -- batesste-s3-backup pipes dd into pigz without pipefail, so a truncated image still lands with a fresh timestamp and reads green here. BackupTooSmall and the weekly restore test are what cover that.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "yellow",
+                "value": 93600
+              },
+              {
+                "color": "red",
+                "value": 172800
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 54
+      },
+      "id": 49,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "time() - batesste_s3_backup_last_object_timestamp_seconds{bucket=\"batesste-homelab-backups\"}",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Backup Age",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
       "description": "Every NVMe drive across the fleet, joined by instance: spare capacity, composite temperature, power-on hours and lifetime media errors. Media Errors turns red at 1 -- it should never leave zero.",
       "fieldConfig": {
         "defaults": {
@@ -3292,7 +3365,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 57
       },
       "id": 31,
       "options": {
@@ -3455,7 +3528,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 63
       },
       "id": 32,
       "options": {
@@ -3495,7 +3568,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 69
       },
       "id": 45,
       "title": "System Load",
@@ -3538,7 +3611,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 67
+        "y": 70
       },
       "id": 34,
       "options": {
@@ -3605,7 +3678,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 67
+        "y": 70
       },
       "id": 35,
       "options": {
