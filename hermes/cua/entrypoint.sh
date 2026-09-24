@@ -67,14 +67,31 @@ if [[ "${CUA_AUTOSTART_BROWSER:-1}" == "1" ]]; then
     # Chrome needs --force-renderer-accessibility for AT-SPI,
     # --no-sandbox for running inside containers, and --disable-gpu
     # to avoid hardware issues in the virtual X display.
+    # --remote-debugging-port opens CDP on container loopback, for
+    # clients that want more than the accessibility tree.
+    #
+    # The profile directory must NOT be ~/.config/google-chrome, and that
+    # is load-bearing rather than cosmetic. Since Chrome 136,
+    # --remote-debugging-port is ignored outright when --user-data-dir is
+    # the platform's default profile root -- which on Linux is exactly
+    # $HOME/.config/google-chrome. Naming that path reads as compliant
+    # and fails identically to passing no --user-data-dir at all: the
+    # port never opens, nothing is logged, and a CDP client connects,
+    # reports healthy and then hangs on a blank page. This was the state
+    # of the container before this line moved.
+    #
+    # Still under /home/agent so it stays on the batesste-cua-home
+    # volume and survives a rebuild, which is what keeps the agent logged
+    # in to whatever it is meant to be working with.
     ACCESSIBILITY_ENABLED=1 google-chrome-stable \
         --no-sandbox \
         --disable-gpu \
         --disable-software-rasterizer \
         --disable-dev-shm-usage \
+        --remote-debugging-port=9222 \
         --force-renderer-accessibility \
         --start-maximized \
-        --user-data-dir=/home/agent/.config/google-chrome \
+        --user-data-dir=/home/agent/.cua-chrome-profile \
         --new-window \
         'data:text/html,<h1>Chrome is ready</h1>' \
         >/dev/null 2>&1 &

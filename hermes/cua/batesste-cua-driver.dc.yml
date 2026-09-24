@@ -8,7 +8,11 @@
 #
 # Nothing here is reachable from the network except noVNC on loopback, and
 # that is deliberate -- see the nginx README for what a wildcard bind on
-# this machine costs. To watch the agent work from another machine:
+# this machine costs. Chrome also listens on 9222 for CDP, which is why
+# the ports list below stays at one entry: that port is unauthenticated,
+# and staying unpublished is the only thing protecting it.
+#
+# To watch the agent work from another machine:
 #
 #   tailscale serve --bg --https 6080 http://127.0.0.1:6080
 #

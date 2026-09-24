@@ -9,7 +9,13 @@
 #
 # Hermes reaches it through ./cua-driver-docker, a host shim that forwards
 # stdio in with `docker exec`. Nothing about the driver is exposed on the
-# network; the only listener is the read-only noVNC view.
+# network; the only published listener is the read-only noVNC view.
+#
+# Chrome's CDP port is the other listener, and it is deliberately not one
+# of those: it binds container loopback and the compose file publishes
+# only 6080, so it is reachable from inside this container and nowhere
+# else. CDP has no authentication of its own, so that distinction is the
+# whole of its access control -- do not publish 9222.
 
 FROM debian:12-slim
 
@@ -20,11 +26,23 @@ ARG GID=1000
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+# apt config: never use a proxy for any host. apt consults http_proxy only
+# when no apt option is set, so a config file wins over whatever the build
+# environment injects -- which is the point, on a network where the daemon
+# has proxy variables of its own. curl reads the environment directly and
+# is unaffected by this file, hence --noproxy on the RUN lines below.
+#
+# DIRECT is apt's documented value for "no proxy". "false" is not a
+# boolean here, it is parsed as a proxy URI, and printf rather than echo
+# because only dash's builtin echo expands \n -- under bash the same line
+# writes a literal backslash-n and the config is silently malformed.
+RUN printf 'Acquire::http::Proxy "DIRECT";\nAcquire::https::Proxy "DIRECT";\n' > /etc/apt/apt.conf.d/no-proxy
+
 # Add Google's Chrome repo for the latest stable Chrome (need curl+gnupg first)
 # then install the X stack, accessibility stack, Chrome, and cua-driver.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl gnupg \
-    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && curl --noproxy '*' -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
     && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -47,7 +65,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN set -eux; \
     dir="cua-driver-rs-${CUA_DRIVER_VERSION}-linux-x86_64"; \
     url="https://github.com/trycua/cua/releases/download/cua-driver-rs-v${CUA_DRIVER_VERSION}/${dir}.tar.gz"; \
-    curl -fsSL "$url" -o /tmp/cua.tgz; \
+    curl --noproxy '*' -fsSL "$url" -o /tmp/cua.tgz; \
     mkdir -p /opt/cua-driver; \
     tar xzf /tmp/cua.tgz -C /tmp; \
     cp -a "/tmp/${dir}/." /opt/cua-driver/; \
