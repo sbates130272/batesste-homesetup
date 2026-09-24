@@ -150,6 +150,67 @@ homeassistant:
     resources: true
     prompts: false
 
+# Lemonade on snoc-strix, over streamable HTTP on the tailnet.
+#
+# The reason for this entry is `lemonade_docs`: every lemond carries the
+# API reference for the version it was built from, and serves it as
+# markdown. A skill that needs to call an endpoint can read the spec off
+# the server that will answer the call, instead of carrying a copy that
+# goes stale on its own schedule. Lemonade now ships weekly, so that
+# distinction stops being theoretical.
+#
+# 127.0.0.1 would be wrong here, which is the opposite of the Home
+# Assistant entry above: Hermes runs on snoc-beelink and lemond runs on
+# strix, so this has to cross the tailnet and wants the TLS listener.
+#
+# The URL has no version prefix. MCP mandates one endpoint per server, so
+# /mcp is the documented exception to Lemonade's /v1, /api/v1, /v0,
+# /api/v0 convention -- there is no /v1/mcp to reach for.
+#
+# LEMONADE_API_KEY is already in ~/.hermes/.env: sync-secrets.sh puts it
+# there for inference and STT, and /mcp authenticates exactly like
+# /api/v1/chat/completions. No second credential, nothing new to rotate.
+lemonade:
+  url: https://snoc-strix.fold-leaffish.ts.net:13305/mcp
+  headers:
+    Authorization: Bearer ${LEMONADE_API_KEY}
+  # `full`, and the annotations caveat from the Home Assistant entry
+  # applies here too: lemond returns no `annotations` on any tool, so
+  # nothing satisfies _tool_is_read_only and `untrusted` would prompt on
+  # all six -- including the docs read this entry exists for.
+  #
+  # What makes that acceptable is that the expensive paths are already
+  # bounded server-side. The chat, image and omni tools refuse to fetch a
+  # model that is not downloaded unless the caller passes
+  # allow_download: true, so an unattended turn errors instead of pulling
+  # multiple GB. Disk writes are confined to a sandbox under lemond's
+  # cache dir on strix, with traversal and symlink escapes rejected.
+  trust: full
+  tools:
+    # No include list, for a different reason than Home Assistant's.
+    # These names are fixed by the server, not generated from config --
+    # but the weekly release train means the set grows, and a list
+    # written today would silently drop whatever lands next Wednesday.
+    # That is the GitHub-rename failure above, on a seven-day cycle.
+    #
+    # Today strix runs 11.9.0 and serves five: lemonade_list_models,
+    # lemonade_chat, lemonade_transcribe_audio, lemonade_generate_image,
+    # lemonade_omni. lemonade_docs is the sixth and arrives with
+    # 2026.39.1; with no include list it starts working on upgrade,
+    # with no edit here.
+    #
+    # Two of the five are redundant on their face -- Hermes already uses
+    # this same server as its LLM backend and has STT pinned to its
+    # whisper, so lemonade_chat and lemonade_transcribe_audio reach the
+    # box Hermes is already talking to. They are left in rather than
+    # filtered out because excluding them means maintaining the list.
+    #
+    # lemonade_generate_image and lemonade_omni write to strix's
+    # filesystem, which Hermes cannot read; they return paths on the
+    # wrong host unless called for their inline content blocks.
+    resources: false
+    prompts: false
+
 # Deliberately absent: `fetch`. It was the second `command: npx` entry
 # and had never started either. Nothing was lost -- Hermes ships native
 # web_search and web_extract tools plus a browser toolset, all of which

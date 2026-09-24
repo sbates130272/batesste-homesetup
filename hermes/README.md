@@ -43,6 +43,7 @@ September 2026. Deleting a server here deletes it there.
 | --- | --- | --- |
 | `github` | GitHub's hosted endpoint over HTTPS | 8: search, file reads, issue and PR read/write |
 | `firefly` | local script, its own venv | 8: Firefly reads, Google Drive, Apple Calendar |
+| `lemonade` | Lemonade on snoc-strix, over the tailnet | all of them, no include list |
 
 Credentials are `${VAR}` references resolved from `~/.hermes/.env` at load
 time, never inline. An unset variable keeps the literal placeholder and
