@@ -22,5 +22,13 @@
     "labels": {
       "server_name": "snoc-strix"
     }
+  },
+  {
+    "targets": [
+      "10.0.0.107:12345"
+    ],
+    "labels": {
+      "server_name": "amd-laptop"
+    }
   }
 ]

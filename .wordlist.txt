@@ -108,6 +108,7 @@ HSA
 http
 https
 hwmon
+Hyper
 IAM
 icloud
 iCloud
@@ -310,6 +311,7 @@ vLLM
 VM
 VMCreatorId
 VRAM
+vSwitch
 vxwm
 WAL
 WAN
