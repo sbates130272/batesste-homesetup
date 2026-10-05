@@ -39,7 +39,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "One row per host running node-exporter, joined on instance: kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
+      "description": "One row per host running node-exporter, joined on instance: distro, kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Distro is node_exporter's os-release collector (node_os_info pretty_name), so it is blank on macOS and on Windows hosts served by windows_exporter -- those have no os-release file to read. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -364,6 +364,18 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Distro"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "Load/Core"
             },
             "properties": [
@@ -550,6 +562,20 @@
           "legendFormat": "",
           "range": false,
           "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance, pretty_name) (node_os_info)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "K"
         }
       ],
       "title": "Node Fleet",
@@ -575,7 +601,9 @@
               "instance": true,
               "Time 8": true,
               "Time 9": true,
-              "Time 10": true
+              "Time 10": true,
+              "Time 11": true,
+              "Value #K": true
             },
             "renameByName": {
               "Value #B": "CPU %",
@@ -584,6 +612,7 @@
               "Value #E": "Cores",
               "Value #F": "Uptime",
               "Value #G": "WiFi (dBm)",
+              "pretty_name": "Distro",
               "release": "Kernel",
               "server_name": "Node",
               "Value #H": "Link",
@@ -601,19 +630,22 @@
               "Value #H": 7,
               "Value #G": 8,
               "Value #F": 9,
-              "release": 10,
-              "Time 1": 11,
-              "Time 2": 12,
-              "Time 3": 13,
-              "Time 4": 14,
-              "Time 5": 15,
-              "Time 6": 16,
-              "Time 7": 17,
-              "Time 8": 18,
-              "Time 9": 19,
-              "Time 10": 20,
-              "Value #A": 21,
-              "instance": 22
+              "pretty_name": 10,
+              "release": 11,
+              "Time 1": 12,
+              "Time 2": 13,
+              "Time 3": 14,
+              "Time 4": 15,
+              "Time 5": 16,
+              "Time 6": 17,
+              "Time 7": 18,
+              "Time 8": 19,
+              "Time 9": 20,
+              "Time 10": 21,
+              "Time 11": 22,
+              "Value #A": 23,
+              "Value #K": 24,
+              "instance": 25
             }
           }
         }
@@ -1428,7 +1460,14 @@
         }
       ],
       "title": "Node Exporter",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "NodeExporter",
+          "url": "/d/rYdddlPWk/node-exporter-full"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1722,7 +1761,14 @@
         }
       ],
       "title": "GPU Exporter",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "GPUExporter",
+          "url": "/d/rYdddlPWk/node-exporter-full"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1807,7 +1853,14 @@
         }
       ],
       "title": "Speedtest",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "Speedtest",
+          "url": "/d/MBmaYd9Wk/speedtest-wan-testing"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1892,7 +1945,14 @@
         }
       ],
       "title": "Emporia",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "Emporia",
+          "url": "/d/be8ws4eoud3b4d/emporia-smartplugs-dashboard"
+        }
+      ]
     },
     {
       "datasource": {
@@ -2232,7 +2292,14 @@
         }
       ],
       "title": "Prometheus",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "Prometheus",
+          "url": "/d/rYdddlPWk/node-exporter-full"
+        }
+      ]
     },
     {
       "datasource": {
@@ -2312,7 +2379,14 @@
         }
       ],
       "title": "HSA Snoop",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "HSASnoop",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ]
     },
     {
       "datasource": {

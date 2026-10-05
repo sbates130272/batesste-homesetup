@@ -50,6 +50,19 @@ providers:
       path: /var/lib/grafana/dashboards/general
       foldersFromFilesStructure: false
 
+  # Loki logs dashboard
+  - name: loki
+    orgId: 1
+    folder: ''
+    folderUid: homelab-loki
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/loki
+      foldersFromFilesStructure: true
+
   - name: personal-finance
     orgId: 1
     folder: Personal Finance
