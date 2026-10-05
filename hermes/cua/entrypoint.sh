@@ -15,11 +15,30 @@
 
 set -euo pipefail
 
+# --- Ensure socket directory exists with correct ownership ---
+mkdir -p /home/agent/.cache/cua-driver
+chown agent:agent /home/agent/.cache/cua-driver
+
 SCREEN="${CUA_SCREEN:-1920x1080x24}"
 DISPLAY_NUM="${DISPLAY#:}"
 VNC_ENABLED="${CUA_VNC:-1}"
 
 log() { printf '[cua-entrypoint] %s\n' "$*"; }
+
+# --- Process isolation: prevent duplicate Chrome/cua-driver stacks ---
+# Because --pid=host runs everything on the host, a container restart
+# would normally launch another full desktop stack. Check for an existing
+# stack first and exit if we find one — the already-running container
+# (or the one that started before us) is authoritative.
+EXISTING_CHROME=$(pgrep -f '/opt/google/chrome/chrome.*--remote-debugging-port=9222' 2>/dev/null || true)
+EXISTING_CUA=$(pgrep -f 'cua-driver serve' 2>/dev/null || true)
+
+if [[ -n "$EXISTING_CHROME" || -n "$EXISTING_CUA" ]]; then
+    log "ALERT: chrome (PID: ${EXISTING_CHROME:-none}) and/or cua-driver (PID: ${EXISTING_CUA:-none}) already running."
+    log "Exiting to prevent duplicate desktop stack. Attach to the existing instance instead."
+    exit 0
+fi
+# --- End process isolation ---
 
 wait_for() {
     local what="$1" tries="$2"; shift 2
@@ -113,4 +132,10 @@ log "starting cua-driver serve"
 # wedges X11 input if a session ends uncleanly, and there is nobody sitting
 # at this desktop to appreciate it. Hermes disables it on its side too;
 # this makes it true even for a session started by hand.
-exec cua-driver serve --no-overlay
+#
+# NOTE: do NOT use `exec` here — with --pid=host the driver is a
+# background daemon; `exec` replaces PID 1 and exits, taking the container
+# down.  Launch in background and `wait` so the entrypoint stays alive
+# (and the isolation block at the top can kill duplicate starts).
+cua-driver serve --no-overlay &
+wait
