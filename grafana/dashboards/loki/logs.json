@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Loki logs dashboard for snoc-beelink homelab — systemd-journal and nginx logs",
+  "description": "Loki logs dashboard for snoc-beelink homelab \u2014 systemd-journal and nginx logs",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -70,8 +70,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -117,7 +116,7 @@
             "uid": "snoc-beelink-loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({host=~\"$host\", job=~\"$job\"}[5m])",
+          "expr": "sum by (level) (count_over_time({host=~\"$host\", job=~\"$job\"}[5m]))",
           "legendFormat": "{{level}}",
           "queryType": "range",
           "refId": "A"
@@ -130,7 +129,7 @@
         "type": "loki",
         "uid": "snoc-beelink-loki"
       },
-      "description": "Error log rate over time — any level other than info/debug",
+      "description": "Lines at warning or above (warning, error, crit, emerg) in the last 5 minutes",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -141,8 +140,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -154,7 +152,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 12,
         "w": 6,
         "x": 0,
         "y": 8
@@ -181,20 +179,21 @@
             "uid": "snoc-beelink-loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({host=~\"$host\", job=~\"$job\", level=~\"error|warning\"}[5m])",
+          "expr": "sum(count_over_time({host=~\"$host\", job=~\"$job\", level=~\"warning|error|crit|emerg\"}[5m]))",
           "legendFormat": "Error/Warning",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "type": "stat"
+      "type": "stat",
+      "title": "Error/Warning Lines"
     },
     {
       "datasource": {
         "type": "loki",
         "uid": "snoc-beelink-loki"
       },
-      "description": "Total log lines in the selected time range",
+      "description": "Total log lines in the last hour",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -205,8 +204,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               }
             ]
           }
@@ -214,7 +212,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
+        "h": 12,
         "w": 6,
         "x": 6,
         "y": 8
@@ -241,13 +239,14 @@
             "uid": "snoc-beelink-loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({host=~\"$host\", job=~\"$job\"}[1h])",
+          "expr": "sum(count_over_time({host=~\"$host\", job=~\"$job\"}[1h]))",
           "legendFormat": "Total",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "type": "stat"
+      "type": "stat",
+      "title": "Log Lines (1h)"
     },
     {
       "datasource": {
@@ -272,7 +271,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 12,
         "w": 12,
         "x": 12,
         "y": 8
@@ -301,7 +300,7 @@
             "uid": "snoc-beelink-loki"
           },
           "editorMode": "code",
-          "expr": "count_over_time({host=~\"$host\", job=~\"$job\"}[5m])",
+          "expr": "sum by (unit) (count_over_time({host=~\"$host\", job=~\"$job\"}[5m]))",
           "legendFormat": "{{unit}}",
           "queryType": "range",
           "refId": "A"
@@ -314,12 +313,84 @@
         "type": "loki",
         "uid": "snoc-beelink-loki"
       },
+      "description": "Uncompressed log bytes ingested per host over the dashboard's selected time range. This is volume attributable to each host, not its share of Loki's on-disk size -- chunks are stored compressed and the index is shared, so there is no per-host figure on disk to report.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 9,
+      "options": {
+        "displayMode": "gradient",
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": false
+        },
+        "maxVizHeight": 300,
+        "minVizHeight": 16,
+        "minVizWidth": 8,
+        "namePlacement": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showUnfilled": true,
+        "sizing": "auto",
+        "valueMode": "color"
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "snoc-beelink-loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (host) (bytes_over_time({host=~\"$host\", job=~\"$job\"}[$__range]))",
+          "legendFormat": "{{host}}",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Log Volume by Host (selected range)",
+      "type": "bargauge"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "snoc-beelink-loki"
+      },
       "description": "Most recent log lines for the selected filters",
       "gridPos": {
         "h": 20,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 28
       },
       "id": 1,
       "options": {
@@ -344,11 +415,12 @@
           "refId": "A"
         }
       ],
-      "type": "logs"
+      "type": "logs",
+      "title": "Logs"
     }
   ],
   "refresh": "30s",
-  "schemaVersion": 39,
+  "schemaVersion": 42,
   "tags": [
     "loki",
     "logs",
@@ -357,15 +429,22 @@
   "templating": {
     "list": [
       {
-        "allValue": ".*",
-        "current": {},
+        "allValue": ".+",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "loki",
           "uid": "snoc-beelink-loki"
         },
         "definition": "label_values(host)",
         "description": "Filter by host",
-        "error": null,
         "hide": 0,
         "includeAll": true,
         "label": "Host",
@@ -373,24 +452,33 @@
         "name": "host",
         "query": {
           "refId": "LokiVariableQueryEditor-VariableQuery",
-          "type": 1
+          "type": 1,
+          "label": "host"
         },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": "alphabetical",
-        "type": "query"
+        "type": "query",
+        "options": []
       },
       {
-        "allValue": ".*",
-        "current": {},
+        "allValue": ".+",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "loki",
           "uid": "snoc-beelink-loki"
         },
         "definition": "label_values({host=~\"$host\"}, job)",
         "description": "Filter by log source",
-        "error": null,
         "hide": 0,
         "includeAll": true,
         "label": "Job",
@@ -398,24 +486,34 @@
         "name": "job",
         "query": {
           "refId": "LokiVariableQueryEditor-VariableQuery",
-          "type": 1
+          "type": 1,
+          "label": "job",
+          "stream": "{host=~\"$host\"}"
         },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": "alphabetical",
-        "type": "query"
+        "type": "query",
+        "options": []
       },
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
         "datasource": {
           "type": "loki",
           "uid": "snoc-beelink-loki"
         },
         "definition": "label_values({host=~\"$host\", job=~\"$job\"}, unit)",
         "description": "Filter by systemd unit",
-        "error": null,
         "hide": 0,
         "includeAll": true,
         "label": "Unit",
@@ -423,13 +521,16 @@
         "name": "unit",
         "query": {
           "refId": "LokiVariableQueryEditor-VariableQuery",
-          "type": 1
+          "type": 1,
+          "label": "unit",
+          "stream": "{host=~\"$host\", job=~\"$job\"}"
         },
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": "alphabetical",
-        "type": "query"
+        "type": "query",
+        "options": []
       }
     ]
   },
