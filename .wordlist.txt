@@ -53,6 +53,8 @@ deuteranopia
 DHCP
 discoverable
 DisplayName
+distro
+distro's
 DNS
 Dockerfile
 dotfiles
@@ -123,6 +125,7 @@ IRQ
 ISIZE
 JID
 jitter
+journald
 journald's
 jq
 JSON
@@ -260,6 +263,7 @@ symlink
 symlinks
 sysctl
 sysfs
+syslog
 systemctl
 systemd
 tailnet

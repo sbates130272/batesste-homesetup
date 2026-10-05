@@ -205,6 +205,23 @@ between a runaway log source and a full root filesystem. See [the
 README.md](./loki/README.md) for the config, the agent rollout, and
 the handful of ways Alloy fails without saying anything.
 
+# journald
+
+The flip side of shipping every journal to Loki is that the local
+journal on each box only needs to be a buffer, not an archive — and
+on `snoc-beelink` it was not treated as one. [journald](./journald)
+caps it.
+
+With no `SystemMaxUse=` set, journald grows to 10% of its filesystem
+and stops. That default assumes `/var` is its own volume; here the
+journal shares a 98 GiB LV with `/home` and `/var/lib/docker`, so the
+ceiling was a 9.8 GiB claim nobody had chosen, on space other things
+needed more. It had reached 3.9 GiB by the time anyone looked. The cap is 1
+GiB — about three weeks — because anything older is a Loki query. See
+[the README.md](./journald/README.md) for why the drop-in filename is
+load-bearing, and why `journalctl --disk-usage` is not a test that it
+worked.
+
 # nginx
 
 The [nginx](./nginx) folder holds the reverse proxy configuration for
