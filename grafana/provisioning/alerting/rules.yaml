@@ -551,3 +551,262 @@ groups:
                 - evaluator:
                     type: gt
                     params: [0]
+
+  # Alert rules for filesystem exhaustion.
+  #
+  # Three rules for three distinct failure modes:
+  #
+  #   NodeDiskFillingUp   headroom is going, days out
+  #   NodeDiskCritical    nearly gone, hours out
+  #   NodeDiskInodesLow   space remains but files cannot be created
+  #
+  # All carry service=disk, which notification-policies.yaml routes on.
+  #
+  # Why this group exists: on 5 October 2026 snoc-beelink's root
+  # volume was at 88% -- 12 GiB free of 98 GiB -- and nothing said so.
+  # It was found by going and looking. Every number was in Prometheus
+  # for weeks and no rule read any of it, which is precisely the gap
+  # the memory group above was written to close for a different
+  # resource. See journald/README.md for what was actually filling it.
+  #
+  # Thresholds are ratios rather than byte counts, for the same reason
+  # the memory group uses them: one rule has to cover a 2 GiB /boot
+  # and a 98 GiB root without per-host variants.
+  #
+  # Scoped to fstype=~"ext4|xfs" deliberately. The fleet also exports
+  # vfat (/boot/efi, static and 99% free), 9p and rootfs from the WSL
+  # node (/usr/lib/wsl/drivers is the Windows C: drive; /init is a
+  # pseudo-mount), and a stack of /System/Volumes/* series from the
+  # Mac that are all views of one APFS container. None of those are
+  # disks this repo can act on, and alerting on eight series for one
+  # physical volume is how a group gets muted.
+  #
+  # Known duplicate: amd-laptop reports / and /var/lib/docker as
+  # separate series with identical values, because under WSL they are
+  # the same device. Both entries are true; the notification policy
+  # groups on mountpoint so they arrive together rather than as two
+  # unrelated pages.
+  #
+  # Not used here: predict_linear. It is the obvious tool for "when
+  # will this fill" and it does not survive contact with this fleet --
+  # projecting snoc-beelink's /boot four days forward from a 6h window
+  # yields -0.89 GiB, i.e. it would fire immediately and permanently.
+  # /boot is a 2 GiB sawtooth that fills with kernel packages and
+  # empties on autoremove, and a linear fit through one tooth always
+  # points at zero. Level thresholds are duller and they are right.
+  #
+  # As with the memory group, every rule is noDataState: OK: a missing
+  # series is a missing exporter, which is node-down alerting and a
+  # different rule this repo still does not have.
+  - orgId: 1
+    name: disk
+    folder: Alerts
+    # Matches the backup group rather than memory's 1m. Disks fill
+    # over days; a five-minute evaluation delay is noise against the
+    # lead time these rules are built to give.
+    interval: 5m
+    rules:
+
+      # ── Headroom going ─────────────────────────────────────────
+      #
+      # 15% free. Backtested against the week to 5 October: beelink's
+      # root bottomed out at 10.5% free (min_over_time over 7d, 12.2%
+      # at the moment it was noticed by hand), so this rule would have
+      # fired with room to spare -- which is the whole point, since
+      # nothing did. It would not have reached NodeDiskCritical's 5%,
+      # which is the intended split: this one is the useful warning,
+      # the other is the page.
+      #
+      # It is also quiet right now, which matters just as much. The
+      # tightest filesystem in the fleet after that day's cleanup is
+      # beelink's root at 25.5% free, then snoc-thinkstation at 27.4%
+      # and snoc-strix at 31.5%. A threshold that fires on deployment
+      # trains the habit of ignoring it.
+      #
+      # 1h of `for:` because a disk at 15% is not an emergency and a
+      # container build or a backup staging run can dip below the line
+      # for minutes at a time. There are days of margin here; one hour
+      # of it buys confidence the dip is a trend.
+      - uid: batesste-node-disk-filling
+        title: NodeDiskFillingUp
+        condition: C
+        for: 1h
+        labels:
+          service: disk
+          severity: warning
+        annotations:
+          summary: >-
+            Less than 15% of this filesystem is free and has been for
+            an hour. On snoc-beelink on 5 October the equivalent state
+            went unnoticed until someone went looking.
+          runbook: >-
+            Find it with `du -xhd1 / | sort -rh | head -20`, repeating
+            into whichever directory is largest -- `-x` matters, it
+            stops du walking into other mounts. The usual suspects on
+            this fleet are `/var/lib/docker` (`docker system df`, then
+            `docker image prune`), `/var/lib/prometheus` (capped at
+            20 GiB by --storage.tsdb.retention.size), package and
+            build caches under `~/.cache` and `~/.npm`, and stale
+            `~/.vscode-server/cli/servers` versions. Check
+            `journalctl --disk-usage` against the 1 GiB cap in
+            journald/journald.conf. Do NOT run `docker volume prune`
+            on snoc-beelink: several named volumes holding Time
+            Machine and Firefly data report as dangling.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                node_filesystem_avail_bytes{fstype=~"ext4|xfs"} /
+                (node_filesystem_size_bytes{fstype=~"ext4|xfs"} > 0)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.15]
+
+      # ── Nearly gone ────────────────────────────────────────────
+      #
+      # 5%, and a page rather than a notification.
+      #
+      # The gap between this and the warning above is deliberately
+      # wide. On a 98 GiB root, 15% to 5% is about 10 GiB of runway;
+      # at the rate this fleet actually fills -- beelink's root moved
+      # single-digit GiB over the weeks before October -- that is days
+      # of warning, not minutes.
+      #
+      # What makes 5% the right floor rather than 0 is that a full
+      # root does not degrade gracefully. Package upgrades fail
+      # halfway, journald stops writing the record of what went wrong,
+      # Docker pulls leave partial layers, and Prometheus stops
+      # recording the metrics that would explain it afterwards. 5% of
+      # 98 GiB is ~5 GiB, enough to still fix the problem with the
+      # normal tools.
+      - uid: batesste-node-disk-critical
+        title: NodeDiskCritical
+        condition: C
+        for: 15m
+        labels:
+          service: disk
+          severity: critical
+        annotations:
+          summary: >-
+            Under 5% of this filesystem is free. Past this point
+            upgrades, container pulls and the logging that would
+            explain the problem all start failing.
+          runbook: >-
+            Reclaim first, investigate second. Safe immediate wins on
+            a Linux node here: `sudo apt clean`,
+            `sudo journalctl --vacuum-size=200M`,
+            `docker image prune`, `npm cache clean --force`. If this
+            is snoc-beelink's root, note that /var/lib/loki is a
+            separate LV and is not the cause. Then find the real
+            consumer with `du -xhd1 / | sort -rh | head -20` before
+            deciding what gets a permanent cap.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                node_filesystem_avail_bytes{fstype=~"ext4|xfs"} /
+                (node_filesystem_size_bytes{fstype=~"ext4|xfs"} > 0)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.05]
+
+      # ── Space left, no inodes ──────────────────────────────────
+      #
+      # A separate rule because it is a separate failure, and one that
+      # reads as a lie from every tool that reports free space: `df -h`
+      # shows room, writes fail with ENOSPC, and nothing in the two
+      # rules above moves at all. `df -i` is the one that tells the
+      # truth.
+      #
+      # ext4 fixes the inode count at mkfs time, so this is reached by
+      # creating many small files rather than large ones -- which is
+      # exactly the shape of the things that grow on this fleet:
+      # node_modules trees, pip and npm caches, Docker overlay layers,
+      # and Loki chunk directories.
+      #
+      # 10% free, which is quiet by a wide margin today: the tightest
+      # in the fleet is beelink's root at 79.6% of inodes free. The
+      # margin is the point -- there is no gradual symptom to notice
+      # before this one fires.
+      #
+      # The `> 0` on files is the same filter used in the swap rule:
+      # it drops filesystems reporting no inodes at all rather than
+      # dividing by zero and alerting on NaN forever.
+      - uid: batesste-node-disk-inodes-low
+        title: NodeDiskInodesLow
+        condition: C
+        for: 1h
+        labels:
+          service: disk
+          severity: warning
+        annotations:
+          summary: >-
+            Under 10% of this filesystem's inodes are free. Writes
+            will start failing with ENOSPC while df still reports
+            free space.
+          runbook: >-
+            Confirm with `df -i`, then find the directories holding
+            the most files, not the most bytes:
+            `sudo find / -xdev -type d -printf '%h\n' | sort | uniq -c
+            | sort -rn | head -20`. Usual causes on this fleet are
+            node_modules trees, ~/.npm/_cacache, pip wheels and
+            Docker overlay layers -- `docker system prune` is the
+            fastest single reclaim, but read NodeDiskFillingUp's
+            runbook on volumes first.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                node_filesystem_files_free{fstype=~"ext4|xfs"} /
+                (node_filesystem_files{fstype=~"ext4|xfs"} > 0)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [0.1]

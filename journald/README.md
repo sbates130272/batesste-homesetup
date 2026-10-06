@@ -159,9 +159,14 @@ failure the oomd work was supposed to have taught. Every number in
 the table at the top of this file was in Prometheus for weeks, and no
 rule read any of it.
 
-A `disk` rule group on `node_filesystem_avail_bytes` is the other half
-of this directory and is not yet written. Until it is, the real
-protection here is bounded to one of the seven consumers in that
-table — and the two largest, Docker and Prometheus, are still capped
-by nothing and by a 20 GiB ceiling respectively, on a volume with 25
-GiB free.
+The `disk` rule group is the other half, added alongside this
+directory: `NodeDiskFillingUp` at 15% free, `NodeDiskCritical` at 5%,
+and `NodeDiskInodesLow` at 10% of inodes. Backtested against the week
+to 5 October, beelink's root bottomed out at 10.5% free — the warning
+would have fired with room to spare.
+
+That still only makes the problem visible. Of the seven consumers in
+the table above, this directory caps exactly one. The two largest are
+bounded by nothing and by a 20 GiB ceiling respectively, on a volume
+with 25 GiB free — which is now a thing an alert will tell you about
+rather than a thing to notice.
