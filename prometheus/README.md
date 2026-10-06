@@ -80,7 +80,6 @@ port per job, by convention:
 | 9469  | speedtest_probe/exporter |
 | 9948  | icloud                   |
 | 5000  | amd-gpu-metrics-exporter |
-| 9092  | ais-exporter             |
 | 9879  | rdma-exporter            |
 | 9998  | nvme-exporter            |
 | 9488  | hsa-snoop                |
@@ -341,9 +340,15 @@ when built with `-DHSA_SNOOP_PROMETHEUS=ON` and run as
 `sudo hsa-snoop --all --prometheus` (default port 9488).
 The `ais_*` families additionally require `--ais-snoop`.
 
-It is a separate job from `ais-exporter`, despite the
-overlapping metric names — `ais-exporter` is a different
-process on `:9092`.
+**The `ais_*` families come from here, not from anything
+named "ais".** A separate `ais-exporter` job scraped a
+different process on `:9092` until 6 October 2026, when it
+was retired having never returned a single successful scrape
+in the 90 days Prometheus retains. Nothing was lost with it:
+every `ais_*` series on this fleet is served by hsa-snoop on
+`:9488`, which is what the HSA Snoop dashboard has always
+been reading. The overlapping names made the two look
+interchangeable; they never were.
 
 The job carries a `metric_relabel_configs` rule copying
 `server_name` into `host`. hsa-snoop already stamps every

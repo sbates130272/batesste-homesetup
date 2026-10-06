@@ -150,7 +150,6 @@ Each scrape job has a corresponding JSON file in `targets/`:
 | `speedtest_exporter.json`        | speedtest_exporter        |
 | `icloud.json`                    | icloud                    |
 | `amd-gpu-metrics-exporter.json`  | amd-gpu-metrics-exporter  |
-| `ais-exporter.json`              | ais-exporter              |
 | `rdma-exporter.json`             | rdma-exporter             |
 | `nvme-exporter.json`             | nvme-exporter             |
 | `openai_exporter.json`           | openai_exporter           |

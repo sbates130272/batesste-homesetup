@@ -176,12 +176,6 @@ scrape_configs:
       # {"ServerPort": 5000}, which discards the packaged
       # MetricsFieldPrefix. The __name__ rule above covers it.
 
-  - job_name: ais-exporter
-    file_sd_configs:
-      - files:
-          - /etc/prometheus/targets/ais-exporter.json
-        refresh_interval: 30s
-
   - job_name: rdma-exporter
     file_sd_configs:
       - files:
