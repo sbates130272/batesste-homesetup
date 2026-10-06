@@ -19,8 +19,6 @@ loki/
   alloy/
     deploy-agent.sh             # repo -> Alloy agent (run per host)
     config.alloy                # agent config -> /etc/alloy/config.alloy
-    avahi-services/
-      alloy.xml                 # _alloy._tcp, for Prometheus discovery
 ```
 
 ## Packages
@@ -209,10 +207,11 @@ Both components are scraped, via `loki.json` and `alloy.json` in
 
 The agents bind their HTTP server to `0.0.0.0:12345` (the
 packaged default is loopback) so the beelink can scrape them.
-`avahi-services/alloy.xml` registers `_alloy._tcp` for
-auto-discovery, matching how node-exporter is found — though
-only the beelink has Avahi installed today, so the static target
-file is what actually finds the fleet.
+An `avahi-services/alloy.xml` used to sit here registering
+`_alloy._tcp` for Prometheus auto-discovery; it went with the
+rest of that machinery on 6 October 2026, never having been
+installed on any host. `alloy.json` is what finds the fleet,
+as it always was.
 
 ## Workflow
 
@@ -238,7 +237,7 @@ cd loki/alloy
 ```
 
 Run it on the machine itself, the same way
-`prometheus/avahi-services/` files are installed.
+`prometheus/textfile-collectors/deploy-agent.sh` is.
 
 ### Checking it works
 

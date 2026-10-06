@@ -379,6 +379,7 @@ disagree visibly:
 |---|---|---|
 | set | UP | healthy |
 | set | DOWN | exporter fault; card is fine |
+| `N/A` | UP | WSL2 host; no hwmon amdgpu chip exists |
 | blank | UP | driver never bound — check `/etc/modprobe.d` |
 
 The old *GPU Exporter Health* table was folded into this
@@ -394,11 +395,30 @@ component is the card's own BDF. The column shows
 for that reason; matching the first would name the bridge,
 not the GPU.
 
-The column is blank on `snoc-gaming` and `amd-laptop` and
-will stay that way: both run under WSL2, which exposes no
-hwmon amdgpu chip. That is the same reason their Temp column
-is empty, and it is not the "driver never bound" case in the
-table above.
+The column reads `N/A` on `snoc-gaming` and `amd-laptop`:
+both run under WSL2, which exposes no hwmon amdgpu chip.
+There is nothing to recover here — that is the passthrough,
+not a fault — and the same absence is why their Temp column
+is empty.
+
+It used to render blank, which collided with the "driver
+never bound" row above: two different conditions, one empty
+cell, and no way to tell a host that *cannot* report a BDF
+from one that should and does not. A second `or` arm now
+labels the WSL case explicitly:
+
+```promql
+or label_replace(
+    max by (server_name) (node_uname_info{sysname="Linux",
+                          release=~".*(microsoft|WSL).*"}),
+    "pcie", "N/A", "", ""
+)
+```
+
+It spines on the kernel release string, the same WSL
+detector the **OS** column uses, so a new WSL host is
+labelled without touching the dashboard. Blank now means
+only one thing.
 
 The **GPU** column spines on `amd_gpu_health`, not on
 `amd_gpu_average_package_power`. It used to use the latter,
@@ -409,6 +429,34 @@ exporters being up and self-reporting the model correctly.
 `amd_gpu_health` is emitted by all four. Any column that only
 needs a *label* should spine on the metric with the widest
 coverage, not on whichever one happened to be nearby.
+
+The **Power** column carries three `or` arms because the
+exporter renamed the metric and the fleet is mid-upgrade:
+
+| Arm | Supplies |
+|---|---|
+| `amd_gpu_average_package_power` | `snoc-strix`, `snoc-thinkstation` |
+| `amd_gpu_package_power` | `amd-laptop` |
+| hwmon `node_hwmon_power_watt` | fallback; Linux hosts only |
+
+Newer device-metrics-exporter builds replaced
+`gpu_average_package_power` with `gpu_package_power` — plus a
+duplicate `gpu_power_usage` carrying the identical value.
+`amd-laptop` runs that build and `amd-laptop` alone, which is
+visible as 116 metric families against 92 on `snoc-strix`,
+including whole new `gpu_violation_*` and `gpu_xgmi_*`
+families. It had been showing a blank Power cell: it matched
+neither the old name nor the hwmon fallback, because WSL2
+offers no hwmon amdgpu chip to fall back to.
+
+Note the fallback cannot rescue *any* WSL host for that
+reason, so the rename had to be handled by name. AMD's own
+vendor dashboards switch between the two names on a
+`card_model` regex of MI-series board part numbers; do not
+copy that. The split is a function of exporter version, not
+of card, and `amd-laptop` reports `AMD Radeon(TM) 8060S
+Graphics`, which matches none of those part numbers and lands
+on the wrong branch.
 
 The **ROCm** column reads `rocm_version_info`, published by
 the textfile collector in

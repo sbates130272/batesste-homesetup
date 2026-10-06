@@ -92,6 +92,7 @@ grafana
 Grafana
 Grafana's
 gRPC
+GTT
 gzip
 hardcoded
 hardcodes
@@ -199,6 +200,7 @@ OpenAI
 OpenAI's
 openbox
 OUI
+passthrough
 PCIe
 perf
 PIDs
@@ -227,6 +229,7 @@ rebasing
 regexes
 repo
 repointed
+repointing
 rocm
 ROCm
 rollout
@@ -333,6 +336,8 @@ WiFi
 wifi
 WLAN
 WSL
+WSL's
+XGMI
 xio
 xml
 XML

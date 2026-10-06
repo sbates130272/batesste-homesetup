@@ -5,11 +5,23 @@
 # batesste-homelab Prometheus Config
 #
 # Targets are managed via file_sd_configs. Each job watches
-# two locations:
-#   targets/<job>.json            Manual/static targets
-#   targets/discovered/<job>.json Auto-discovered via Avahi
-# Prometheus watches these files and picks up changes
-# automatically without a restart or reload.
+# one file, targets/<job>.json, and Prometheus picks up
+# changes to it automatically without a restart or reload.
+#
+# Each job used to watch a second file,
+# targets/discovered/<job>.json, written by an Avahi/mDNS
+# discovery script on a 5-minute timer. That was retired on
+# 6 October 2026: the timer had never been installed on this
+# host, the script's own units were never deployed, and no
+# host on the LAN ever advertised the exporter service types
+# it browsed for -- so a dry run found nothing for all twelve.
+# The only live effect was thirteen promtool warnings about
+# file_sd paths that do not exist.
+#
+# If target discovery comes back, it needs both halves: the
+# timer here *and* an Avahi service file on every exporter
+# host. Browsing works fine on this LAN; nothing was
+# publishing. See git history for the script.
 
 global:
   scrape_interval: 15s
@@ -58,14 +70,12 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/node.json
-          - /etc/prometheus/targets/discovered/node.json
         refresh_interval: 30s
 
   - job_name: emporia
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/emporia.json
-          - /etc/prometheus/targets/discovered/emporia.json
         refresh_interval: 30s
 
   - job_name: speedtest_probe
@@ -77,28 +87,24 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/speedtest_probe.json
-          - /etc/prometheus/targets/discovered/speedtest_probe.json
         refresh_interval: 30s
 
   - job_name: speedtest_exporter
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/speedtest_exporter.json
-          - /etc/prometheus/targets/discovered/speedtest_exporter.json
         refresh_interval: 30s
 
   - job_name: icloud
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/icloud.json
-          - /etc/prometheus/targets/discovered/icloud.json
         refresh_interval: 30s
 
   - job_name: amd-gpu-metrics-exporter
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/amd-gpu-metrics-exporter.json
-          - /etc/prometheus/targets/discovered/amd-gpu-metrics-exporter.json
         refresh_interval: 30s
     # Order matters here. The hostname rule runs first so the
     # card_model rule that follows can match on homelab names.
@@ -174,28 +180,24 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/ais-exporter.json
-          - /etc/prometheus/targets/discovered/ais-exporter.json
         refresh_interval: 30s
 
   - job_name: rdma-exporter
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/rdma-exporter.json
-          - /etc/prometheus/targets/discovered/rdma-exporter.json
         refresh_interval: 30s
 
   - job_name: nvme-exporter
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/nvme-exporter.json
-          - /etc/prometheus/targets/discovered/nvme-exporter.json
         refresh_interval: 30s
 
   - job_name: hsa-snoop
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/hsa-snoop.json
-          - /etc/prometheus/targets/discovered/hsa-snoop.json
         refresh_interval: 30s
     # hsa-snoop stamps every metric with a constant `host`
     # label taken from gethostname(), and the HSA Snoop
@@ -213,7 +215,6 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/openai_exporter.json
-          - /etc/prometheus/targets/discovered/openai_exporter.json
         refresh_interval: 30s
 
   - job_name: cursor-exporter
@@ -221,7 +222,6 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/cursor-exporter.json
-          - /etc/prometheus/targets/discovered/cursor-exporter.json
         refresh_interval: 30s
 
   # The AMD internal LLM gateway usage reporter on amd-laptop. It
@@ -231,13 +231,10 @@ scrape_configs:
   # amd_llm_last_fetch_timestamp_seconds rather than `up` to tell
   # whether the data behind a green target is actually fresh.
   #
-  # Manual target only, and an IP rather than a name: amd-laptop does
-  # not resolve from this box (no mDNS, not in /etc/hosts), which is
-  # why every other job targeting it -- node, amd-gpu-metrics-exporter
-  # -- also carries 10.0.0.107 literally. There is deliberately no
-  # _amd-llm-exporter._tcp Avahi service and no discovered/ path: a
-  # host that cannot be resolved cannot be discovered either, so the
-  # second file would never be anything but absent.
+  # An IP rather than a name: amd-laptop does not resolve from this
+  # box (no mDNS, not in /etc/hosts), which is why every other job
+  # targeting it -- node, amd-gpu-metrics-exporter -- also carries
+  # 10.0.0.107 literally.
   - job_name: amd-llm-exporter
     scrape_interval: 60s
     file_sd_configs:
@@ -272,7 +269,6 @@ scrape_configs:
     file_sd_configs:
       - files:
           - /etc/prometheus/targets/alloy.json
-          - /etc/prometheus/targets/discovered/alloy.json
         refresh_interval: 30s
 
   # Lemonade serves its own /metrics on its API port; there is

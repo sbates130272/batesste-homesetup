@@ -884,7 +884,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace(\n    max by (server_name, chip) (node_hwmon_chip_names{chip_name=\"amdgpu\"}),\n    \"pcie\", \"$1.$2\", \"chip\",\n    \".*_([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2})_([0-9a-f])\"\n)",
+          "expr": "label_replace(\n    max by (server_name, chip) (node_hwmon_chip_names{chip_name=\"amdgpu\"}),\n    \"pcie\", \"$1.$2\", \"chip\",\n    \".*_([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2})_([0-9a-f])\"\n)\nor\nlabel_replace(\n    max by (server_name) (node_uname_info{sysname=\"Linux\", release=~\".*(microsoft|WSL).*\"}),\n    \"pcie\", \"N/A\", \"\", \"\"\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -906,7 +906,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (server_name) (amd_gpu_average_package_power) or max by (server_name) ((node_hwmon_power_watt or node_hwmon_power_average_watt) and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"})",
+          "expr": "max by (server_name) (amd_gpu_average_package_power) or max by (server_name) (amd_gpu_package_power) or max by (server_name) ((node_hwmon_power_watt or node_hwmon_power_average_watt) and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",

@@ -172,22 +172,12 @@ cd prometheus/emvue-exporter
 The Emporia SmartPlugs dashboard names every plug from that file, so
 renaming a plug or adding one is a change to it alone.
 
-### Avahi auto-discovery
-
-Targets can also be discovered automatically via
-[Avahi][ref-avahi] mDNS. On each target machine, drop the
-matching service XML from `prometheus/avahi-services/` into
-`/etc/avahi/services/`. Each exporter type uses its own
-DNS-SD service type (e.g. `_node-exporter._tcp`). On the
-Prometheus server, run:
-```bash
-cd prometheus
-./discover-targets.sh --deploy
-```
-Or install the systemd timer for continuous discovery
-every five minutes. See the
-[prometheus README.md](./prometheus/README.md) for full
-details.
+Every scrape target is listed by hand in
+`prometheus/targets/<job>.json`. An [Avahi][ref-avahi] mDNS
+auto-discovery path used to sit alongside that and was retired
+on 6 October 2026, having never actually run on any host — see
+the [prometheus README.md](./prometheus/README.md) for what it
+was and what reviving it would take.
 
 # Loki
 

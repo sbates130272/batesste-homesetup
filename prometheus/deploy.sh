@@ -90,11 +90,12 @@ if ! sudo promtool check config "${PROM_YML}"; then
 fi
 echo "    Config is valid."
 
+# Kept only to clean the directory up below; nothing writes to
+# it any more.
 PROM_DISCOVERED="${PROM_TARGETS}/discovered"
 
 echo "==> Ensuring ${PROM_TARGETS} exists..."
 run sudo mkdir -p "${PROM_TARGETS}"
-run sudo mkdir -p "${PROM_DISCOVERED}"
 
 echo "==> Deploying manual target files..."
 for f in "${SCRIPT_DIR}"/targets/*.json; do
@@ -106,15 +107,16 @@ for f in "${SCRIPT_DIR}"/targets/*.json; do
         "${PROM_TARGETS}/${name}"
 done
 
-echo "==> Deploying discovered target files..."
-for f in "${SCRIPT_DIR}"/targets/discovered/*.json; do
-    [[ -f "$f" ]] || { echo "    (none)"; break; }
-    name="$(basename "$f")"
-    echo "    discovered/${name}"
-    run sudo cp "$f" "${PROM_DISCOVERED}/${name}"
-    run sudo chown prometheus:prometheus \
-        "${PROM_DISCOVERED}/${name}"
-done
+# Avahi/mDNS target discovery was retired on 6 October 2026
+# (see the header comment in prometheus.yml). This removes what
+# it left behind: a directory of empty JSON files that no job
+# references any more. Idempotent, and self-retiring once every
+# host it has run on is clean.
+if [[ -d "${PROM_DISCOVERED}" ]]; then
+    echo "==> Removing retired discovered-targets directory..."
+    run sudo rm -rf "${PROM_DISCOVERED}"
+    echo "    ${PROM_DISCOVERED}"
+fi
 
 # Deploying is a copy, not a mirror, so a target file deleted
 # from the repo used to linger in /etc forever. Harmless while
@@ -141,8 +143,6 @@ prune_orphans() {
 
 echo "==> Pruning target files no longer in the repo..."
 prune_orphans "${PROM_TARGETS}" "${SCRIPT_DIR}/targets" ""
-prune_orphans "${PROM_DISCOVERED}" \
-    "${SCRIPT_DIR}/targets/discovered" "discovered/"
 if [[ "${PRUNED}" -eq 0 ]]; then
     echo "    nothing to prune"
 fi

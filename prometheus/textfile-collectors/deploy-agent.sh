@@ -21,8 +21,7 @@ Usage: $(basename "$0") [--dry-run]
 Install the node-exporter textfile collectors on the host this
 script is run from. Run it on each GPU machine, and on the backup
 host -- the same "copy it to the target machine" model the repo
-already uses for prometheus/avahi-services/ and
-loki/alloy/deploy-agent.sh.
+already uses for loki/alloy/deploy-agent.sh.
 
 It installs rocm-version.sh plus its timer everywhere, wsl-wifi.sh
 plus its timer on WSL hosts only, where it is the only way to get
