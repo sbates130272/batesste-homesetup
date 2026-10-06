@@ -447,14 +447,13 @@ retired:
       vendor-amd-related, now its sole claimant. The up{job="cursor-exporter"}
       tile on LAN Overview was kept, since the job is still scraped.
 
-  - uid: febsqrm0j5v5sa
-    title: iCloud
-    was: dashboards/home-network-related/icloud-dashboard.json
-    deleted: 2026-09-03
-    reason: >-
-      6 of 6 panels dead for 30+ days. The iCloud exporter on localhost:9948
-      is not running and the scrape is connection-refused. The
-      up{job="icloud"} tile on LAN Overview was kept.
+# The iCloud dashboard (uid febsqrm0j5v5sa) was listed here, deleted
+# 2026-09-03 for 6 of 6 dead panels. It was restored on 2026-10-06 once
+# the exporter it reads was fixed, and is first-party rather than vendored,
+# so it is tracked nowhere in this file now -- see
+# dashboards/home-network-related/icloud-dashboard.json. Kept as a comment
+# because "deleted outright, recoverable only from git history" was true of
+# it and the restore is the worked example: git show <commit>^:<path>.
 
   # ── Removed 2026-09-08, superseded rather than broken ───────────
   # Note the difference from the two entries above: nothing here was dead.

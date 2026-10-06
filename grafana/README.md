@@ -314,7 +314,7 @@ see the WSL WiFi collector in
 
 Two dashboards were retired: **Cursor IDE Usage** (24 of 28
 panels dead) and **iCloud** (6 of 6). Both were exporter
-failures, not query bugs — the iCloud job refuses
+failures, not query bugs — the iCloud job refused
 connections, and cursor-exporter answers scrapes while
 emitting only its `cursor_subscription_*` gauges because
 its Cursor API calls fail. LAN Overview's *OpenAI Daily
@@ -323,6 +323,23 @@ existed in this TSDB and the exporter serves only Go
 runtime metrics. The `up{}` health tiles for all three
 stay, because the jobs are still in the scrape config and
 the tiles correctly report the outage.
+
+**iCloud was restored on 6 October 2026.** The retirement
+was correct at the time and the fix was in the exporter, not
+the dashboard: `pyicloud` 1.0.0 can no longer authenticate
+against Apple, and reports the 503 it gets back as "Invalid
+email/password combination". All six panels populate again
+unmodified against a 2.x exporter — which is the argument
+for the "Feed gone → Retire" row above being reversible, and
+for recording the deleting commit when you take that
+response. The restore was `git show <commit>^:<path>`.
+
+The two location panels had drifted to `device=~"ip.*"`
+while the geomap used `device=~"iphone.*|ipad.*"`. Both
+select the same three devices today, so the divergence was
+invisible; they are now the same expression. Three of the
+six devices reporting a location are not phones or tablets
+and are deliberately off the map.
 
 ### Node Exporter Full has diverged from 1860
 
