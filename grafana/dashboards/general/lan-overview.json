@@ -1371,12 +1371,329 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "One row per mounted filesystem on every host running node-exporter, covering ext4, xfs and btrfs only -- tmpfs, vfat, 9p and the rest are excluded deliberately, since none of them are storage you can run out of in a way worth paging about.\n\nCapacity is reported in bytes alongside the fill percentage because the two answer different questions. 90% of /boot is 1.6 GB and a five-minute fix; 90% of a 1 TB root is 100 GB and a weekend. The percentage tells you how urgent it is, Free tells you how much room you actually have, and Size tells you whether the mount is worth growing. Used is size minus avail rather than the used counter node-exporter exports, so it includes the root-reserved blocks that avail hides -- Used + Free is slightly less than Size on ext4 for exactly that reason.\n\nRows are joined on an instance@mountpoint key built with label_join rather than on instance alone, because instance is not unique here: a host has several mounts and joining on it collapses them to one arbitrary row. Device is shown because two mountpoints can sit on one block device -- amd-laptop reports / and /var/lib/docker as separate rows against the same /dev/sdd, which is one pool of space counted twice, not two.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Node"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mount"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Device"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 230
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FS"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Free"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 75
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 32,
+      "options": {
+        "cellHeight": "md",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Used %"
+          }
+        ]
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_join(max by (instance, server_name, device, mountpoint, fstype) (node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}), \"fskey\", \"@\", \"instance\", \"mountpoint\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (fskey) (label_join(\n  node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"} - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (fskey) (label_join(\n  node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (fskey) (label_join(\n  (1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}) * 100,\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "D"
+        }
+      ],
+      "title": "Filesystem Capacity",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "fskey"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "fskey": true,
+              "instance": true
+            },
+            "renameByName": {
+              "server_name": "Node",
+              "mountpoint": "Mount",
+              "device": "Device",
+              "fstype": "FS",
+              "Value #A": "Size",
+              "Value #B": "Used",
+              "Value #C": "Free",
+              "Value #D": "Used %"
+            },
+            "indexByName": {
+              "server_name": 0,
+              "mountpoint": 1,
+              "device": 2,
+              "fstype": 3,
+              "Value #A": 4,
+              "Value #B": 5,
+              "Value #C": 6,
+              "Value #D": 7,
+              "Time 1": 8,
+              "Time 2": 9,
+              "Time 3": 10,
+              "Time 4": 11,
+              "fskey": 12,
+              "instance": 13
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 33
       },
       "id": 40,
       "title": "Service Health",
@@ -1426,7 +1743,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 4,
       "options": {
@@ -1557,7 +1874,7 @@
         "h": 3,
         "w": 4,
         "x": 4,
-        "y": 26
+        "y": 34
       },
       "id": 5,
       "options": {
@@ -1647,7 +1964,7 @@
         "h": 3,
         "w": 4,
         "x": 8,
-        "y": 26
+        "y": 34
       },
       "id": 6,
       "options": {
@@ -1727,7 +2044,7 @@
         "h": 3,
         "w": 4,
         "x": 12,
-        "y": 26
+        "y": 34
       },
       "id": 7,
       "options": {
@@ -1819,7 +2136,7 @@
         "h": 3,
         "w": 4,
         "x": 16,
-        "y": 26
+        "y": 34
       },
       "id": 8,
       "options": {
@@ -1911,7 +2228,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 26
+        "y": 34
       },
       "id": 9,
       "options": {
@@ -2003,7 +2320,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 29
+        "y": 37
       },
       "id": 10,
       "options": {
@@ -2088,7 +2405,7 @@
         "h": 3,
         "w": 4,
         "x": 4,
-        "y": 29
+        "y": 37
       },
       "id": 11,
       "options": {
@@ -2173,7 +2490,7 @@
         "h": 3,
         "w": 4,
         "x": 8,
-        "y": 29
+        "y": 37
       },
       "id": 12,
       "options": {
@@ -2258,7 +2575,7 @@
         "h": 3,
         "w": 4,
         "x": 12,
-        "y": 29
+        "y": 37
       },
       "id": 14,
       "options": {
@@ -2345,7 +2662,7 @@
         "h": 3,
         "w": 4,
         "x": 16,
-        "y": 29
+        "y": 37
       },
       "id": 46,
       "options": {
@@ -2437,7 +2754,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 29
+        "y": 37
       },
       "id": 50,
       "links": [
@@ -2486,7 +2803,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 40
       },
       "id": 41,
       "title": "Power",
@@ -2529,7 +2846,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 33
+        "y": 41
       },
       "id": 17,
       "options": {
@@ -2749,7 +3066,7 @@
         "h": 6,
         "w": 20,
         "x": 4,
-        "y": 33
+        "y": 41
       },
       "id": 18,
       "options": {
@@ -2792,7 +3109,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "id": 42,
       "title": "Network & WAN",
@@ -2862,7 +3179,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 40
+        "y": 48
       },
       "id": 20,
       "options": {
@@ -2963,7 +3280,7 @@
         "h": 6,
         "w": 6,
         "x": 6,
-        "y": 40
+        "y": 48
       },
       "id": 21,
       "options": {
@@ -3094,7 +3411,7 @@
         "h": 6,
         "w": 6,
         "x": 12,
-        "y": 40
+        "y": 48
       },
       "id": 22,
       "options": {
@@ -3204,7 +3521,7 @@
         "h": 6,
         "w": 6,
         "x": 18,
-        "y": 40
+        "y": 48
       },
       "id": 23,
       "options": {
@@ -3247,7 +3564,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 54
       },
       "id": 43,
       "title": "AI & Developer Usage",
@@ -3289,7 +3606,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 55
       },
       "id": 29,
       "options": {
@@ -3355,7 +3672,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 55
       },
       "id": 28,
       "options": {
@@ -3415,7 +3732,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 53
+        "y": 61
       },
       "id": 51,
       "links": [
@@ -3488,7 +3805,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 53
+        "y": 61
       },
       "id": 52,
       "links": [
@@ -3561,7 +3878,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 53
+        "y": 61
       },
       "id": 53,
       "links": [
@@ -3634,7 +3951,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 53
+        "y": 61
       },
       "id": 54,
       "links": [
@@ -3684,7 +4001,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 65
       },
       "id": 44,
       "title": "Storage",
@@ -3727,7 +4044,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 58
+        "y": 66
       },
       "id": 49,
       "options": {
@@ -3920,7 +4237,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 69
       },
       "id": 31,
       "options": {
@@ -4047,83 +4364,12 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Space used on every ext4, xfs and btrfs mount. tmpfs and the like are excluded deliberately.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 75
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 67
-      },
-      "id": 32,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "(1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}) * 100",
-          "format": "time_series",
-          "instant": true,
-          "legendFormat": "{{server_name}} {{mountpoint}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Filesystem Usage",
-      "type": "bargauge"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 75
       },
       "id": 45,
       "title": "System Load",
@@ -4166,7 +4412,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 74
+        "y": 76
       },
       "id": 34,
       "options": {
@@ -4233,7 +4479,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 74
+        "y": 76
       },
       "id": 35,
       "options": {
