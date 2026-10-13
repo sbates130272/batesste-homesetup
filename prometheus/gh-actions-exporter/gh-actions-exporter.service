@@ -1,0 +1,49 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+
+[Unit]
+Description=GitHub Actions Prometheus exporter
+Documentation=https://github.com/sbates130272/batesste-homesetup/blob/main/prometheus/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/gh-actions-exporter.py
+Restart=on-failure
+RestartSec=30s
+
+# DynamicUser rather than a service account, so there is no user to
+# create on a rebuild and nothing owns state between restarts -- the
+# exporter has none, it refetches everything on start.
+DynamicUser=yes
+
+# The token stays root-owned 0400 in /etc and is handed in as a
+# credential, so it is never readable through the service's own view of
+# the filesystem. The exporter prefers $CREDENTIALS_DIRECTORY/token
+# over --token-file for exactly this reason.
+LoadCredential=token:/etc/gh-actions-exporter/token
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+RestrictRealtime=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gh-actions-exporter
+
+[Install]
+WantedBy=multi-user.target

@@ -19,8 +19,6 @@ loki/
   alloy/
     deploy-agent.sh             # repo -> Alloy agent (run per host)
     config.alloy                # agent config -> /etc/alloy/config.alloy
-    avahi-services/
-      alloy.xml                 # _alloy._tcp, for Prometheus discovery
 ```
 
 ## Packages
@@ -145,24 +143,28 @@ through a small table and passes the result to Alloy as
 `LOKI_HOST_LABEL`. Anything not in the table keeps its own short
 hostname. Override with `--host-label`.
 
-### amd-laptop's metrics are not scraped
+### amd-laptop needed a Hyper-V firewall rule
 
-It ships logs correctly, but the beelink cannot reach its Alloy
-metrics port. Alloy listens on `*:12345` and the INPUT policy is
-ACCEPT with no rules, yet 12345 and 12346 both time out.
+It shipped logs correctly from the start, but the beelink could
+not reach its Alloy metrics port: Alloy listened on `*:12345` and
+the INPUT policy was ACCEPT with no rules, yet 12345 and 12346
+both timed out.
 
-That is an allowlist below iptables, not a blanket block: 9100
-(node-exporter) and 5000 (the GPU exporter) both answer from the
-same source. So this is fixable — it needs an explicit inbound
-rule for 12345 on that machine, the same shape as the
+That was an allowlist below iptables, not a blanket block — 9100
+(node-exporter) and 5000 (the GPU exporter) answered from the
+same source all along. The fix was a
+`New-NetFirewallHyperVRule` for 12345, the same shape as the
 node_exporter rules in [snoc-gaming.md](../snoc-gaming.md).
+amd-laptop runs Ubuntu under WSL2
+(`6.18.40.1-microsoft-standard-WSL2`), so inbound traffic crosses
+the Hyper-V vSwitch and the Hyper-V rule is the one that decides
+it — which is why iptables inside the distro looked wide open
+and told you nothing.
 
-Until that rule exists it stays out of
-`prometheus/targets/alloy.json`, because a target that can never
-come up trains you to ignore a red light. The cost is that a
-silent failure of *its* agent will not show up in Prometheus;
-the signal there is the absence of recent logs under
-`{host="amd-laptop"}`.
+It is now in `prometheus/targets/alloy.json` and scraped like the
+rest. Note the target is the IP: `amd-laptop` does not resolve
+from the beelink, which is also why `node.json` addresses it as
+`10.0.0.107`.
 
 ### Things that fail silently
 
@@ -205,10 +207,11 @@ Both components are scraped, via `loki.json` and `alloy.json` in
 
 The agents bind their HTTP server to `0.0.0.0:12345` (the
 packaged default is loopback) so the beelink can scrape them.
-`avahi-services/alloy.xml` registers `_alloy._tcp` for
-auto-discovery, matching how node-exporter is found — though
-only the beelink has Avahi installed today, so the static target
-file is what actually finds the fleet.
+An `avahi-services/alloy.xml` used to sit here registering
+`_alloy._tcp` for Prometheus auto-discovery; it went with the
+rest of that machinery on 6 October 2026, never having been
+installed on any host. `alloy.json` is what finds the fleet,
+as it always was.
 
 ## Workflow
 
@@ -234,7 +237,7 @@ cd loki/alloy
 ```
 
 Run it on the machine itself, the same way
-`prometheus/avahi-services/` files are installed.
+`prometheus/textfile-collectors/deploy-agent.sh` is.
 
 ### Checking it works
 

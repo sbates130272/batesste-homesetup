@@ -25,6 +25,7 @@ grafana/
     amd-related/              # folder: AMD Related
       amd-llm-metrics.json
     general/                  # folder: (root)
+      github-actions.json
       lan-overview.json
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
@@ -174,7 +175,45 @@ deploy and never stop — and a permanently firing alert gets
 muted, which is the state this whole exercise exists to escape.
 Add it when the bucket exists and the timer is enabled.
 
-## Dashboards (12 total)
+### GitHub Actions rules
+
+Two rules over the `github_actions_*` metrics published by
+`prometheus/gh-actions-exporter/`, both labelled
+`service: github-actions`:
+
+| Rule | Fires when | `for` |
+|---|---|---|
+| `GitHubActionsWorkflowFailing` | A workflow's latest default-branch run failed | 1h |
+| `GitHubActionsExporterStale` | The exporter has not reached the GitHub API in 30m | 1h |
+
+`GitHubActionsWorkflowFailing` is multi-dimensional — one alert
+instance per workflow — so `repo` and `workflow` reach the
+notification and the push names what to go and fix. The
+notification policy groups on both for the same reason the disk
+route groups on `mountpoint`: without them a second repository
+going red is folded into the first one's group and never
+notified, and those two labels *are* the content of the
+notification.
+
+The conclusion list is spelled out rather than written as
+`last_run_success == 0`, because `cancelled` and `skipped` are
+not failures. A workflow that only ever skips is not passing
+either, but it is not worth a push.
+
+`GitHubActionsExporterStale` is the only rule outside the backup
+group with `noDataState: Alerting`, and for the same reason
+`BackupCheckFailing` has it. The exporter answers every scrape
+from an in-memory snapshot, so the target stays green and every
+panel keeps rendering through a GitHub API that has been
+refusing calls for days — the last known state of every workflow
+simply stops moving, which looks exactly like a quiet week.
+
+Both repeat every 12h rather than hourly, paced like the disk
+route: a red workflow stays red until someone sits down and
+fixes it, and an hourly reminder in the meantime is how this
+alert would become the one that gets swiped away unread.
+
+## Dashboards (15 total)
 
 `provisioning/dashboards/dashboards.yaml` tells Grafana to
 watch `/var/lib/grafana/dashboards/<folder>/` for JSON
@@ -196,7 +235,10 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
+| General | GitHub Actions | Workflow health across the sbates130272 repositories, from `prometheus/gh-actions-exporter/` |
+| General | Loki Logs - Homelab | Fleet journals, in its own `homelab-loki` folder |
 | AMD Related | AMD LLM Metrics | Usage and approximate spend on the AMD internal LLM gateway |
+| Home Network | iCloud | iCloud storage and account metrics |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |
@@ -314,7 +356,7 @@ see the WSL WiFi collector in
 
 Two dashboards were retired: **Cursor IDE Usage** (24 of 28
 panels dead) and **iCloud** (6 of 6). Both were exporter
-failures, not query bugs — the iCloud job refuses
+failures, not query bugs — the iCloud job refused
 connections, and cursor-exporter answers scrapes while
 emitting only its `cursor_subscription_*` gauges because
 its Cursor API calls fail. LAN Overview's *OpenAI Daily
@@ -323,6 +365,23 @@ existed in this TSDB and the exporter serves only Go
 runtime metrics. The `up{}` health tiles for all three
 stay, because the jobs are still in the scrape config and
 the tiles correctly report the outage.
+
+**iCloud was restored on 6 October 2026.** The retirement
+was correct at the time and the fix was in the exporter, not
+the dashboard: `pyicloud` 1.0.0 can no longer authenticate
+against Apple, and reports the 503 it gets back as "Invalid
+email/password combination". All six panels populate again
+unmodified against a 2.x exporter — which is the argument
+for the "Feed gone → Retire" row above being reversible, and
+for recording the deleting commit when you take that
+response. The restore was `git show <commit>^:<path>`.
+
+The two location panels had drifted to `device=~"ip.*"`
+while the geomap used `device=~"iphone.*|ipad.*"`. Both
+select the same three devices today, so the divergence was
+invisible; they are now the same expression. Three of the
+six devices reporting a location are not phones or tablets
+and are deliberately off the map.
 
 ### Node Exporter Full has diverged from 1860
 
@@ -379,6 +438,7 @@ disagree visibly:
 |---|---|---|
 | set | UP | healthy |
 | set | DOWN | exporter fault; card is fine |
+| `N/A` | UP | WSL2 host; no hwmon amdgpu chip exists |
 | blank | UP | driver never bound — check `/etc/modprobe.d` |
 
 The old *GPU Exporter Health* table was folded into this
@@ -394,11 +454,30 @@ component is the card's own BDF. The column shows
 for that reason; matching the first would name the bridge,
 not the GPU.
 
-The column is blank on `snoc-gaming` and `amd-laptop` and
-will stay that way: both run under WSL2, which exposes no
-hwmon amdgpu chip. That is the same reason their Temp column
-is empty, and it is not the "driver never bound" case in the
-table above.
+The column reads `N/A` on `snoc-gaming` and `amd-laptop`:
+both run under WSL2, which exposes no hwmon amdgpu chip.
+There is nothing to recover here — that is the passthrough,
+not a fault — and the same absence is why their Temp column
+is empty.
+
+It used to render blank, which collided with the "driver
+never bound" row above: two different conditions, one empty
+cell, and no way to tell a host that *cannot* report a BDF
+from one that should and does not. A second `or` arm now
+labels the WSL case explicitly:
+
+```promql
+or label_replace(
+    max by (server_name) (node_uname_info{sysname="Linux",
+                          release=~".*(microsoft|WSL).*"}),
+    "pcie", "N/A", "", ""
+)
+```
+
+It spines on the kernel release string, the same WSL
+detector the **OS** column uses, so a new WSL host is
+labelled without touching the dashboard. Blank now means
+only one thing.
 
 The **GPU** column spines on `amd_gpu_health`, not on
 `amd_gpu_average_package_power`. It used to use the latter,
@@ -409,6 +488,34 @@ exporters being up and self-reporting the model correctly.
 `amd_gpu_health` is emitted by all four. Any column that only
 needs a *label* should spine on the metric with the widest
 coverage, not on whichever one happened to be nearby.
+
+The **Power** column carries three `or` arms because the
+exporter renamed the metric and the fleet is mid-upgrade:
+
+| Arm | Supplies |
+|---|---|
+| `amd_gpu_average_package_power` | `snoc-strix`, `snoc-thinkstation` |
+| `amd_gpu_package_power` | `amd-laptop` |
+| hwmon `node_hwmon_power_watt` | fallback; Linux hosts only |
+
+Newer device-metrics-exporter builds replaced
+`gpu_average_package_power` with `gpu_package_power` — plus a
+duplicate `gpu_power_usage` carrying the identical value.
+`amd-laptop` runs that build and `amd-laptop` alone, which is
+visible as 116 metric families against 92 on `snoc-strix`,
+including whole new `gpu_violation_*` and `gpu_xgmi_*`
+families. It had been showing a blank Power cell: it matched
+neither the old name nor the hwmon fallback, because WSL2
+offers no hwmon amdgpu chip to fall back to.
+
+Note the fallback cannot rescue *any* WSL host for that
+reason, so the rename had to be handled by name. AMD's own
+vendor dashboards switch between the two names on a
+`card_model` regex of MI-series board part numbers; do not
+copy that. The split is a function of exporter version, not
+of card, and `amd-laptop` reports `AMD Radeon(TM) 8060S
+Graphics`, which matches none of those part numbers and lands
+on the wrong branch.
 
 The **ROCm** column reads `rocm_version_info`, published by
 the textfile collector in

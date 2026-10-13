@@ -22,6 +22,27 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # A remote Prometheus (user sbates@raithlin.com, via the funnel)
+    # remote_writes to the bare /api/v1/write instead of
+    # /prometheus/api/v1/write, which is where this box's receiver
+    # actually lives -- see --web.external-url in
+    # prometheus/prometheus.defaults. Unmatched, it fell through to the
+    # default static root and logged an open() failure per attempt:
+    # ~1980/hour, 33k-47k lines/day, 99.7% of everything in error.log,
+    # continuously since at least 2026-09-21.
+    #
+    # This silences the log, it does not fix the sender. Those writes
+    # are still being dropped and the three ROCm clusters still land
+    # nothing in the sink -- 0 series in 30 days when this was added.
+    # Fixing it properly means correcting the URL on the sending side;
+    # until then the only evidence left is this comment, so do not read
+    # a quiet error.log as the sink being healthy.
+    location = /api/v1/write {
+        access_log off;
+        log_not_found off;
+        return 404;
+    }
+
     location /prometheus/ {
         auth_basic "Prometheus";
         auth_basic_user_file /etc/nginx/prometheus.htpasswd;

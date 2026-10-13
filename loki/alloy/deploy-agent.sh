@@ -29,7 +29,7 @@ Usage: $(basename "$0") [--push-url URL] [--host-label NAME] [--dry-run]
 Install the Grafana Alloy log shipper configuration on the host
 this script is run from. Run it on each Linux machine in the
 fleet -- the same "copy it to the target machine" model the repo
-already uses for prometheus/avahi-services/.
+already uses for prometheus/textfile-collectors/deploy-agent.sh.
 
 The push URL is derived from the hostname:
 

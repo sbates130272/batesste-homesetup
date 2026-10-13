@@ -15,12 +15,6 @@ prometheus/
   prometheus.defaults         $ARGS -> /etc/default/prometheus
   deploy.sh                   Deploy config to /etc
   add-target.sh               Add a target manually
-  discover-targets.sh         Discover targets via Avahi
-  discover-targets.service    systemd oneshot unit
-  discover-targets.timer      systemd timer (every 5min)
-  avahi-services/
-    node-exporter.xml         Template per exporter type
-    ...
   textfile-collectors/
     rocm-version.sh           Publishes rocm_version_info
     rocm-version.service      systemd oneshot unit
@@ -35,12 +29,13 @@ prometheus/
   emvue-exporter/
     labels.json               Per-plug Prometheus labels
     deploy.sh                 Run on snoc-beelink
+  gh-actions-exporter/
+    gh-actions-exporter.py    Publishes github_actions_*
+    gh-actions-exporter.service  systemd unit
+    deploy.sh                 Run on snoc-beelink
   targets/
-    node.json                 Manual targets per job
+    node.json                 Targets per job
     ...
-    discovered/
-      node.json               Auto-discovered targets
-      ...
 ```
 
 ## Quick Start
@@ -77,70 +72,51 @@ targets back up. Editor backups (`*.json~`) are removed too;
 `prometheus.yml`, so they were never scraped, but they are
 noise in a managed directory.
 
-### Avahi auto-discovery
+## Exporter Ports
 
-On each target machine, copy the appropriate Avahi service
-XML file to `/etc/avahi/services/`. For example, on a
-machine running `prometheus-node-exporter`:
-```bash
-sudo cp avahi-services/node-exporter.xml \
-    /etc/avahi/services/
-```
+Every target is listed by hand in `targets/<job>.json`. One
+port per job, by convention:
 
-Then on the Prometheus server, run the discovery script:
-```bash
-./discover-targets.sh --deploy
-```
-This browses the LAN for each exporter service type,
-generates `targets/discovered/<job>.json` files, and
-deploys them to `/etc/prometheus/targets/discovered/`.
-Prometheus picks up the new targets automatically.
+| Port  | Job                      |
+| ----- | ------------------------ |
+| 9100  | node                     |
+| 9947  | emporia                  |
+| 9469  | speedtest_probe/exporter |
+| 9948  | icloud                   |
+| 5000  | amd-gpu-metrics-exporter |
+| 9879  | rdma-exporter            |
+| 9998  | nvme-exporter            |
+| 9488  | hsa-snoop                |
+| 9185  | openai_exporter          |
+| 9788  | cursor-exporter          |
+| 9612  | gh-actions-exporter      |
+| 12345 | alloy                    |
 
-To run discovery continuously, install the systemd timer:
-```bash
-sudo cp discover-targets.sh /usr/local/bin/
-sudo cp discover-targets.service \
-    /etc/systemd/system/
-sudo cp discover-targets.timer \
-    /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now discover-targets.timer
-```
+### Target discovery was retired
 
-### How manual and discovered targets coexist
+Until 6 October 2026 this directory also carried an
+Avahi/mDNS discovery path: a `discover-targets.sh` browsing
+twelve DNS-SD service types on a 5-minute timer, a set of
+`avahi-services/*.xml` for each exporter host to publish, and
+a second `targets/discovered/<job>.json` that every job merged
+into its scrape pool.
 
-Each job in `prometheus.yml` watches two files:
+None of it ever ran. The timer and its units were never
+installed on `snoc-beelink`, `/usr/local/bin/discover-targets.sh`
+did not exist, and `deploy.sh` never installed any of them. Nor
+had the publishing half been set up: a dry run browsing all
+twelve service types returned nothing, while `avahi-browse -at`
+on the same host showed plenty of other services. Browsing
+worked; no host was advertising.
 
-| Source                         | Purpose              |
-| ------------------------------ | -------------------- |
-| `targets/<job>.json`           | Manual/static        |
-| `targets/discovered/<job>.json`| Auto-discovered      |
+The only measurable effect was thirteen `promtool check config`
+warnings about `discovered/` paths that did not exist.
 
-Prometheus merges both into the scrape pool for that job.
-Manual targets are never modified by the discovery script.
-
-## Avahi Service Types
-
-Each exporter type uses a distinct DNS-SD service type:
-
-| Service Type                 | Port  | Job                      |
-| ---------------------------- | ----- | ------------------------ |
-| `_node-exporter._tcp`        | 9100  | node                     |
-| `_emporia-exporter._tcp`     | 9947  | emporia                  |
-| `_speedtest-exporter._tcp`   | 9469  | speedtest_probe/exporter |
-| `_icloud-exporter._tcp`      | 9948  | icloud                   |
-| `_amd-gpu-exporter._tcp`     | 5000  | amd-gpu-metrics-exporter |
-| `_ais-exporter._tcp`         | 9092  | ais-exporter             |
-| `_rdma-exporter._tcp`        | 9879  | rdma-exporter             |
-| `_nvme-exporter._tcp`        | 9998  | nvme-exporter            |
-| `_hsa-snoop._tcp`            | 9488  | hsa-snoop                |
-| `_openai-exporter._tcp`      | 9185  | openai_exporter          |
-| `_cursor-exporter._tcp`      | 9788  | cursor-exporter          |
-| `_alloy._tcp`                | 12345 | alloy                    |
-
-The `server_name` label is derived automatically from the
-Avahi hostname (e.g. `snoc-thinkstation.local` becomes
-`server_name=snoc-thinkstation`).
+Reviving it needs **both** halves — the timer here and an
+Avahi service file on every exporter host. Everything is in
+git history. The class of bug it was meant to solve is real:
+`snoc-shannon` carried two stale IPs for months because
+nothing re-resolved it.
 
 ## Scrape Credentials
 
@@ -369,9 +345,15 @@ when built with `-DHSA_SNOOP_PROMETHEUS=ON` and run as
 `sudo hsa-snoop --all --prometheus` (default port 9488).
 The `ais_*` families additionally require `--ais-snoop`.
 
-It is a separate job from `ais-exporter`, despite the
-overlapping metric names — `ais-exporter` is a different
-process on `:9092`.
+**The `ais_*` families come from here, not from anything
+named "ais".** A separate `ais-exporter` job scraped a
+different process on `:9092` until 6 October 2026, when it
+was retired having never returned a single successful scrape
+in the 90 days Prometheus retains. Nothing was lost with it:
+every `ais_*` series on this fleet is served by hsa-snoop on
+`:9488`, which is what the HSA Snoop dashboard has always
+been reading. The overlapping names made the two look
+interchangeable; they never were.
 
 The job carries a `metric_relabel_configs` rule copying
 `server_name` into `host`. hsa-snoop already stamps every
@@ -416,13 +398,96 @@ dashboards work around this.
 `amd-laptop` does not resolve from `snoc-beelink` — no mDNS,
 no `/etc/hosts` entry — which is why `node` and
 `amd-gpu-metrics-exporter` also carry `10.0.0.107` literally.
-For the same reason this job has no `_amd-llm-exporter._tcp`
-Avahi service and no `discovered/` path in its
-`file_sd_configs`: a host that cannot be resolved cannot be
-discovered either, so that second file would never be
-anything but absent. Adding a `/etc/hosts` entry on the
-beelink would let the target use a name, but would not make
-discovery work.
+Adding a `/etc/hosts` entry on the beelink would let the
+target use a name instead, but nothing else here depends on
+resolving it.
+
+### The gh-actions-exporter job
+
+`gh-actions-exporter/` holds a small Python exporter that runs
+on `snoc-beelink` and serves `github_actions_*` on
+`127.0.0.1:9612`. It backs the **GitHub Actions** dashboard, the
+two tiles at the bottom of LAN Overview's Service Health row,
+and the `github-actions` alert group.
+
+It lives here rather than in its own repository, unlike
+`emvue-exporter`, for the reason `emvue-exporter/labels.json`
+does: which repositories are worth watching is a fact about this
+setup, not about exporters in general.
+
+```bash
+cd prometheus/gh-actions-exporter
+./deploy.sh
+```
+
+**The repository list is discovered, not configured.** Every
+hour the exporter lists the owner's repositories and keeps those
+that are not forks, not archived, and pushed to within 90 days —
+13 of 80 at the time of writing. A new repository starts being
+watched on its own and a repository that goes quiet drops out,
+which is the same reasoning behind driving the Emporia panel
+legends from `{{name}}`: one less list to disagree with reality. Narrow it
+with `--owner`, `--max-repo-age-days` and `--exclude`.
+
+**Only the default branch counts.** The per-workflow metrics
+report the latest *completed* run on each repository's default
+branch. A red PR branch is how a pull request says it is not
+ready yet, and watching those would mean watching work in
+progress.
+
+**Dependabot's own runs are excluded** — `event=dynamic`, the
+security and graph updates it files against the default branch.
+They fail for reasons nothing in the repository can fix, and each
+one carries a freshly generated name like `pip in
+/Documentation/sphinx for Jinja2 - Update #1394352365`, so left
+in they would be an ever-growing pile of permanently red series
+that nothing can ever turn green. `linux-p2pmem` is the host of
+the example. They still count towards
+`github_actions_repo_recent_runs`, which is where "something in
+this repository is unhappy" belongs.
+
+**One API call per repository per refresh**, against the first
+page of 100 runs. A workflow whose last run has already scrolled
+off that page is not reported, which is deliberate: a workflow
+with a hundred runs behind it is not what "fix it today" means.
+At a 5-minute refresh that is around 200 calls an hour against a
+5000 limit, tracked by `github_actions_rate_limit_remaining`.
+
+**Scrapes are served from cache, so `up` proves nothing about
+GitHub.** The exporter refreshes on its own thread and answers
+every scrape from an in-memory snapshot — the same trap the
+`amd-llm-exporter` job has. Watch
+`github_actions_last_refresh_timestamp_seconds`;
+`GitHubActionsExporterStale` is the alert that does. A refresh
+that fails keeps the previous snapshot rather than blanking it,
+so stale panels stay populated and the freshness metric is the
+only thing that moves.
+
+The run id is published as a metric *value*
+(`github_actions_workflow_last_run_id`) rather than as a label,
+because it changes on every run and as a label would churn a new
+series each time. The dashboard reads it as a table field to
+build the link to the run.
+
+#### The token
+
+Not in this repo, like the Lemonade scrape key. The unit hands
+it to the exporter as a systemd credential and keeps the file
+root-owned, so it is never visible inside the service's own view
+of the filesystem. A classic PAT needs `repo`; a fine-grained one
+needs read access to Actions and Metadata.
+
+```bash
+sudo install -d -m 0700 -o root -g root /etc/gh-actions-exporter
+printf %s "$GH_TOKEN_SBATES130272" \
+    | sudo tee /etc/gh-actions-exporter/token >/dev/null
+sudo chmod 0400 /etc/gh-actions-exporter/token
+```
+
+`printf` rather than `echo`, for the same reason as the Lemonade
+key: a trailing newline becomes part of the token and every call
+comes back 401. `deploy.sh` refuses to run without the file, and
+CI validates against a placeholder.
 
 ## The S3 backup age textfile collector
 
@@ -475,8 +540,7 @@ quiet.
 via node-exporter's textfile collector, feeding the ROCm column
 on the LAN Overview GPU Inventory table. Run
 `deploy-agent.sh` on each GPU host; it is the same "copy it to
-the target machine" model as `avahi-services/` and
-`loki/alloy/deploy-agent.sh`.
+the target machine" model as `loki/alloy/deploy-agent.sh`.
 
 This does not reuse `rocm_aic_rocm_version_info`, which used to
 carry the same number on `snoc-thinkstation`. That series came

@@ -39,7 +39,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "One row per host running node-exporter, joined on instance: kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
+      "description": "One row per host running node-exporter, joined on instance: distro, kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Distro is node_exporter's os-release collector (node_os_info pretty_name), so it is blank on macOS and on Windows hosts served by windows_exporter -- those have no os-release file to read. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -364,6 +364,18 @@
           {
             "matcher": {
               "id": "byName",
+              "options": "Distro"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
               "options": "Load/Core"
             },
             "properties": [
@@ -550,6 +562,20 @@
           "legendFormat": "",
           "range": false,
           "refId": "J"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance, pretty_name) (node_os_info)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "K"
         }
       ],
       "title": "Node Fleet",
@@ -575,7 +601,9 @@
               "instance": true,
               "Time 8": true,
               "Time 9": true,
-              "Time 10": true
+              "Time 10": true,
+              "Time 11": true,
+              "Value #K": true
             },
             "renameByName": {
               "Value #B": "CPU %",
@@ -584,6 +612,7 @@
               "Value #E": "Cores",
               "Value #F": "Uptime",
               "Value #G": "WiFi (dBm)",
+              "pretty_name": "Distro",
               "release": "Kernel",
               "server_name": "Node",
               "Value #H": "Link",
@@ -601,19 +630,22 @@
               "Value #H": 7,
               "Value #G": 8,
               "Value #F": 9,
-              "release": 10,
-              "Time 1": 11,
-              "Time 2": 12,
-              "Time 3": 13,
-              "Time 4": 14,
-              "Time 5": 15,
-              "Time 6": 16,
-              "Time 7": 17,
-              "Time 8": 18,
-              "Time 9": 19,
-              "Time 10": 20,
-              "Value #A": 21,
-              "instance": 22
+              "pretty_name": 10,
+              "release": 11,
+              "Time 1": 12,
+              "Time 2": 13,
+              "Time 3": 14,
+              "Time 4": 15,
+              "Time 5": 16,
+              "Time 6": 17,
+              "Time 7": 18,
+              "Time 8": 19,
+              "Time 9": 20,
+              "Time 10": 21,
+              "Time 11": 22,
+              "Value #A": 23,
+              "Value #K": 24,
+              "instance": 25
             }
           }
         }
@@ -852,7 +884,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "label_replace(\n    max by (server_name, chip) (node_hwmon_chip_names{chip_name=\"amdgpu\"}),\n    \"pcie\", \"$1.$2\", \"chip\",\n    \".*_([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2})_([0-9a-f])\"\n)",
+          "expr": "label_replace(\n    max by (server_name, chip) (node_hwmon_chip_names{chip_name=\"amdgpu\"}),\n    \"pcie\", \"$1.$2\", \"chip\",\n    \".*_([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2})_([0-9a-f])\"\n)\nor\nlabel_replace(\n    max by (server_name) (node_uname_info{sysname=\"Linux\", release=~\".*(microsoft|WSL).*\"}),\n    \"pcie\", \"N/A\", \"\", \"\"\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -874,7 +906,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (server_name) (amd_gpu_average_package_power) or max by (server_name) ((node_hwmon_power_watt or node_hwmon_power_average_watt) and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"})",
+          "expr": "max by (server_name) (amd_gpu_average_package_power) or max by (server_name) (amd_gpu_package_power) or max by (server_name) ((node_hwmon_power_watt or node_hwmon_power_average_watt) and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"})",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1339,12 +1371,329 @@
       "type": "table"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "One row per mounted filesystem on every host running node-exporter, covering ext4, xfs and btrfs only -- tmpfs, vfat, 9p and the rest are excluded deliberately, since none of them are storage you can run out of in a way worth paging about.\n\nCapacity is reported in bytes alongside the fill percentage because the two answer different questions. 90% of /boot is 1.6 GB and a five-minute fix; 90% of a 1 TB root is 100 GB and a weekend. The percentage tells you how urgent it is, Free tells you how much room you actually have, and Size tells you whether the mount is worth growing. Used is size minus avail rather than the used counter node-exporter exports, so it includes the root-reserved blocks that avail hides -- Used + Free is slightly less than Size on ext4 for exactly that reason.\n\nRows are joined on an instance@mountpoint key built with label_join rather than on instance alone, because instance is not unique here: a host has several mounts and joining on it collapses them to one arbitrary row. Device is shown because two mountpoints can sit on one block device -- amd-laptop reports / and /var/lib/docker as separate rows against the same /dev/sdd, which is one pool of space counted twice, not two.",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "footer": {
+              "reducers": []
+            },
+            "inspect": true
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Node"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Mount"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Device"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 230
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "FS"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 70
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Size"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Free"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "bytes"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.width",
+                "value": 100
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Used %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 75
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 200
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 25
+      },
+      "id": 32,
+      "options": {
+        "cellHeight": "md",
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "Used %"
+          }
+        ]
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "label_join(max by (instance, server_name, device, mountpoint, fstype) (node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}), \"fskey\", \"@\", \"instance\", \"mountpoint\")",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (fskey) (label_join(\n  node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"} - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (fskey) (label_join(\n  node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "C"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (fskey) (label_join(\n  (1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}) * 100,\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "format": "table",
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "D"
+        }
+      ],
+      "title": "Filesystem Capacity",
+      "transformations": [
+        {
+          "id": "seriesToColumns",
+          "options": {
+            "byField": "fskey"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "fskey": true,
+              "instance": true
+            },
+            "renameByName": {
+              "server_name": "Node",
+              "mountpoint": "Mount",
+              "device": "Device",
+              "fstype": "FS",
+              "Value #A": "Size",
+              "Value #B": "Used",
+              "Value #C": "Free",
+              "Value #D": "Used %"
+            },
+            "indexByName": {
+              "server_name": 0,
+              "mountpoint": 1,
+              "device": 2,
+              "fstype": 3,
+              "Value #A": 4,
+              "Value #B": 5,
+              "Value #C": 6,
+              "Value #D": 7,
+              "Time 1": 8,
+              "Time 2": 9,
+              "Time 3": 10,
+              "Time 4": 11,
+              "fskey": 12,
+              "instance": 13
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 33
       },
       "id": 40,
       "title": "Service Health",
@@ -1394,7 +1743,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 4,
       "options": {
@@ -1428,7 +1777,14 @@
         }
       ],
       "title": "Node Exporter",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "NodeExporter",
+          "url": "/d/rYdddlPWk/node-exporter-full"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1518,7 +1874,7 @@
         "h": 3,
         "w": 4,
         "x": 4,
-        "y": 26
+        "y": 34
       },
       "id": 5,
       "options": {
@@ -1608,7 +1964,7 @@
         "h": 3,
         "w": 4,
         "x": 8,
-        "y": 26
+        "y": 34
       },
       "id": 6,
       "options": {
@@ -1688,7 +2044,7 @@
         "h": 3,
         "w": 4,
         "x": 12,
-        "y": 26
+        "y": 34
       },
       "id": 7,
       "options": {
@@ -1722,7 +2078,14 @@
         }
       ],
       "title": "GPU Exporter",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "GPUExporter",
+          "url": "/d/rYdddlPWk/node-exporter-full"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1773,7 +2136,7 @@
         "h": 3,
         "w": 4,
         "x": 16,
-        "y": 26
+        "y": 34
       },
       "id": 8,
       "options": {
@@ -1807,7 +2170,14 @@
         }
       ],
       "title": "Speedtest",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "Speedtest",
+          "url": "/d/MBmaYd9Wk/speedtest-wan-testing"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1858,7 +2228,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 26
+        "y": 34
       },
       "id": 9,
       "options": {
@@ -1892,7 +2262,14 @@
         }
       ],
       "title": "Emporia",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "Emporia",
+          "url": "/d/be8ws4eoud3b4d/emporia-smartplugs-dashboard"
+        }
+      ]
     },
     {
       "datasource": {
@@ -1943,7 +2320,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 29
+        "y": 37
       },
       "id": 10,
       "options": {
@@ -2028,7 +2405,7 @@
         "h": 3,
         "w": 4,
         "x": 4,
-        "y": 29
+        "y": 37
       },
       "id": 11,
       "options": {
@@ -2113,7 +2490,7 @@
         "h": 3,
         "w": 4,
         "x": 8,
-        "y": 29
+        "y": 37
       },
       "id": 12,
       "options": {
@@ -2198,7 +2575,7 @@
         "h": 3,
         "w": 4,
         "x": 12,
-        "y": 29
+        "y": 37
       },
       "id": 14,
       "options": {
@@ -2232,7 +2609,14 @@
         }
       ],
       "title": "Prometheus",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "Prometheus",
+          "url": "/d/rYdddlPWk/node-exporter-full"
+        }
+      ]
     },
     {
       "datasource": {
@@ -2278,7 +2662,7 @@
         "h": 3,
         "w": 4,
         "x": 16,
-        "y": 29
+        "y": 37
       },
       "id": 46,
       "options": {
@@ -2312,7 +2696,14 @@
         }
       ],
       "title": "HSA Snoop",
-      "type": "stat"
+      "type": "stat",
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "HSASnoop",
+          "url": "/d/amd-llm-metrics/amd-llm-metrics"
+        }
+      ]
     },
     {
       "datasource": {
@@ -2363,7 +2754,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 29
+        "y": 37
       },
       "id": 50,
       "links": [
@@ -2407,12 +2798,180 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Scrape state of the GitHub Actions exporter on localhost:9612.\n\nThis tile says the exporter is alive, and nothing more. It serves every scrape from an in-memory snapshot, so it stays UP through a GitHub API that has been failing for days -- the same trap the AMD LLM reporter has. The GitHub Actions dashboard's Cache Age tile is the one that notices, and GitHubActionsExporterStale is the alert behind it.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "color": "red",
+                  "index": 0,
+                  "text": "DOWN"
+                },
+                "1": {
+                  "color": "green",
+                  "index": 1,
+                  "text": "UP"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": 0
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 40
+      },
+      "id": 55,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "GitHub Actions",
+          "url": "/d/github-actions/github-actions"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "up{job=\"gh-actions-exporter\"}",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "GitHub Actions",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "Workflows whose latest completed run on their repository's default branch did not succeed, across every tracked repo. Click through for which ones.\n\nNo `or vector(0)` guard here on purpose: if the exporter stops, this should read No data rather than a confident green zero. Total Home Power spent weeks reporting 0 W that way.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 40
+      },
+      "id": 56,
+      "links": [
+        {
+          "targetBlank": false,
+          "title": "GitHub Actions",
+          "url": "/d/github-actions/github-actions"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "value",
+        "wideLayout": true
+      },
+      "pluginVersion": "13.0.1+security-01",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(github_actions_workflow_last_run_conclusion{conclusion=~\"failure|timed_out|startup_failure|action_required\"})",
+          "instant": true,
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "title": "Failing Workflows",
+      "type": "stat"
+    },
+    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 43
       },
       "id": 41,
       "title": "Power",
@@ -2455,7 +3014,7 @@
         "h": 6,
         "w": 4,
         "x": 0,
-        "y": 33
+        "y": 44
       },
       "id": 17,
       "options": {
@@ -2675,7 +3234,7 @@
         "h": 6,
         "w": 20,
         "x": 4,
-        "y": 33
+        "y": 44
       },
       "id": 18,
       "options": {
@@ -2718,7 +3277,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 50
       },
       "id": 42,
       "title": "Network & WAN",
@@ -2788,7 +3347,7 @@
         "h": 6,
         "w": 6,
         "x": 0,
-        "y": 40
+        "y": 51
       },
       "id": 20,
       "options": {
@@ -2889,7 +3448,7 @@
         "h": 6,
         "w": 6,
         "x": 6,
-        "y": 40
+        "y": 51
       },
       "id": 21,
       "options": {
@@ -3020,7 +3579,7 @@
         "h": 6,
         "w": 6,
         "x": 12,
-        "y": 40
+        "y": 51
       },
       "id": 22,
       "options": {
@@ -3130,7 +3689,7 @@
         "h": 6,
         "w": 6,
         "x": 18,
-        "y": 40
+        "y": 51
       },
       "id": 23,
       "options": {
@@ -3173,7 +3732,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 57
       },
       "id": 43,
       "title": "AI & Developer Usage",
@@ -3215,7 +3774,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 47
+        "y": 58
       },
       "id": 29,
       "options": {
@@ -3281,7 +3840,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 47
+        "y": 58
       },
       "id": 28,
       "options": {
@@ -3341,7 +3900,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 53
+        "y": 64
       },
       "id": 51,
       "links": [
@@ -3414,7 +3973,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 53
+        "y": 64
       },
       "id": 52,
       "links": [
@@ -3487,7 +4046,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 53
+        "y": 64
       },
       "id": 53,
       "links": [
@@ -3560,7 +4119,7 @@
         "h": 4,
         "w": 12,
         "x": 12,
-        "y": 53
+        "y": 64
       },
       "id": 54,
       "links": [
@@ -3610,7 +4169,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 57
+        "y": 68
       },
       "id": 44,
       "title": "Storage",
@@ -3653,7 +4212,7 @@
         "h": 3,
         "w": 4,
         "x": 0,
-        "y": 58
+        "y": 69
       },
       "id": 49,
       "options": {
@@ -3846,7 +4405,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 72
       },
       "id": 31,
       "options": {
@@ -3973,83 +4532,12 @@
       "type": "table"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "description": "Space used on every ext4, xfs and btrfs mount. tmpfs and the like are excluded deliberately.",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              },
-              {
-                "color": "yellow",
-                "value": 75
-              },
-              {
-                "color": "red",
-                "value": 90
-              }
-            ]
-          },
-          "unit": "percent"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 67
-      },
-      "id": 32,
-      "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true
-      },
-      "pluginVersion": "",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "(1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}) * 100",
-          "format": "time_series",
-          "instant": true,
-          "legendFormat": "{{server_name}} {{mountpoint}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Filesystem Usage",
-      "type": "bargauge"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 78
       },
       "id": 45,
       "title": "System Load",
@@ -4092,7 +4580,7 @@
         "h": 6,
         "w": 12,
         "x": 0,
-        "y": 74
+        "y": 79
       },
       "id": 34,
       "options": {
@@ -4159,7 +4647,7 @@
         "h": 6,
         "w": 12,
         "x": 12,
-        "y": 74
+        "y": 79
       },
       "id": 35,
       "options": {

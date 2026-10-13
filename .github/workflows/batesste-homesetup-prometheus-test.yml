@@ -33,6 +33,14 @@ jobs:
             | sudo tee /etc/prometheus/secrets/lemonade-api-key \
               >/dev/null
           sudo chmod 0444 /etc/prometheus/secrets/lemonade-api-key
+          # gh-actions-exporter/deploy.sh refuses to run without a
+          # token, for the same reason ./deploy.sh refuses without the
+          # lemonade key: the failure it prevents is a service that
+          # restart-loops rather than one that fails to install.
+          sudo mkdir -p /etc/gh-actions-exporter
+          echo -n placeholder \
+            | sudo tee /etc/gh-actions-exporter/token >/dev/null
+          sudo chmod 0444 /etc/gh-actions-exporter/token
       - name: Validate prometheus.yml
         run: |
           promtool check config prometheus.yml
@@ -65,7 +73,25 @@ jobs:
           jq -e 'to_entries | all(.value.status == "active" or
                                   .value.status == "unused")' \
             emvue-exporter/labels.json
+      - name: Validate the GitHub Actions exporter
+        run: |
+          python3 -m py_compile \
+            gh-actions-exporter/gh-actions-exporter.py
+          # --selftest renders the whole metric set from a fixture
+          # with no network, so promtool sees the same output the real
+          # /metrics endpoint serves. A malformed family or a
+          # mistyped counter is otherwise only noticed once it has
+          # already been ingested.
+          python3 gh-actions-exporter/gh-actions-exporter.py \
+              --selftest \
+            | promtool check metrics
+          # The exporter is the only consumer of this port, and the
+          # target file is the only place Prometheus learns it. They
+          # have disagreed before.
+          jq -e '.[0].targets[0] | endswith(":9612")' \
+            targets/gh-actions-exporter.json
       - name: Validate deploy.sh dry-run
         run: |
           ./deploy.sh --dry-run
           ./emvue-exporter/deploy.sh --dry-run
+          ./gh-actions-exporter/deploy.sh --dry-run

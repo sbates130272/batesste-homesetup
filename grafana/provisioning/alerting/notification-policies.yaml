@@ -55,3 +55,57 @@ policies:
         # as the node is still answering SSH, and the window in which
         # that is true is the window this interval has to fit inside.
         repeat_interval: 1h
+
+      # Filesystem exhaustion, from the `disk` rule group. Paced like
+      # the backup route rather than the memory one: a disk at 15%
+      # free has days of runway, where a node filling its swap had
+      # thirteen hours.
+      - receiver: batesste-ntfy
+        object_matchers:
+          - ['service', '=', 'disk']
+        # mountpoint as well as server_name, for the same reason the
+        # memory route adds server_name: without it, beelink's root
+        # and beelink's /boot collapse into one group and the second
+        # one to cross the line is never notified. A host can run out
+        # of space on one filesystem while the others are fine, and
+        # the label naming which one is the label that must survive
+        # grouping.
+        group_by:
+          - alertname
+          - server_name
+          - mountpoint
+        group_wait: 30s
+        group_interval: 5m
+        # Twelve hours. Long, deliberately: a disk alert stays true
+        # for as long as it takes to decide what to delete, and that
+        # is a decision worth making once rather than being reminded
+        # of hourly until it is swiped away unread.
+        repeat_interval: 12h
+
+      # Failing workflows, from the `github-actions` rule group. Paced
+      # like the disk route rather than the memory one: a red workflow
+      # has no deadline, and the thing it is competing with for
+      # attention is whatever the workflow was interrupting.
+      - receiver: batesste-ntfy
+        object_matchers:
+          - ['service', '=', 'github-actions']
+        # repo and workflow for the same reason the disk route adds
+        # mountpoint: the rule is multi-dimensional, and without these
+        # in the key a second repository going red is folded into the
+        # first one's group and never notified. These two labels are
+        # the entire content of the notification -- grouping them away
+        # leaves "a workflow is failing" and nothing to act on.
+        group_by:
+          - alertname
+          - repo
+          - workflow
+        # Five minutes rather than thirty seconds. A broken shared
+        # action turns several repositories red within a few minutes
+        # of each other, and those belong in one push rather than six.
+        group_wait: 5m
+        group_interval: 5m
+        # Twelve hours, like the disk route: the alert stays true
+        # until someone sits down and fixes the workflow, and a
+        # reminder every hour in the meantime is how this one would
+        # become the alert that gets swiped away unread.
+        repeat_interval: 12h

@@ -18,9 +18,11 @@ Avahi
 backend
 backfilled
 backpressure
+backtested
 batesste
 BDF
 beelink
+beelink's
 Belkin
 bluetoothd
 BlueZ
@@ -49,10 +51,14 @@ datasources
 dBm
 DBs
 denylist
+Dependabot
+Dependabot's
 deuteranopia
 DHCP
 discoverable
 DisplayName
+distro
+distro's
 DNS
 Dockerfile
 dotfiles
@@ -73,7 +79,9 @@ exporters
 FHSA
 filesystem
 GDDR
+geomap
 gfx
+gh
 GHSA
 GiB
 git's
@@ -88,6 +96,7 @@ grafana
 Grafana
 Grafana's
 gRPC
+GTT
 gzip
 hardcoded
 hardcodes
@@ -108,10 +117,12 @@ HSA
 http
 https
 hwmon
+Hyper
 IAM
 icloud
 iCloud
 idempotently
+inodes
 integrations
 interop
 Interop
@@ -122,6 +133,7 @@ IRQ
 ISIZE
 JID
 jitter
+journald
 journald's
 jq
 JSON
@@ -192,6 +204,7 @@ OpenAI
 OpenAI's
 openbox
 OUI
+passthrough
 PCIe
 perf
 PIDs
@@ -220,6 +233,7 @@ rebasing
 regexes
 repo
 repointed
+repointing
 rocm
 ROCm
 rollout
@@ -259,6 +273,7 @@ symlink
 symlinks
 sysctl
 sysfs
+syslog
 systemctl
 systemd
 tailnet
@@ -310,6 +325,7 @@ vLLM
 VM
 VMCreatorId
 VRAM
+vSwitch
 vxwm
 WAL
 WAN
@@ -324,6 +340,8 @@ WiFi
 wifi
 WLAN
 WSL
+WSL's
+XGMI
 xio
 xml
 XML

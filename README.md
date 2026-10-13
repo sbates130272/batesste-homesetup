@@ -150,11 +150,11 @@ Each scrape job has a corresponding JSON file in `targets/`:
 | `speedtest_exporter.json`        | speedtest_exporter        |
 | `icloud.json`                    | icloud                    |
 | `amd-gpu-metrics-exporter.json`  | amd-gpu-metrics-exporter  |
-| `ais-exporter.json`              | ais-exporter              |
 | `rdma-exporter.json`             | rdma-exporter             |
 | `nvme-exporter.json`             | nvme-exporter             |
 | `openai_exporter.json`           | openai_exporter           |
 | `cursor-exporter.json`           | cursor-exporter           |
+| `gh-actions-exporter.json`       | gh-actions-exporter       |
 | `lemonade-exporter.json`         | lemonade-exporter         |
 | `loki.json`                      | loki                      |
 | `alloy.json`                     | alloy                     |
@@ -172,22 +172,12 @@ cd prometheus/emvue-exporter
 The Emporia SmartPlugs dashboard names every plug from that file, so
 renaming a plug or adding one is a change to it alone.
 
-### Avahi auto-discovery
-
-Targets can also be discovered automatically via
-[Avahi][ref-avahi] mDNS. On each target machine, drop the
-matching service XML from `prometheus/avahi-services/` into
-`/etc/avahi/services/`. Each exporter type uses its own
-DNS-SD service type (e.g. `_node-exporter._tcp`). On the
-Prometheus server, run:
-```bash
-cd prometheus
-./discover-targets.sh --deploy
-```
-Or install the systemd timer for continuous discovery
-every five minutes. See the
-[prometheus README.md](./prometheus/README.md) for full
-details.
+Every scrape target is listed by hand in
+`prometheus/targets/<job>.json`. An [Avahi][ref-avahi] mDNS
+auto-discovery path used to sit alongside that and was retired
+on 6 October 2026, having never actually run on any host — see
+the [prometheus README.md](./prometheus/README.md) for what it
+was and what reviving it would take.
 
 # Loki
 
@@ -204,6 +194,23 @@ no size limit — the volume boundary is the only thing standing
 between a runaway log source and a full root filesystem. See [the
 README.md](./loki/README.md) for the config, the agent rollout, and
 the handful of ways Alloy fails without saying anything.
+
+# journald
+
+The flip side of shipping every journal to Loki is that the local
+journal on each box only needs to be a buffer, not an archive — and
+on `snoc-beelink` it was not treated as one. [journald](./journald)
+caps it.
+
+With no `SystemMaxUse=` set, journald grows to 10% of its filesystem
+and stops. That default assumes `/var` is its own volume; here the
+journal shares a 98 GiB LV with `/home` and `/var/lib/docker`, so the
+ceiling was a 9.8 GiB claim nobody had chosen, on space other things
+needed more. It had reached 3.9 GiB by the time anyone looked. The cap is 1
+GiB — about three weeks — because anything older is a Loki query. See
+[the README.md](./journald/README.md) for why the drop-in filename is
+load-bearing, and why `journalctl --disk-usage` is not a test that it
+worked.
 
 # nginx
 
