@@ -79,6 +79,7 @@ exporters
 FHSA
 filesystem
 GDDR
+geomap
 gfx
 gh
 GHSA
