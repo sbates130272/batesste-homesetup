@@ -81,3 +81,31 @@ policies:
         # is a decision worth making once rather than being reminded
         # of hourly until it is swiped away unread.
         repeat_interval: 12h
+
+      # Failing workflows, from the `github-actions` rule group. Paced
+      # like the disk route rather than the memory one: a red workflow
+      # has no deadline, and the thing it is competing with for
+      # attention is whatever the workflow was interrupting.
+      - receiver: batesste-ntfy
+        object_matchers:
+          - ['service', '=', 'github-actions']
+        # repo and workflow for the same reason the disk route adds
+        # mountpoint: the rule is multi-dimensional, and without these
+        # in the key a second repository going red is folded into the
+        # first one's group and never notified. These two labels are
+        # the entire content of the notification -- grouping them away
+        # leaves "a workflow is failing" and nothing to act on.
+        group_by:
+          - alertname
+          - repo
+          - workflow
+        # Five minutes rather than thirty seconds. A broken shared
+        # action turns several repositories red within a few minutes
+        # of each other, and those belong in one push rather than six.
+        group_wait: 5m
+        group_interval: 5m
+        # Twelve hours, like the disk route: the alert stays true
+        # until someone sits down and fixes the workflow, and a
+        # reminder every hour in the meantime is how this one would
+        # become the alert that gets swiped away unread.
+        repeat_interval: 12h

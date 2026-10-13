@@ -25,6 +25,7 @@ grafana/
     amd-related/              # folder: AMD Related
       amd-llm-metrics.json
     general/                  # folder: (root)
+      github-actions.json
       lan-overview.json
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
@@ -174,7 +175,45 @@ deploy and never stop — and a permanently firing alert gets
 muted, which is the state this whole exercise exists to escape.
 Add it when the bucket exists and the timer is enabled.
 
-## Dashboards (12 total)
+### GitHub Actions rules
+
+Two rules over the `github_actions_*` metrics published by
+`prometheus/gh-actions-exporter/`, both labelled
+`service: github-actions`:
+
+| Rule | Fires when | `for` |
+|---|---|---|
+| `GitHubActionsWorkflowFailing` | A workflow's latest default-branch run failed | 1h |
+| `GitHubActionsExporterStale` | The exporter has not reached the GitHub API in 30m | 1h |
+
+`GitHubActionsWorkflowFailing` is multi-dimensional — one alert
+instance per workflow — so `repo` and `workflow` reach the
+notification and the push names what to go and fix. The
+notification policy groups on both for the same reason the disk
+route groups on `mountpoint`: without them a second repository
+going red is folded into the first one's group and never
+notified, and those two labels *are* the content of the
+notification.
+
+The conclusion list is spelled out rather than written as
+`last_run_success == 0`, because `cancelled` and `skipped` are
+not failures. A workflow that only ever skips is not passing
+either, but it is not worth a push.
+
+`GitHubActionsExporterStale` is the only rule outside the backup
+group with `noDataState: Alerting`, and for the same reason
+`BackupCheckFailing` has it. The exporter answers every scrape
+from an in-memory snapshot, so the target stays green and every
+panel keeps rendering through a GitHub API that has been
+refusing calls for days — the last known state of every workflow
+simply stops moving, which looks exactly like a quiet week.
+
+Both repeat every 12h rather than hourly, paced like the disk
+route: a red workflow stays red until someone sits down and
+fixes it, and an hourly reminder in the meantime is how this
+alert would become the one that gets swiped away unread.
+
+## Dashboards (15 total)
 
 `provisioning/dashboards/dashboards.yaml` tells Grafana to
 watch `/var/lib/grafana/dashboards/<folder>/` for JSON
@@ -196,7 +235,10 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
 | General | Home LAN Overview | Fleet, services, power, AI, storage summary |
+| General | GitHub Actions | Workflow health across the sbates130272 repositories, from `prometheus/gh-actions-exporter/` |
+| General | Loki Logs - Homelab | Fleet journals, in its own `homelab-loki` folder |
 | AMD Related | AMD LLM Metrics | Usage and approximate spend on the AMD internal LLM gateway |
+| Home Network | iCloud | iCloud storage and account metrics |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
 | Home Network | Node Exporter WiFi | WiFi signal/throughput stats |

@@ -51,6 +51,8 @@ datasources
 dBm
 DBs
 denylist
+Dependabot
+Dependabot's
 deuteranopia
 DHCP
 discoverable
@@ -78,6 +80,7 @@ FHSA
 filesystem
 GDDR
 gfx
+gh
 GHSA
 GiB
 git's

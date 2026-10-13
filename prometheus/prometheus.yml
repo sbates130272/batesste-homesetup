@@ -265,6 +265,25 @@ scrape_configs:
           - /etc/prometheus/targets/alloy.json
         refresh_interval: 30s
 
+  # GitHub Actions workflow health, from the exporter in
+  # gh-actions-exporter/ running on this host. Scraped at the
+  # default interval even though it only refreshes from GitHub
+  # every 5 minutes: every scrape is served from an in-memory
+  # snapshot, so it costs nothing, and the API rate limit is
+  # bounded by the exporter's own cadence rather than ours.
+  #
+  # That caching means `up` reports only whether the exporter is
+  # alive, never whether GitHub is answering -- the same trap the
+  # amd-llm-exporter job documents. The freshness signal is
+  # github_actions_last_refresh_timestamp_seconds, and
+  # GitHubActionsExporterStale in grafana/provisioning/alerting/
+  # rules.yaml is the alert that watches it.
+  - job_name: gh-actions-exporter
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/gh-actions-exporter.json
+        refresh_interval: 30s
+
   # Lemonade serves its own /metrics on its API port; there is
   # no separate exporter (the :9091 one this replaced is gone).
   # lemond binds loopback only on both hosts -- the tailnet

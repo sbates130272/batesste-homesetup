@@ -810,3 +810,139 @@ groups:
                 - evaluator:
                     type: lt
                     params: [0.1]
+
+  # ── GitHub Actions ────────────────────────────────────────────────
+  #
+  # Fed by the gh-actions-exporter in
+  # prometheus/gh-actions-exporter/. Both rules carry
+  # service=github-actions, which notification-policies.yaml routes on.
+  #
+  # Scoped to the latest completed run per workflow on each
+  # repository's *default branch*. A red PR branch is how a pull
+  # request says it is not ready yet; alerting on those would be
+  # alerting on work in progress.
+  - orgId: 1
+    name: github-actions
+    folder: Alerts
+    # The exporter only refreshes from GitHub every five minutes, so a
+    # faster evaluation would re-read the same cached snapshot.
+    interval: 5m
+    rules:
+
+      # ── Something is red ───────────────────────────────────────
+      #
+      # Multi-dimensional on purpose: the query returns one series per
+      # workflow, so repo and workflow survive into the notification
+      # and the push names what to go and fix rather than saying
+      # "something is broken somewhere".
+      #
+      # 1h of `for:` because a workflow that fails on a flake and
+      # passes on the re-run should never reach a phone.
+      #
+      # The conclusion list is explicit rather than
+      # `last_run_success == 0`, because `cancelled` and `skipped` are
+      # not failures. A workflow that only ever skips is not passing
+      # either, but it is not something to be woken up about.
+      - uid: batesste-gh-actions-workflow-failing
+        title: GitHubActionsWorkflowFailing
+        condition: C
+        for: 1h
+        labels:
+          service: github-actions
+          severity: warning
+        annotations:
+          summary: >-
+            A GitHub Actions workflow has been failing on its default
+            branch for over an hour.
+          runbook: >-
+            The GitHub Actions dashboard lists every red workflow with
+            a link straight to the failing run. If several went red at
+            once, suspect a shared action or runner image rather than
+            the repositories -- batesste-ci-images and
+            qemu-tool-action are used by most of the others.
+        noDataState: OK
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                github_actions_workflow_last_run_conclusion{conclusion=~"failure|timed_out|startup_failure|action_required"}
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+
+      # ── Are we still being told the truth? ─────────────────────
+      #
+      # The exporter answers every scrape from an in-memory snapshot,
+      # so `up` stays 1 and every panel keeps rendering through a
+      # GitHub API that has been refusing calls for days. Nothing else
+      # here would notice: the last known state of every workflow
+      # simply stops moving, which looks exactly like a quiet week.
+      #
+      # The same trap the AMD LLM reporter has, recorded in
+      # prometheus/README.md -- a green target is not evidence of
+      # current data.
+      #
+      # 30 minutes against a 5-minute refresh, so a handful of
+      # consecutive failures is tolerated; 1h of `for:` on top means a
+      # transient GitHub outage does not page. noDataState: Alerting,
+      # unlike every other rule here, because the metric is written on
+      # every refresh whatever the outcome: its absence means the
+      # exporter, or the host, is gone.
+      - uid: batesste-gh-actions-exporter-stale
+        title: GitHubActionsExporterStale
+        condition: C
+        for: 1h
+        labels:
+          service: github-actions
+          severity: warning
+        annotations:
+          summary: >-
+            The GitHub Actions exporter has not reached the GitHub API
+            in over 30 minutes. Every workflow panel is showing cached
+            state, and the scrape target is still green.
+          runbook: >-
+            Check `journalctl -u gh-actions-exporter -n 50` on
+            snoc-beelink. A 401 means the token in
+            /etc/gh-actions-exporter/token has expired or been
+            revoked; `gh-token-check` lists expiry for the registered
+            tokens. A 403 with the rate limit at zero means something
+            is scraping far more often than the configured interval.
+        noDataState: Alerting
+        execErrState: Alerting
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: ae8pyuqoyonpca
+            model:
+              refId: A
+              instant: true
+              editorMode: code
+              expr: >-
+                time() - github_actions_last_refresh_timestamp_seconds
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [1800]

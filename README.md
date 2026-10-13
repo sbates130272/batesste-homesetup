@@ -154,6 +154,7 @@ Each scrape job has a corresponding JSON file in `targets/`:
 | `nvme-exporter.json`             | nvme-exporter             |
 | `openai_exporter.json`           | openai_exporter           |
 | `cursor-exporter.json`           | cursor-exporter           |
+| `gh-actions-exporter.json`       | gh-actions-exporter       |
 | `lemonade-exporter.json`         | lemonade-exporter         |
 | `loki.json`                      | loki                      |
 | `alloy.json`                     | alloy                     |

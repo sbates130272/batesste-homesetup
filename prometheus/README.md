@@ -29,6 +29,10 @@ prometheus/
   emvue-exporter/
     labels.json               Per-plug Prometheus labels
     deploy.sh                 Run on snoc-beelink
+  gh-actions-exporter/
+    gh-actions-exporter.py    Publishes github_actions_*
+    gh-actions-exporter.service  systemd unit
+    deploy.sh                 Run on snoc-beelink
   targets/
     node.json                 Targets per job
     ...
@@ -85,6 +89,7 @@ port per job, by convention:
 | 9488  | hsa-snoop                |
 | 9185  | openai_exporter          |
 | 9788  | cursor-exporter          |
+| 9612  | gh-actions-exporter      |
 | 12345 | alloy                    |
 
 ### Target discovery was retired
@@ -396,6 +401,93 @@ no `/etc/hosts` entry — which is why `node` and
 Adding a `/etc/hosts` entry on the beelink would let the
 target use a name instead, but nothing else here depends on
 resolving it.
+
+### The gh-actions-exporter job
+
+`gh-actions-exporter/` holds a small Python exporter that runs
+on `snoc-beelink` and serves `github_actions_*` on
+`127.0.0.1:9612`. It backs the **GitHub Actions** dashboard, the
+two tiles at the bottom of LAN Overview's Service Health row,
+and the `github-actions` alert group.
+
+It lives here rather than in its own repository, unlike
+`emvue-exporter`, for the reason `emvue-exporter/labels.json`
+does: which repositories are worth watching is a fact about this
+setup, not about exporters in general.
+
+```bash
+cd prometheus/gh-actions-exporter
+./deploy.sh
+```
+
+**The repository list is discovered, not configured.** Every
+hour the exporter lists the owner's repositories and keeps those
+that are not forks, not archived, and pushed to within 90 days —
+13 of 80 at the time of writing. A new repository starts being
+watched on its own and a repository that goes quiet drops out,
+which is the same reasoning behind driving the Emporia panel
+legends from `{{name}}`: one less list to disagree with reality. Narrow it
+with `--owner`, `--max-repo-age-days` and `--exclude`.
+
+**Only the default branch counts.** The per-workflow metrics
+report the latest *completed* run on each repository's default
+branch. A red PR branch is how a pull request says it is not
+ready yet, and watching those would mean watching work in
+progress.
+
+**Dependabot's own runs are excluded** — `event=dynamic`, the
+security and graph updates it files against the default branch.
+They fail for reasons nothing in the repository can fix, and each
+one carries a freshly generated name like `pip in
+/Documentation/sphinx for Jinja2 - Update #1394352365`, so left
+in they would be an ever-growing pile of permanently red series
+that nothing can ever turn green. `linux-p2pmem` is the host of
+the example. They still count towards
+`github_actions_repo_recent_runs`, which is where "something in
+this repository is unhappy" belongs.
+
+**One API call per repository per refresh**, against the first
+page of 100 runs. A workflow whose last run has already scrolled
+off that page is not reported, which is deliberate: a workflow
+with a hundred runs behind it is not what "fix it today" means.
+At a 5-minute refresh that is around 200 calls an hour against a
+5000 limit, tracked by `github_actions_rate_limit_remaining`.
+
+**Scrapes are served from cache, so `up` proves nothing about
+GitHub.** The exporter refreshes on its own thread and answers
+every scrape from an in-memory snapshot — the same trap the
+`amd-llm-exporter` job has. Watch
+`github_actions_last_refresh_timestamp_seconds`;
+`GitHubActionsExporterStale` is the alert that does. A refresh
+that fails keeps the previous snapshot rather than blanking it,
+so stale panels stay populated and the freshness metric is the
+only thing that moves.
+
+The run id is published as a metric *value*
+(`github_actions_workflow_last_run_id`) rather than as a label,
+because it changes on every run and as a label would churn a new
+series each time. The dashboard reads it as a table field to
+build the link to the run.
+
+#### The token
+
+Not in this repo, like the Lemonade scrape key. The unit hands
+it to the exporter as a systemd credential and keeps the file
+root-owned, so it is never visible inside the service's own view
+of the filesystem. A classic PAT needs `repo`; a fine-grained one
+needs read access to Actions and Metadata.
+
+```bash
+sudo install -d -m 0700 -o root -g root /etc/gh-actions-exporter
+printf %s "$GH_TOKEN_SBATES130272" \
+    | sudo tee /etc/gh-actions-exporter/token >/dev/null
+sudo chmod 0400 /etc/gh-actions-exporter/token
+```
+
+`printf` rather than `echo`, for the same reason as the Lemonade
+key: a trailing newline becomes part of the token and every call
+comes back 401. `deploy.sh` refuses to run without the file, and
+CI validates against a placeholder.
 
 ## The S3 backup age textfile collector
 
