@@ -64,6 +64,7 @@ DKMS
 DNS
 Dockerfile
 dotfiles
+dpkg
 Dpkg
 dyndns
 EFI

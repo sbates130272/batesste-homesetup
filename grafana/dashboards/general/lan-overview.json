@@ -657,7 +657,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.\n\nThe Exporter query is gated on node_uname_info because Prometheus synthesises up=0 for a statically configured target forever, powered on or not -- ungated, a machine that is switched off still produces a row here with every other column blank. Gating it matches Node Fleet: a host that stops reporting drops out of the table, and the Service Health tiles are what tell you it is down.\n\nROCm is the HIP runtime version from hipconfig; DKMS is the out-of-tree amdgpu module version built for the kernel the host is actually running. A blank DKMS cell is not a fault -- it means the inbox amdgpu driver, no AMD GPU, or WSL, where the GPU arrives over /dev/dxg and there is no kernel module to version. The case worth chasing is amdgpu_dkms_kernel_mismatch, which the collector emits when DKMS has an amdgpu tree but none built for the running kernel -- a rebuild that did not happen after a kernel upgrade.",
+      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.\n\nThe Exporter query is gated on node_uname_info because Prometheus synthesises up=0 for a statically configured target forever, powered on or not -- ungated, a machine that is switched off still produces a row here with every other column blank. Gating it matches Node Fleet: a host that stops reporting drops out of the table, and the Service Health tiles are what tell you it is down.\n\nColumns are grouped: identity (Node, GPU, PCIe), then the software stack (ROCm, DKMS), then live telemetry (Exporter, Temp, Power, Busy).\n\nROCm is the release version read from the active core prefix via `hipconfig --path` -- 10.1.0 on the GPU hosts -- and not the HIP runtime version, which is versioned separately (7.16.x) and is published as rocm_hip_version_info for anyone who needs it. DKMS is the amdgpu driver version as dpkg records it, the number `apt policy amdgpu-dkms` compares against; the tree version actually built for the running kernel is amdgpu_dkms_module_info.\n\nA blank DKMS cell is not a fault -- it means the inbox amdgpu driver, no AMD GPU, or WSL, where the GPU arrives over /dev/dxg and there is no kernel module to version. The case worth chasing is amdgpu_dkms_kernel_mismatch, emitted when DKMS has an amdgpu tree but none built for the running kernel.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -866,7 +866,19 @@
             "properties": [
               {
                 "id": "custom.width",
-                "value": 180
+                "value": 240
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ROCm"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
               }
             ]
           }
@@ -1016,11 +1028,11 @@
               "server_name": 0,
               "card_model": 1,
               "pcie": 2,
-              "Value #F": 3,
-              "Value #B": 4,
-              "Value #C": 5,
-              "Value #D": 6,
-              "version": 7,
+              "Value #F": 5,
+              "Value #B": 6,
+              "Value #C": 7,
+              "Value #D": 8,
+              "version": 3,
               "Time 1": 9,
               "Time 2": 10,
               "Time 3": 11,
@@ -1031,7 +1043,7 @@
               "Value #A": 16,
               "Value #E": 17,
               "chip": 18,
-              "dkms_version": 8
+              "dkms_version": 4
             },
             "renameByName": {
               "server_name": "Node",

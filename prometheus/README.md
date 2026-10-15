@@ -16,8 +16,9 @@ prometheus/
   deploy.sh                   Deploy config to /etc
   add-target.sh               Add a target manually
   textfile-collectors/
-    rocm-version.sh           Publishes rocm_version_info and
-                              amdgpu_dkms_version_info
+    rocm-version.sh           Publishes rocm_version_info,
+                              rocm_hip_version_info and
+                              amdgpu_dkms_*
     rocm-version.service      systemd oneshot unit
     rocm-version.timer        systemd timer (hourly + on boot)
     wsl-wifi.sh               Publishes wsl_wifi_* (WSL hosts only)
@@ -545,13 +546,42 @@ Overview GPU Inventory table. Run `deploy-agent.sh` on each GPU
 host; it is the same "copy it to the target machine" model as
 `loki/alloy/deploy-agent.sh`.
 
-The two versions answer different questions and routinely
-disagree, which is why both are on the table. ROCm is the HIP
-runtime — "will this kernel build and run here". DKMS is the
-out-of-tree `amdgpu` module built for the kernel actually
-booted — "did the driver survive the last kernel upgrade". On
-`snoc-thinkstation` and `snoc-strix` today those read
-`7.16.26385-0000000` and `7.1.9-2407772.26.04` respectively.
+The two columns answer different questions, which is why both are
+on the table. ROCm is the userspace release; DKMS is the kernel
+driver — "did it survive the last kernel upgrade". On
+`snoc-thinkstation` and `snoc-strix` today they read `10.1.0` and
+`1:7.1.9.31600000-2407772.26.04`.
+
+**Four different version strings are in play here, and three of
+them are easy to mistake for the ROCm release.** This collector
+originally published `hipconfig --version` as `rocm_version_info`,
+so a column headed ROCm showed `7.16.26385-0000000` on hosts
+running ROCm 10.1. That is the HIP runtime version, which is
+versioned independently of the release and does not track it:
+
+| Series | Source | On the GPU hosts |
+| ------ | ------ | ---------------- |
+| `rocm_version_info{version}` | `$(hipconfig --path)/.info/version` | `10.1.0` |
+| `rocm_hip_version_info{hip_version}` | `hipconfig --version` | `7.16.26385-0000000` |
+| `amdgpu_dkms_version_info{dkms_version}` | `dpkg-query amdgpu-dkms` | `1:7.1.9.31600000-2407772.26.04` |
+| `amdgpu_dkms_module_info{module_version}` | `dkms status` | `7.1.9-2407772.26.04` |
+
+The release comes from the active core prefix rather than a fixed
+path because these hosts have several installed side by side —
+`core-7.14` (7.14.1) and `core-10.1` (10.1.0) on both, plus
+`core-10.0` on `snoc-strix` — with `/opt/rocm/core` pointing at
+whichever `update-alternatives` has selected. `hipconfig --path`
+follows that link; a hardcoded `/opt/rocm` would not. Note there
+is no `/opt/rocm/.info/version` on these hosts at all, only one
+per core.
+
+The driver version comes from `dpkg`, not from `dkms`. Both
+describe the same
+driver, but only the `dpkg` string can be compared against
+`apt policy amdgpu-dkms` or the AMD repo. The dkms tree version is
+still published as `amdgpu_dkms_module_info`, because it is the one
+that answers "what is actually built for the running kernel" —
+dpkg will happily report a package whose module was never rebuilt.
 
 One collector rather than two: the cadence is identical (both
 change only on a package upgrade), the host set is identical, and
@@ -639,16 +669,27 @@ installs:
 
 | Host | `PATH` | `/opt/rocm` |
 | ---- | ------ | ----------- |
-| `snoc-thinkstation` | 7.14.60850 | same |
-| `snoc-strix` | 7.14.60850 | same |
-| `snoc-gaming` | 7.15.26333 | same |
-| `amd-laptop` | 7.15.26333 | **7.2.53211** |
+| `snoc-thinkstation` | 10.1.0 | same |
+| `snoc-strix` | 10.1.0 | same |
+| `snoc-gaming` | *unverified* | *unverified* |
+| `amd-laptop` | *unverified* | mismatch expected |
+
+The two verified rows were measured after the switch to release
+versions. The other two are marked unverified rather than carried
+over, because the figures previously in this table were HIP
+runtime versions — the comparison is now between ROCm *releases*,
+so the old numbers were not merely stale but the wrong quantity.
+`snoc-gaming` was powered off and `amd-laptop` unreachable over
+`ssh` when this was written; re-measure with
+`hipconfig --path` and `cat "$(hipconfig --path)/.info/version"`.
 
 `amd-laptop`'s `/opt/rocm` is a symlink to
-`/etc/alternatives/rocm` pointing at the older install, so
+`/etc/alternatives/rocm` pointing at an older install, so
 `rocm_version_prefix_mismatch` is emitted whenever the two
 disagree. Without it the column shows a plausible version and
-nothing hints that the prefix resolves elsewhere.
+nothing hints that the prefix resolves elsewhere. That metric now
+compares release versions too, so it will not fire merely because
+two prefixes ship a different HIP runtime version.
 
 **Two hosts needed a node-exporter flag.** `snoc-gaming` and
 `amd-laptop` had no `--collector.textfile.directory` at all, so
