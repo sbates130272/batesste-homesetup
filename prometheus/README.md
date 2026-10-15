@@ -694,6 +694,34 @@ and leaves `ARGS` alone. The orphaned `.prom` under the old path is
 worth deleting by hand afterwards, so a later reader is not misled
 by a file that nothing reads.
 
+**And the detection that avoids all this was itself broken.**
+`detect_textfile_dir` read the compiled-in default out of
+`prometheus-node-exporter --help`, matching only the quoted
+rendering `="..."` that older kingpin builds emit. Debian's
+node_exporter 1.10.2 prints it bare:
+
+```text
+--collector.textfile.directory=/var/lib/prometheus/node-exporter ...
+```
+
+so the match failed and the function returned empty — on every host
+whose directory comes from the compiled-in default, which is all of
+them. Empty is the one wrong answer that does damage: it means
+"node-exporter reads nothing", and the caller responds by appending
+`--collector.textfile.directory` and restarting. On
+`snoc-thinkstation` that would have redirected node-exporter from
+`/var/lib/prometheus/node-exporter` — where it was actively serving
+3 `smartmon_device_info`, 4 `apt_upgrades_pending` and 3
+`node_nvme_info` series — to a directory holding only
+`rocm-version.prom`. Fixing the ROCm column would have cost SMART
+health for the disk the backup reads, which is precisely the
+regression the surrounding comments were written to prevent. The
+`--help` branch now reuses the same optional-quote pattern as the
+`ARGS` and unit branches, so both renderings resolve and an unset
+default still yields empty. A `--dry-run` that reports *"adding
+--collector.textfile.directory"* on a host that already serves
+textfile metrics is the signal that this has regressed again.
+
 **The dashboard query is scoped to `job="node"`, deliberately.**
 A remote-written copy of the older `rocm_aic_rocm_version_info`
 arrives from the `rocm-aic-core42-mi300` cluster carrying
