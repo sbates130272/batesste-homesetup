@@ -29,11 +29,18 @@ a WiFi signal reading at all, and s3-backup-age.sh plus its timer
 on whichever host carries batesste-s3-backup.service. And -- on
 hosts that do not already have one -- adds
 --collector.textfile.directory to the node-exporter ARGS and
-restarts the unit. snoc-thinkstation and snoc-strix already carry
-that flag; snoc-gaming, amd-laptop and snoc-beelink do not, and
-without it node-exporter reads no textfiles at all, so the
-collector would write a perfectly good .prom that nothing ever
-scrapes.
+restarts the unit.
+
+Re-running this on a host that already has the collectors is both
+safe and sometimes necessary. snoc-thinkstation and snoc-strix
+carried an install predating the textfile-dir.conf drop-in: the
+collector wrote to /var/lib/node_exporter/textfile_collector while
+node-exporter read its compiled-in default of
+/var/lib/prometheus/node-exporter, so every rocm_version series
+was written correctly and scraped by nobody, and the dashboard's
+ROCm column sat empty on exactly the hosts that had ROCm. The
+drop-in is what resolves that, so hosts installed before it exists
+need this script run again.
 
 Note that snoc-beelink gets rocm-version too, where it will report
 rocm_version_present 0 forever. That is the collector's documented
@@ -90,11 +97,23 @@ detect_textfile_dir() {
         | grep -v '^#' | sed -n "${pat}" | tail -1)"
     [[ -n "${dir}" ]] && { echo "${dir}"; return; }
 
-    # kingpin renders the default as ="..."; an unset default prints as
-    # ="" and correctly yields the empty string here.
-    "${NE_BIN}" --help 2>&1 \
-        | sed -n 's/.*--collector\.textfile\.directory="\([^"]*\)".*/\1/p' \
-        | head -1
+    # Same pattern as above, and that matters. This branch used to
+    # insist on the quoted rendering, ="...", which is how older
+    # kingpin builds print a default. Debian's node_exporter 1.10.2
+    # prints it bare:
+    #
+    #   --collector.textfile.directory=/var/lib/prometheus/node-exporter ...
+    #
+    # so the match failed and this function returned empty on every
+    # host whose directory comes from the compiled-in default --
+    # which is the one wrong answer that does damage. Empty means
+    # "node-exporter reads nothing", and the caller responds by
+    # pointing it at a new directory, redirecting it away from the
+    # default it was already serving apt, nvme and smartmon
+    # textfiles from. That is the exact regression the comment above
+    # describes avoiding. ${pat} makes the quotes optional, so both
+    # renderings resolve, and an unset default still yields empty.
+    "${NE_BIN}" --help 2>&1 | sed -n "${pat}" | head -1
 }
 
 if [[ ! -f "${NE_DEFAULTS}" ]]; then

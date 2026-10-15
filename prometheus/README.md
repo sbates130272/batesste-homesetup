@@ -16,7 +16,9 @@ prometheus/
   deploy.sh                   Deploy config to /etc
   add-target.sh               Add a target manually
   textfile-collectors/
-    rocm-version.sh           Publishes rocm_version_info
+    rocm-version.sh           Publishes rocm_version_info,
+                              rocm_hip_version_info and
+                              amdgpu_dkms_*
     rocm-version.service      systemd oneshot unit
     rocm-version.timer        systemd timer (hourly + on boot)
     wsl-wifi.sh               Publishes wsl_wifi_* (WSL hosts only)
@@ -536,11 +538,120 @@ quiet.
 
 ## The ROCm version textfile collector
 
-`textfile-collectors/rocm-version.sh` publishes `rocm_version_info{version=...}`
-via node-exporter's textfile collector, feeding the ROCm column
-on the LAN Overview GPU Inventory table. Run
-`deploy-agent.sh` on each GPU host; it is the same "copy it to
-the target machine" model as `loki/alloy/deploy-agent.sh`.
+`textfile-collectors/rocm-version.sh` publishes
+`rocm_version_info{version=...}` and
+`amdgpu_dkms_version_info{dkms_version=...}` via node-exporter's
+textfile collector, feeding the ROCm and DKMS columns on the LAN
+Overview GPU Inventory table. Run `deploy-agent.sh` on each GPU
+host; it is the same "copy it to the target machine" model as
+`loki/alloy/deploy-agent.sh`.
+
+The two columns answer different questions, which is why both are
+on the table. ROCm is the userspace release; DKMS is the kernel
+driver — "did it survive the last kernel upgrade". On
+`snoc-thinkstation` and `snoc-strix` today they read `10.1.0` and
+`1:7.1.9.31600000-2407772.26.04`.
+
+**Four different version strings are in play here, and three of
+them are easy to mistake for the ROCm release.** This collector
+originally published `hipconfig --version` as `rocm_version_info`,
+so a column headed ROCm showed `7.16.26385-0000000` on hosts
+running ROCm 10.1. That is the HIP runtime version, which is
+versioned independently of the release and does not track it:
+
+| Series | Source | On the GPU hosts |
+| ------ | ------ | ---------------- |
+| `rocm_version_info{version}` | `$(hipconfig --path)/.info/version` | `10.1.0` |
+| `rocm_hip_version_info{hip_version}` | `hipconfig --version` | `7.16.26385-0000000` |
+| `amdgpu_dkms_version_info{dkms_version}` | `amdgpu-dkms-firmware`, first four fields | `31.60.0.0` |
+| `amdgpu_dkms_package_info{package_version}` | `dpkg-query amdgpu-dkms` | `1:7.1.9.31600000-2407772.26.04` |
+| `amdgpu_dkms_module_info{module_version}` | `dkms status` | `7.1.9-2407772.26.04` |
+
+The release comes from the active core prefix rather than a fixed
+path because these hosts have several installed side by side —
+`core-7.14` (7.14.1) and `core-10.1` (10.1.0) on both, plus
+`core-10.0` on `snoc-strix` — with `/opt/rocm/core` pointing at
+whichever `update-alternatives` has selected. `hipconfig --path`
+follows that link; a hardcoded `/opt/rocm` would not. Note there
+is no `/opt/rocm/.info/version` on these hosts at all, only one
+per core.
+
+The column shows AMD's own driver release — `31.60.0.0` — not
+the Debian package string. That is the number AMD versions the
+driver by: the apt source on these hosts is
+`repo.radeon.com/amdgpu/31.60/ubuntu`, and the driver
+documentation is published per 31.x line, so it is the value that
+can be matched against a release note or a repo path.
+
+`amdgpu-dkms` carries it only packed: its version is
+`1:7.1.9.31600000-2407772.26.04`, where `31600000` is `31.60.0.0`
+with the dots removed. `amdgpu-dkms-firmware` spells it out as
+`1:31.60.0.0.31600000-2407772.26.04`, so the release is read from
+there and not unpacked from the digits — `31600000` could be split
+several defensible ways, and only the firmware package says which
+is right. The first *four* dot-separated fields are taken, because
+the packed digits follow the release as a fifth and a greedy split
+would swallow them.
+
+The full `dpkg` string is kept as `amdgpu_dkms_package_info` —
+it is what `apt policy amdgpu-dkms` compares against, so it is the
+one to quote in a support ticket. Both
+describe the same driver. The dkms tree version is published as
+`amdgpu_dkms_module_info`, because it alone answers "what is
+actually built for the running kernel" — dpkg will happily report
+a package whose module was never rebuilt.
+
+One collector rather than two: the cadence is identical (both
+change only on a package upgrade), the host set is identical, and
+both land in the same GPU Inventory row, so a second unit pair on
+every host would buy nothing. The script name stays narrower than
+its contents as a result — renaming it would strand the old units
+on every host already carrying them.
+
+### Reading the DKMS metrics
+
+| Series | Means |
+| ------ | ----- |
+| `amdgpu_dkms_present 1` + `amdgpu_dkms_version_info` | DKMS module built for the running kernel |
+| `amdgpu_dkms_present 0` | inbox `amdgpu`, no AMD GPU, or WSL — not a fault |
+| `amdgpu_dkms_kernel_mismatch 1` | DKMS has an `amdgpu` tree, but none for the running kernel |
+
+That last one is the case worth an alert: a kernel upgrade where
+the rebuild did not happen, so the kernel now running has no
+out-of-tree `amdgpu` at all. It mirrors the existing
+`rocm_version_prefix_mismatch`, and exists for the same reason —
+a blank column does not say *why* it is blank.
+
+Three details in the DKMS lookup are load-bearing:
+
+**`dkms status` is scoped with both `-m amdgpu` and `-k $(uname
+-r)`.** Both GPU hosts have `amdgpu` built for two kernels at
+once, so an unscoped query returns several lines with no single
+version to report. `-m` matters independently: `snoc-strix` also
+carries `AMDPowerProfiler` and `xrt` trees.
+
+**Both `dkms status` output formats are parsed.** dkms 3.x (3.2.2
+on both hosts) prints the module and version slash-joined,
+`amdgpu/7.1.9-2407772.26.04, 7.0.0-38-generic, x86_64:
+installed`; dkms 2.x prints them as separate comma-separated
+fields. The script trims at the colon and tests for the slash,
+rather than parsing the status text, which is translated on some
+systems.
+
+**The `modinfo` fallback is guarded on the module path.** Where
+the `dkms` CLI is absent, the version comes from `modinfo -F
+version amdgpu` — but only when `modinfo -F filename amdgpu`
+resolves under `/updates/dkms/`. The inbox `amdgpu` answers
+`modinfo -F version` on some kernels, and reporting that as a
+DKMS version would be quietly wrong.
+
+**The label is `dkms_version`, not `version`.** GPU Inventory
+joins its targets with a `seriesToColumns` transform on
+`server_name`; a second frame carrying a `version` label collides
+with the ROCm column's and one of the two is dropped. Naming it
+apart at the source keeps the dashboard query a plain `max by`
+instead of a `label_replace` that has to strip the original label
+again afterwards.
 
 This does not reuse `rocm_aic_rocm_version_info`, which used to
 carry the same number on `snoc-thinkstation`. That series came
@@ -576,16 +687,38 @@ installs:
 
 | Host | `PATH` | `/opt/rocm` |
 | ---- | ------ | ----------- |
-| `snoc-thinkstation` | 7.14.60850 | same |
-| `snoc-strix` | 7.14.60850 | same |
-| `snoc-gaming` | 7.15.26333 | same |
-| `amd-laptop` | 7.15.26333 | **7.2.53211** |
+| `snoc-thinkstation` | 10.1.0 | same |
+| `snoc-strix` | 10.1.0 | same |
+| `snoc-gaming` | 10.1.0 | same |
+| `amd-laptop` | 10.1.0 | same |
+
+All four rows were measured after the switch to release versions.
+The figures previously in this table were HIP runtime versions, so
+none of the old numbers were carried over — the comparison is now
+between ROCm *releases*, and the old values were not merely stale
+but the wrong quantity.
+
+**`amd-laptop` no longer has two ROCm installs.** The dual-prefix
+case this table was built around is gone: that host now carries
+only `core-10.1`, and `/usr/bin/hipconfig` and
+`/opt/rocm/bin/hipconfig` both resolve to it, so
+`rocm_version_prefix_mismatch` does not fire anywhere on the fleet
+today. The metric is kept because the condition it detects is a
+property of `update-alternatives`, not of that one host, and
+nothing stops a future install from reintroducing it.
+
+Note `snoc-gaming` is a WSL host, so `deploy-agent.sh` installs
+`wsl-wifi` alongside `rocm-version` there, and it reports
+`amdgpu_dkms_present 0` — the GPU arrives over `/dev/dxg` and
+there is no kernel module to version.
 
 `amd-laptop`'s `/opt/rocm` is a symlink to
-`/etc/alternatives/rocm` pointing at the older install, so
+`/etc/alternatives/rocm` pointing at an older install, so
 `rocm_version_prefix_mismatch` is emitted whenever the two
 disagree. Without it the column shows a plausible version and
-nothing hints that the prefix resolves elsewhere.
+nothing hints that the prefix resolves elsewhere. That metric now
+compares release versions too, so it will not fire merely because
+two prefixes ship a different HIP runtime version.
 
 **Two hosts needed a node-exporter flag.** `snoc-gaming` and
 `amd-laptop` had no `--collector.textfile.directory` at all, so
@@ -613,6 +746,51 @@ it also writes a `<collector>.service.d/textfile-dir.conf`
 drop-in pinning the resolved directory; a drop-in rather than an
 edit to the unit, so the path stays a property of the host and
 the units in git stay host-agnostic.
+
+**A host installed before the drop-in needs `deploy-agent.sh` run
+again.** The paragraph above describes the fix; it does not
+retroactively apply to hosts installed before it existed.
+`snoc-thinkstation` and `snoc-strix` carried a Sep 8 install with
+no `rocm-version.service.d/textfile-dir.conf`, so the collector
+kept its default of `/var/lib/node_exporter/textfile_collector`
+while node-exporter read `/var/lib/prometheus/node-exporter`. Every
+symptom pointed away from the cause: the timer was `enabled` and
+`active`, the service exited 0, and a current, correct
+`rocm-version.prom` sat on disk — but
+`curl -s localhost:9100/metrics | grep -c '^rocm_version'` returned
+`0`, and the ROCm column was empty on precisely the two hosts that
+*had* ROCm. Re-running `deploy-agent.sh` writes the missing drop-in
+and leaves `ARGS` alone. The orphaned `.prom` under the old path is
+worth deleting by hand afterwards, so a later reader is not misled
+by a file that nothing reads.
+
+**And the detection that avoids all this was itself broken.**
+`detect_textfile_dir` read the compiled-in default out of
+`prometheus-node-exporter --help`, matching only the quoted
+rendering `="..."` that older kingpin builds emit. Debian's
+node_exporter 1.10.2 prints it bare:
+
+```text
+--collector.textfile.directory=/var/lib/prometheus/node-exporter ...
+```
+
+so the match failed and the function returned empty — on every host
+whose directory comes from the compiled-in default, which is all of
+them. Empty is the one wrong answer that does damage: it means
+"node-exporter reads nothing", and the caller responds by appending
+`--collector.textfile.directory` and restarting. On
+`snoc-thinkstation` that would have redirected node-exporter from
+`/var/lib/prometheus/node-exporter` — where it was actively serving
+3 `smartmon_device_info`, 4 `apt_upgrades_pending` and 3
+`node_nvme_info` series — to a directory holding only
+`rocm-version.prom`. Fixing the ROCm column would have cost SMART
+health for the disk the backup reads, which is precisely the
+regression the surrounding comments were written to prevent. The
+`--help` branch now reuses the same optional-quote pattern as the
+`ARGS` and unit branches, so both renderings resolve and an unset
+default still yields empty. A `--dry-run` that reports *"adding
+--collector.textfile.directory"* on a host that already serves
+textfile metrics is the signal that this has regressed again.
 
 **The dashboard query is scoped to `job="node"`, deliberately.**
 A remote-written copy of the older `rocm_aic_rocm_version_info`

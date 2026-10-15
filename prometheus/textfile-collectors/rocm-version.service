@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 [Unit]
-Description=Publish the ROCm/HIP version as a node-exporter textfile metric
+Description=Publish the ROCm/HIP and amdgpu DKMS versions as node-exporter textfile metrics
 
 [Service]
 Type=oneshot
