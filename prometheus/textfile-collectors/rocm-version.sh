@@ -89,13 +89,38 @@ alt_version() {
     return 0
 }
 
-# The amdgpu driver version as Debian records it. This is the
-# number to report: it is what `apt policy amdgpu-dkms` compares
-# against, what the AMD repo advertises, and what an upgrade
-# changes. The dkms tree version below is a different string for
-# the same driver -- dpkg says 1:7.1.9.31600000-2407772.26.04
-# where dkms says 7.1.9-2407772.26.04 -- and only the dpkg one
-# can be matched against a package list.
+# The driver release in AMD's own 30.x/31.x scheme, e.g.
+# 31.60.0.0. This is the number the column shows, because it is
+# the one AMD versions the driver by: the apt source on these
+# hosts is repo.radeon.com/amdgpu/31.60/ubuntu, and AMD's driver
+# documentation is published per 31.x line.
+#
+# amdgpu-dkms carries it only in packed form -- its version is
+# 1:7.1.9.31600000-2407772.26.04, where 31600000 is 31.60.0.0
+# with the dots removed. amdgpu-dkms-firmware spells it out:
+# 1:31.60.0.0.31600000-2407772.26.04. Read it from there rather
+# than unpacking the digits, which would be guessing at the
+# grouping -- 31600000 could be split several defensible ways
+# and only the firmware package says which is right.
+amdgpu_driver_release() {
+    local v
+    command -v dpkg-query >/dev/null 2>&1 || return 0
+    v="$(dpkg-query -W -f='${Status} ${Version}' amdgpu-dkms-firmware 2>/dev/null)" || return 0
+    [[ "$v" == "install ok installed "* ]] || return 0
+    v="${v##* }"
+    v="${v#*:}"
+    # Four components, not "everything before the packed field":
+    # the release is 31.60.0.0 and the packed digits follow it as
+    # a fifth, so a greedy split would swallow them.
+    echo "$v" | awk -F. 'NF>=4 {print $1"."$2"."$3"."$4}'
+    return 0
+}
+
+# The full amdgpu-dkms version as Debian records it. Kept as its
+# own series rather than shown in the column: it is what
+# `apt policy amdgpu-dkms` compares against, so it is the string
+# to quote in a support ticket, but it buries the release the
+# column is actually about.
 dpkg_amdgpu_version() {
     local v
     command -v dpkg-query >/dev/null 2>&1 || return 0
@@ -183,7 +208,13 @@ ALT="$(alt_version "$VERSION")"
 DKMS_BUILT="$(dkms_amdgpu_version | tr -d '[:space:]')"
 [[ -n "$DKMS_BUILT" ]] || DKMS_BUILT="$(modinfo_dkms_version)"
 
-DKMS_VERSION="$(dpkg_amdgpu_version)"
+# Preference order for the column: AMD's driver release, then the
+# raw package version, then whatever DKMS has built. Each is a
+# strictly worse answer to "which driver is this" than the one
+# before it, but any of them beats a blank cell.
+DKMS_PKG="$(dpkg_amdgpu_version)"
+DKMS_VERSION="$(amdgpu_driver_release)"
+[[ -n "$DKMS_VERSION" ]] || DKMS_VERSION="$DKMS_PKG"
 [[ -n "$DKMS_VERSION" ]] || DKMS_VERSION="$DKMS_BUILT"
 
 DKMS_MISMATCH=0
@@ -248,9 +279,14 @@ trap 'rm -f "$TMP"' EXIT
     # mismatch case -- that is precisely when you want to see
     # which driver package is sitting there unbuilt.
     if [[ -n "$DKMS_VERSION" ]]; then
-        echo '# HELP amdgpu_dkms_version_info amdgpu driver version, from dpkg where available (gauge 1).'
+        echo '# HELP amdgpu_dkms_version_info amdgpu driver release, e.g. 31.60.0.0 (gauge 1).'
         echo '# TYPE amdgpu_dkms_version_info gauge'
         printf 'amdgpu_dkms_version_info{dkms_version="%s"} 1\n' "$DKMS_VERSION"
+    fi
+    if [[ -n "$DKMS_PKG" ]]; then
+        echo '# HELP amdgpu_dkms_package_info amdgpu-dkms version as dpkg records it (gauge 1).'
+        echo '# TYPE amdgpu_dkms_package_info gauge'
+        printf 'amdgpu_dkms_package_info{package_version="%s"} 1\n' "$DKMS_PKG"
     fi
     if [[ -n "$DKMS_BUILT" ]]; then
         echo '# HELP amdgpu_dkms_module_info amdgpu DKMS tree version built for the running kernel (gauge 1).'

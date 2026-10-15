@@ -563,7 +563,8 @@ versioned independently of the release and does not track it:
 | ------ | ------ | ---------------- |
 | `rocm_version_info{version}` | `$(hipconfig --path)/.info/version` | `10.1.0` |
 | `rocm_hip_version_info{hip_version}` | `hipconfig --version` | `7.16.26385-0000000` |
-| `amdgpu_dkms_version_info{dkms_version}` | `dpkg-query amdgpu-dkms` | `1:7.1.9.31600000-2407772.26.04` |
+| `amdgpu_dkms_version_info{dkms_version}` | `amdgpu-dkms-firmware`, first four fields | `31.60.0.0` |
+| `amdgpu_dkms_package_info{package_version}` | `dpkg-query amdgpu-dkms` | `1:7.1.9.31600000-2407772.26.04` |
 | `amdgpu_dkms_module_info{module_version}` | `dkms status` | `7.1.9-2407772.26.04` |
 
 The release comes from the active core prefix rather than a fixed
@@ -575,13 +576,30 @@ follows that link; a hardcoded `/opt/rocm` would not. Note there
 is no `/opt/rocm/.info/version` on these hosts at all, only one
 per core.
 
-The driver version comes from `dpkg`, not from `dkms`. Both
-describe the same
-driver, but only the `dpkg` string can be compared against
-`apt policy amdgpu-dkms` or the AMD repo. The dkms tree version is
-still published as `amdgpu_dkms_module_info`, because it is the one
-that answers "what is actually built for the running kernel" —
-dpkg will happily report a package whose module was never rebuilt.
+The column shows AMD's own driver release — `31.60.0.0` — not
+the Debian package string. That is the number AMD versions the
+driver by: the apt source on these hosts is
+`repo.radeon.com/amdgpu/31.60/ubuntu`, and the driver
+documentation is published per 31.x line, so it is the value that
+can be matched against a release note or a repo path.
+
+`amdgpu-dkms` carries it only packed: its version is
+`1:7.1.9.31600000-2407772.26.04`, where `31600000` is `31.60.0.0`
+with the dots removed. `amdgpu-dkms-firmware` spells it out as
+`1:31.60.0.0.31600000-2407772.26.04`, so the release is read from
+there and not unpacked from the digits — `31600000` could be split
+several defensible ways, and only the firmware package says which
+is right. The first *four* dot-separated fields are taken, because
+the packed digits follow the release as a fifth and a greedy split
+would swallow them.
+
+The full `dpkg` string is kept as `amdgpu_dkms_package_info` —
+it is what `apt policy amdgpu-dkms` compares against, so it is the
+one to quote in a support ticket. Both
+describe the same driver. The dkms tree version is published as
+`amdgpu_dkms_module_info`, because it alone answers "what is
+actually built for the running kernel" — dpkg will happily report
+a package whose module was never rebuilt.
 
 One collector rather than two: the cadence is identical (both
 change only on a package upgrade), the host set is identical, and
@@ -671,17 +689,28 @@ installs:
 | ---- | ------ | ----------- |
 | `snoc-thinkstation` | 10.1.0 | same |
 | `snoc-strix` | 10.1.0 | same |
-| `snoc-gaming` | *unverified* | *unverified* |
-| `amd-laptop` | *unverified* | mismatch expected |
+| `snoc-gaming` | 10.1.0 | same |
+| `amd-laptop` | 10.1.0 | same |
 
-The two verified rows were measured after the switch to release
-versions. The other two are marked unverified rather than carried
-over, because the figures previously in this table were HIP
-runtime versions — the comparison is now between ROCm *releases*,
-so the old numbers were not merely stale but the wrong quantity.
-`snoc-gaming` was powered off and `amd-laptop` unreachable over
-`ssh` when this was written; re-measure with
-`hipconfig --path` and `cat "$(hipconfig --path)/.info/version"`.
+All four rows were measured after the switch to release versions.
+The figures previously in this table were HIP runtime versions, so
+none of the old numbers were carried over — the comparison is now
+between ROCm *releases*, and the old values were not merely stale
+but the wrong quantity.
+
+**`amd-laptop` no longer has two ROCm installs.** The dual-prefix
+case this table was built around is gone: that host now carries
+only `core-10.1`, and `/usr/bin/hipconfig` and
+`/opt/rocm/bin/hipconfig` both resolve to it, so
+`rocm_version_prefix_mismatch` does not fire anywhere on the fleet
+today. The metric is kept because the condition it detects is a
+property of `update-alternatives`, not of that one host, and
+nothing stops a future install from reintroducing it.
+
+Note `snoc-gaming` is a WSL host, so `deploy-agent.sh` installs
+`wsl-wifi` alongside `rocm-version` there, and it reports
+`amdgpu_dkms_present 0` — the GPU arrives over `/dev/dxg` and
+there is no kernel module to version.
 
 `amd-laptop`'s `/opt/rocm` is a symlink to
 `/etc/alternatives/rocm` pointing at an older install, so
