@@ -1,0 +1,12 @@
+# Excluded from the cua-driver Docker image build context.
+.git
+.hg
+.svn
+*.md
+.deploy
+*.log
+node_modules
+.DS_Store
+# The compose file lives alongside the Dockerfile in the context but is not
+# needed inside the image.
+batesste-cua-driver.dc.yml

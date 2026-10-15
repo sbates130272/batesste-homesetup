@@ -71,7 +71,6 @@ if [[ "${CUA_AUTOSTART_BROWSER:-1}" == "1" ]]; then
         --no-sandbox \
         --disable-gpu \
         --disable-software-rasterizer \
-        --disable-dev-shm-usage \
         --force-renderer-accessibility \
         --start-maximized \
         --user-data-dir=/home/agent/.config/google-chrome \

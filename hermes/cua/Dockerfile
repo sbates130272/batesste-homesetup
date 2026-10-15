@@ -18,16 +18,44 @@ ARG USERNAME=agent
 ARG UID=1000
 ARG GID=1000
 
+LABEL org.opencontainers.image.title="batesste-cua-driver" \
+      org.opencontainers.image.description="Disposable GUI desktop for Hermes Agent computer_use — Xvfb, Chrome, cua-driver, noVNC" \
+      org.opencontainers.image.url="https://github.com/batesste/batesste-homesetup/tree/main/hermes/cua" \
+      org.opencontainers.image.source="https://github.com/batesste/batesste-homesetup/tree/main/hermes/cua" \
+      org.opencontainers.image.version="${CUA_DRIVER_VERSION}" \
+      org.opencontainers.image.vendor="Stephen Bates"
+
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Add Google's Chrome repo for the latest stable Chrome (need curl+gnupg first)
-# then install the X stack, accessibility stack, Chrome, and cua-driver.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl gnupg \
-    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
+# The host environment proxies through 127.0.0.1:8888 (mitmproxy / similar).
+# Docker BuildKit injects HTTP_PROXY/HTTPS_PROXY at the daemon level — shell
+# env overrides are ignored because they come from a mechanism that survives
+# into every RUN layer.  We neutralise this in three places:
+#   1. NO_PROXY ENV + /etc/environment — for wget, apt, and shell tools
+#   2. /etc/apt/apt.conf.d/99noproxy — apt's own config
+#   3. /etc/curlrc + curl --noproxy '*' — curl goes direct
+
+ENV NO_PROXY=localhost,127.0.0.1,*.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,deb.debian.org,security.debian.org,archive.ubuntu.com,security.ubuntu.com,dl.google.com,github.com,objects.githubusercontent.com,release-assets.githubusercontent.com
+
+# /etc/environment is picked up by PAM on login AND by Docker as an env-file
+# at build time, so it survives BuildKit's proxy injection.
+RUN printf 'NO_PROXY="%s"\n' "${NO_PROXY}" > /etc/environment \
+    && printf 'Acquire::http::Proxy "false";\nAcquire::https::Proxy "false";\n' > /etc/apt/apt.conf.d/99noproxy \
+    && printf 'all-proxy = disabled\n' > /etc/curlrc
+
+# Add Google's Chrome repo (need curl+gnupg first).  Chrome is installed via
+# the apt repo below rather than a downloaded .deb — that way the version
+# tracked in the image stays in sync with the repository on rebuilds instead
+# of a hard-coded download URL.
+#
+# Docker BuildKit injects HTTP_PROXY/HTTPS_PROXY from the host.  We use
+# `env -u` to strip those from curl's env so it goes direct.
+RUN set -xe; \
+    apt-get update && apt-get install -y --no-install-recommends \
+            ca-certificates curl gnupg && \
+    curl -fsSL --noproxy '*' https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
             xvfb x11-utils x11-xserver-utils xauth \
             openbox xterm \
             dbus dbus-x11 \
@@ -35,8 +63,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
             x11vnc novnc websockify \
             fonts-dejavu fonts-liberation \
             google-chrome-stable \
-            xdg-utils procps \
-    && rm -rf /var/lib/apt/lists/*
+            xdg-utils procps && \
+    apt-get purge -y curl gnupg && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
 # Installed by hand rather than through upstream's install.sh: the
 # installer resolves "latest" at build time, which would make the image
