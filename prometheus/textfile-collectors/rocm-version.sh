@@ -3,9 +3,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Publish the host's ROCm/HIP stack version as a node-exporter
-# textfile metric, for the ROCm column on the LAN Overview
-# dashboard's GPU Inventory table.
+# Publish the host's ROCm/HIP stack version and its amdgpu DKMS
+# module version as node-exporter textfile metrics, for the ROCm
+# and DKMS columns on the LAN Overview dashboard's GPU Inventory
+# table.
 #
 # This exists as its own collector rather than reusing
 # rocm_aic_rocm_version_info, which used to report the same
@@ -57,6 +58,59 @@ alt_version() {
     return 0
 }
 
+# The amdgpu DKMS tree version, scoped to the running kernel.
+# Both GPU hosts have amdgpu built for two kernels at once, so an
+# unscoped `dkms status` returns several lines and there is no
+# single version to report -- -k pins it to the one we booted.
+# -m matters too: snoc-strix also carries AMDPowerProfiler and
+# xrt trees, which an unfiltered status would interleave.
+#
+# Two output formats are in the wild. dkms 3.x (3.2.2 on both
+# hosts) prints the module and version as one slash-joined field,
+# "amdgpu/7.1.9-2407772.26.04, 7.0.0-38-generic, x86_64:
+# installed"; dkms 2.x prints them as separate comma-separated
+# fields. Trimming at the colon and testing for the slash covers
+# both without parsing the status text itself, which is
+# translated on some systems.
+dkms_amdgpu_version() {
+    local line first
+    command -v dkms >/dev/null 2>&1 || return 0
+    line="$(dkms status -m amdgpu -k "$(uname -r)" 2>/dev/null | head -1)"
+    [[ -n "$line" ]] || return 0
+    line="${line%%:*}"
+    first="${line%%,*}"
+    if [[ "$first" == */* ]]; then
+        echo "${first#*/}"
+    else
+        echo "$line" | awk -F', *' '{print $2}'
+    fi
+    return 0
+}
+
+# Fallback for a DKMS-built module on a host without the dkms
+# CLI. The filename guard is the whole point: the inbox amdgpu
+# also answers `modinfo -F version` on some kernels, and
+# reporting that as a DKMS version would be quietly wrong.
+# Anything DKMS built lands under /updates/dkms/.
+modinfo_dkms_version() {
+    local f v
+    f="$(modinfo -F filename amdgpu 2>/dev/null)" || return 0
+    [[ "$f" == */updates/dkms/* ]] || return 0
+    v="$(modinfo -F version amdgpu 2>/dev/null | head -1 | tr -d '[:space:]')"
+    [[ -n "$v" ]] && echo "$v"
+    return 0
+}
+
+# True when DKMS knows about amdgpu for *some* kernel. Only
+# consulted once the running-kernel lookup has already come back
+# empty, which makes the pair of them a real diagnosis rather
+# than a blank column: the rebuild after a kernel upgrade did not
+# happen, so the kernel now running has no out-of-tree amdgpu.
+dkms_has_amdgpu_tree() {
+    command -v dkms >/dev/null 2>&1 || return 1
+    dkms status -m amdgpu 2>/dev/null | grep -q .
+}
+
 VERSION=""
 if HIPCONFIG="$(find_hipconfig)"; then
     # --version prints the HIP runtime version, e.g.
@@ -70,6 +124,17 @@ if HIPCONFIG="$(find_hipconfig)"; then
     VERSION="$("$HIPCONFIG" --version 2>/dev/null | tr -d '[:space:]')" || VERSION=""
 fi
 ALT="$(alt_version "$VERSION")"
+
+# Trimmed the same way the hipconfig reading is: a stray space
+# would not break the exposition format, but it would land in the
+# label and show up in the dashboard column.
+DKMS_VERSION="$(dkms_amdgpu_version | tr -d '[:space:]')"
+[[ -n "$DKMS_VERSION" ]] || DKMS_VERSION="$(modinfo_dkms_version)"
+
+DKMS_MISMATCH=0
+if [[ -z "$DKMS_VERSION" ]] && dkms_has_amdgpu_tree; then
+    DKMS_MISMATCH=1
+fi
 
 TMP="$(mktemp "${OUT}.XXXXXX")"
 trap 'rm -f "$TMP"' EXIT
@@ -93,6 +158,33 @@ trap 'rm -f "$TMP"' EXIT
         # indistinguishable in the TSDB, and only one of those is
         # worth chasing.
         echo 'rocm_version_present 0'
+    fi
+
+    # The label is dkms_version rather than the version used
+    # above, and that is not a style slip. GPU Inventory joins
+    # its targets with a seriesToColumns transform; a second
+    # frame carrying a `version` label collides with the ROCm
+    # column's and one of the two gets dropped. Naming it apart
+    # at the source keeps the dashboard query a plain `max by`.
+    echo '# HELP amdgpu_dkms_present 1 if an out-of-tree amdgpu DKMS module is built for the running kernel.'
+    echo '# TYPE amdgpu_dkms_present gauge'
+    if [[ -n "$DKMS_VERSION" ]]; then
+        echo 'amdgpu_dkms_present 1'
+        echo '# HELP amdgpu_dkms_version_info amdgpu DKMS tree version for the running kernel (gauge 1).'
+        echo '# TYPE amdgpu_dkms_version_info gauge'
+        printf 'amdgpu_dkms_version_info{dkms_version="%s"} 1\n' "$DKMS_VERSION"
+    else
+        # Absent covers three different hosts: the inbox amdgpu
+        # driver, no AMD GPU at all, and WSL, where the GPU
+        # arrives over /dev/dxg and there is no kernel module to
+        # version. None of them is a fault, so none of them gets
+        # a mismatch series.
+        echo 'amdgpu_dkms_present 0'
+        if (( DKMS_MISMATCH )); then
+            echo '# HELP amdgpu_dkms_kernel_mismatch amdgpu is built by DKMS but not for the running kernel (gauge 1).'
+            echo '# TYPE amdgpu_dkms_kernel_mismatch gauge'
+            echo 'amdgpu_dkms_kernel_mismatch 1'
+        fi
     fi
 } > "$TMP"
 

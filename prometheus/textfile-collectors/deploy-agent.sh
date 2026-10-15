@@ -29,11 +29,18 @@ a WiFi signal reading at all, and s3-backup-age.sh plus its timer
 on whichever host carries batesste-s3-backup.service. And -- on
 hosts that do not already have one -- adds
 --collector.textfile.directory to the node-exporter ARGS and
-restarts the unit. snoc-thinkstation and snoc-strix already carry
-that flag; snoc-gaming, amd-laptop and snoc-beelink do not, and
-without it node-exporter reads no textfiles at all, so the
-collector would write a perfectly good .prom that nothing ever
-scrapes.
+restarts the unit.
+
+Re-running this on a host that already has the collectors is both
+safe and sometimes necessary. snoc-thinkstation and snoc-strix
+carried an install predating the textfile-dir.conf drop-in: the
+collector wrote to /var/lib/node_exporter/textfile_collector while
+node-exporter read its compiled-in default of
+/var/lib/prometheus/node-exporter, so every rocm_version series
+was written correctly and scraped by nobody, and the dashboard's
+ROCm column sat empty on exactly the hosts that had ROCm. The
+drop-in is what resolves that, so hosts installed before it exists
+need this script run again.
 
 Note that snoc-beelink gets rocm-version too, where it will report
 rocm_version_present 0 forever. That is the collector's documented

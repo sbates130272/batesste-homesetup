@@ -59,6 +59,8 @@ discoverable
 DisplayName
 distro
 distro's
+dkms
+DKMS
 DNS
 Dockerfile
 dotfiles
