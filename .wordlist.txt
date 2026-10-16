@@ -8,6 +8,7 @@ amd
 amdgpu
 amdsmi
 ansible
+APU
 ARGS
 ARP
 auth
@@ -31,6 +32,7 @@ canonicalising
 certbot
 cgroup
 cgroups
+CDNA
 changelog
 CIBC
 CLI
@@ -46,6 +48,7 @@ crontab
 CSV
 cua
 curation
+datacenter
 datasource
 datasources
 dBm
@@ -67,6 +70,7 @@ dotfiles
 dpkg
 Dpkg
 dyndns
+ECC
 EFI
 emporia
 emvue
@@ -144,6 +148,7 @@ JSONs
 kanban
 keepalived
 keyrings
+Kubernetes
 latency
 Lemonade
 livelock
@@ -250,6 +255,7 @@ scrollback
 sd
 SHA
 SIGTERM
+SLURM
 SimpleFIN
 smartplug
 smartplugs

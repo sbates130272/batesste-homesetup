@@ -657,7 +657,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.\n\nThe Exporter query is gated on node_uname_info because Prometheus synthesises up=0 for a statically configured target forever, powered on or not -- ungated, a machine that is switched off still produces a row here with every other column blank. Gating it matches Node Fleet: a host that stops reporting drops out of the table, and the Service Health tiles are what tell you it is down.\n\nColumns are grouped: identity (Node, GPU, PCIe), then the software stack (ROCm, DKMS), then live telemetry (Exporter, Temp, Power, Busy).\n\nROCm is the release version read from the active core prefix via `hipconfig --path` -- 10.1.0 on the GPU hosts -- and not the HIP runtime version, which is versioned separately (7.16.x) and is published as rocm_hip_version_info for anyone who needs it. DKMS is the amdgpu driver release in AMD's own 30.x/31.x scheme -- 31.60.0.0 here, matching the repo.radeon.com/amdgpu/31.60/ubuntu apt source. The full dpkg string is amdgpu_dkms_package_info, and the tree version actually built for the running kernel is amdgpu_dkms_module_info.\n\nA blank DKMS cell is not a fault -- it means the inbox amdgpu driver, no AMD GPU, or WSL, where the GPU arrives over /dev/dxg and there is no kernel module to version. The case worth chasing is amdgpu_dkms_kernel_mismatch, emitted when DKMS has an amdgpu tree but none built for the running kernel.",
+      "description": "Every AMD GPU on the LAN, detected from node_exporter's hwmon collector rather than from the vendor exporter. hwmon reports an amdgpu chip whenever the kernel driver is bound, so a card shows up here even if amd-gpu-metrics-exporter is down or serving an empty registry. Read the two together: a row with a PCI chip but Exporter DOWN is an exporter fault; Exporter UP with no PCI chip means the driver never bound (check for a blacklist in /etc/modprobe.d). GPU, Busy % and vendor power come from the exporter, so they stay blank until it is healthy.\n\nThe Exporter query is gated on node_uname_info because Prometheus synthesises up=0 for a statically configured target forever, powered on or not -- ungated, a machine that is switched off still produces a row here with every other column blank. Gating it matches Node Fleet: a host that stops reporting drops out of the table, and the Service Health tiles are what tell you it is down.\n\nColumns are grouped: identity (Node, GPU, PCIe), then the software stack (ROCm, DKMS, Lemonade), then live telemetry (Exporter, Temp, Power, Busy).\n\nLemonade is the TCP port of that host's responsive Lemonade endpoint, green, and a link into the Lemonade Metrics Dashboard pinned to the host. A yellow None means no lemonade-* job is scraping this node, or the one that is has a failing scrape -- there is no column for \"configured but down\", deliberately: the port is here to be clicked, and a port that is not answering is not worth offering. The port is read back out of the target's own instance label rather than hardcoded, because it is not a constant: amd-laptop runs the WSL server on 13306 while the others serve 13305, and that host's native Windows server on 13305 is deliberately not scraped at all. See prometheus.yml.\n\nIt is gated to the same host set as the PCIe query for the same reason the Exporter column is gated on node_uname_info: the join is an outer one, so an ungated lemonade host with no AMD GPU would add a row to a GPU table with every other cell blank. A Lemonade server on a GPU-less box therefore has no cell here at all, by design -- the Lemonade tile under Service Health is what counts those.\n\nROCm is the release version read from the active core prefix via `hipconfig --path` -- 10.1.0 on the GPU hosts -- and not the HIP runtime version, which is versioned separately (7.16.x) and is published as rocm_hip_version_info for anyone who needs it. DKMS is the amdgpu driver release in AMD's own 30.x/31.x scheme -- 31.60.0.0 here, matching the repo.radeon.com/amdgpu/31.60/ubuntu apt source. The full dpkg string is amdgpu_dkms_package_info, and the tree version actually built for the running kernel is amdgpu_dkms_module_info.\n\nA blank DKMS cell is not a fault -- it means the inbox amdgpu driver, no AMD GPU, or WSL, where the GPU arrives over /dev/dxg and there is no kernel module to version. The case worth chasing is amdgpu_dkms_kernel_mismatch, emitted when DKMS has an amdgpu tree but none built for the running kernel.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -881,6 +881,76 @@
                 "value": 110
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Lemonade"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "special",
+                    "options": {
+                      "match": "null",
+                      "result": {
+                        "color": "yellow",
+                        "index": 0,
+                        "text": "None"
+                      }
+                    }
+                  },
+                  {
+                    "type": "regex",
+                    "options": {
+                      "pattern": "^[0-9]+$",
+                      "result": {
+                        "color": "green",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "noValue",
+                "value": "None"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "yellow",
+                      "value": 0
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "links",
+                "value": [
+                  {
+                    "targetBlank": false,
+                    "title": "Lemonade Metrics Dashboard",
+                    "url": "/d/lemonade-built-in-metrics/lemonade-metrics-dashboard?var-instance=${__data.fields.Node}"
+                  }
+                ]
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
           }
         ]
       },
@@ -996,6 +1066,20 @@
           "legendFormat": "",
           "range": false,
           "refId": "H"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (server_name, lemonade_port) (\n    label_replace(\n        up{job=~\"lemonade-.*\"} == 1,\n        \"lemonade_port\", \"$1\", \"instance\", \".*:([0-9]+)\"\n    )\n)\nand on (server_name)\nmax by (server_name) (\n    node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    or node_uname_info{sysname=\"Linux\", release=~\".*(microsoft|WSL).*\"}\n)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "I"
         }
       ],
       "title": "GPU Inventory",
@@ -1022,28 +1106,35 @@
               "chip": true,
               "Time 7": true,
               "Time 8": true,
-              "Value #H": true
+              "Time 9": true,
+              "Value #H": true,
+              "Value #I": true
             },
             "indexByName": {
               "server_name": 0,
               "card_model": 1,
               "pcie": 2,
-              "Value #F": 5,
-              "Value #B": 6,
-              "Value #C": 7,
-              "Value #D": 8,
+              "Value #F": 6,
+              "Value #B": 7,
+              "Value #C": 8,
+              "Value #D": 9,
               "version": 3,
-              "Time 1": 9,
-              "Time 2": 10,
-              "Time 3": 11,
-              "Time 4": 12,
-              "Time 5": 13,
-              "Time 6": 14,
-              "Time 7": 15,
-              "Value #A": 16,
-              "Value #E": 17,
-              "chip": 18,
-              "dkms_version": 4
+              "Time 1": 10,
+              "Time 2": 11,
+              "Time 3": 12,
+              "Time 4": 13,
+              "Time 5": 14,
+              "Time 6": 15,
+              "Time 7": 16,
+              "Time 8": 17,
+              "Time 9": 18,
+              "Value #A": 19,
+              "Value #E": 20,
+              "Value #H": 21,
+              "Value #I": 22,
+              "chip": 23,
+              "dkms_version": 4,
+              "lemonade_port": 5
             },
             "renameByName": {
               "server_name": "Node",
@@ -1054,7 +1145,8 @@
               "Value #F": "Exporter",
               "pcie": "PCIe",
               "version": "ROCm",
-              "dkms_version": "DKMS"
+              "dkms_version": "DKMS",
+              "lemonade_port": "Lemonade"
             }
           }
         }

@@ -316,13 +316,23 @@ scrape_configs:
         labels:
           server_name: snoc-strix
 
-  # Same shape as the strix job, but the serve config lives on
-  # the Windows side: snoc-gaming runs Tailscale natively on
-  # Windows while lemond runs inside WSL2, which is in Mirrored
-  # networking mode -- so Windows and Linux share 127.0.0.1 and
-  # the Windows proxy reaches a Linux loopback listener.
+  # Same shape as the strix job. The serve config runs inside
+  # WSL, not on Windows: snoc-gaming has tailscaled active in the
+  # WSL2 instance, /usr/bin/tailscale owns 100.70.171.36, and
+  # there is no Windows Tailscale at the default install path.
+  # (An earlier revision of this comment claimed the reverse. It
+  # was wrong, and it cost an afternoon looking at the wrong side
+  # of the machine when this target went down.)
   #
-  #   tailscale serve --bg --https=13305 http://127.0.0.1:13305
+  #   sudo tailscale serve --bg --https=13305 http://127.0.0.1:13305
+  #
+  # Run that over ssh to the WSL instance. It is also the whole
+  # failure mode to check first: lemond can be perfectly healthy
+  # on 127.0.0.1:13305 -- answering 401, or 200 where no API key
+  # is set -- while `tailscale serve status` reports "No serve
+  # config" and Prometheus sees connection refused on the tailnet
+  # address. The serve config does not always survive a reboot or
+  # a Tailscale reinstall, and nothing warns when it is lost.
   #
   # The Windows firewall is not in this path and needs no rule
   # for 13305; serve traffic terminates inside tailscaled.
@@ -338,3 +348,57 @@ scrape_configs:
       - targets: ['snoc-gaming.fold-leaffish.ts.net:13305']
         labels:
           server_name: snoc-gaming
+
+  # amd-laptop is the odd one out three times over, and each
+  # difference is load-bearing.
+  #
+  # Port 13306, not 13305. This host runs *two* lemonade servers:
+  # the WSL one on 13306, and a native Windows one on 13305. Under
+  # WSL2 Mirrored networking the two share 127.0.0.1, so from
+  # inside the distro both answer and it is easy to scrape the
+  # wrong one. Only 13306 is here, deliberately: it enforces auth
+  # (401 to a missing or wrong Bearer token), while the Windows
+  # instance answers 200 unauthenticated and must not be put on
+  # any network.
+  #
+  # Plain http, not https. The other two are reached over the
+  # tailnet, where `tailscale serve` terminates TLS. Tailscale
+  # cannot run on this laptop -- it breaks ZScaler -- so the only
+  # route is a direct LAN bind, and the Bearer token therefore
+  # crosses the corporate LAN in clear. That is the accepted
+  # tradeoff for this host, not an oversight.
+  #
+  # The IP, not a name: amd-laptop does not resolve from the
+  # beelink, the same reason node.json and alloy.json address it
+  # as 10.0.0.107. Its kernel hostname is APCAN-MQ60818VV, so the
+  # server_name label is set explicitly, as everywhere else.
+  #
+  # Two things had to be true on the host for this to work, and
+  # neither is visible from here:
+  #   - lemond must bind all interfaces, via the drop-in at
+  #     /etc/systemd/system/lemond.service.d/bind-address.conf.
+  #     It binds 127.0.0.1 by default and the port is then
+  #     reachable only from inside the laptop.
+  #   - a Hyper-V firewall rule must allow 13306 inbound. WSL2
+  #     traffic crosses the Hyper-V vSwitch, so this rule -- not
+  #     iptables inside the distro -- is what decides it. See
+  #     loki/README.md on the identical 12345 case:
+  #
+  #       New-NetFirewallHyperVRule -Name "lemonade-13306" `
+  #         -DisplayName "lemonade 13306" -Direction Inbound `
+  #         -Action Allow -Protocol TCP -LocalPorts 13306 `
+  #         -VMCreatorId "{40E0AC32-46A5-438A-A0B2-2B479E8F2E90}"
+  #
+  #     That VMCreatorId is WSL, from Get-NetFirewallHyperVVMCreator.
+  #     The cmdlet has no -Force: re-running it once the name
+  #     exists fails as a duplicate, which looks like the rule did
+  #     not apply when in fact the first attempt succeeded.
+  - job_name: lemonade-amd-laptop
+    scheme: http
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/lemonade-api-key
+    static_configs:
+      - targets: ['10.0.0.107:13306']
+        labels:
+          server_name: amd-laptop
