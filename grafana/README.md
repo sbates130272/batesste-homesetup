@@ -23,6 +23,7 @@ grafana/
       rules.yaml              # backup alert rules
   dashboards/                 # first-party, one dir per Grafana folder
     amd-related/              # folder: AMD Related
+      amd-gpu-homelab.json
       amd-llm-metrics.json
     general/                  # folder: (root)
       github-actions.json
@@ -38,8 +39,6 @@ grafana/
     manifest.yaml             # provenance for each one
     dashboards/
       amd-related/
-        amd-device-metrics-gpu.json
-        amd-device-metrics-overview.json
         hsa-snoop.json
         lemonade-built-in-metrics.json
       home-network-related/
@@ -213,7 +212,7 @@ route: a red workflow stays red until someone sits down and
 fixes it, and an hourly reminder in the meantime is how this
 alert would become the one that gets swiped away unread.
 
-## Dashboards (15 total)
+## Dashboards (14 total)
 
 `provisioning/dashboards/dashboards.yaml` tells Grafana to
 watch `/var/lib/grafana/dashboards/<folder>/` for JSON
@@ -238,6 +237,7 @@ survives; `dashboards.yaml` says what to do if it doesn't.
 | General | GitHub Actions | Workflow health across the sbates130272 repositories, from `prometheus/gh-actions-exporter/` |
 | General | Loki Logs - Homelab | Fleet journals, in its own `homelab-loki` folder |
 | AMD Related | AMD LLM Metrics | Usage and approximate spend on the AMD internal LLM gateway |
+| AMD Related | AMD GPU Homelab | Telemetry for the four local AMD GPU cards, written against what they actually report |
 | Home Network | iCloud | iCloud storage and account metrics |
 | Home Network | Emporia SmartPlugs | Home power monitoring via smartplugs, named from `prometheus/emvue-exporter/labels.json` |
 | Home Network | Node Exporter Full | Full node-exporter metrics (upstream 1860, diverged) |
@@ -249,11 +249,43 @@ Adopted third-party dashboards (see below):
 
 | Folder | Dashboard | Upstream |
 |--------|-----------|----------|
-| AMD Related | AMD GPU Metric Dashboard | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json) |
-| AMD Related | AMD GPU Fleet Dashboard | [ROCm/device-metrics-exporter v1.5.1](https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json) |
 | AMD Related | HSA Snoop | [sbates130272/hsa-snoop](https://github.com/sbates130272/hsa-snoop) |
 | AMD Related | Lemonade Metrics Dashboard | [grafana.com 25422](https://grafana.com/grafana/dashboards/25422-lemonade-built-in-metrics/) |
 | Home Network | NVMe Exporter Device Metrics | [grafana.com 12736](https://grafana.com/grafana/dashboards/12736-nvme-exporter/) |
+
+### AMD GPU Homelab
+
+`dashboards/amd-related/amd-gpu-homelab.json`, UID
+`amd-gpu-homelab`. First-party, and the replacement for the two
+vendored device-metrics-exporter dashboards retired on
+2026-10-16 — AMD GPU Metric Dashboard and AMD GPU Fleet
+Dashboard, both now in `vendor/manifest.yaml` under `retired:`
+with their adoption notes intact.
+
+Those two were written for a datacenter of identical CDNA
+accelerators. This fleet is four different cards on four
+different paths to their telemetry: a Navi 48 on bare metal
+answering nearly everything, a Strix Halo APU with no amdsmi
+temperature and no graphics clock, the same APU again under WSL
+with power and activity but no sensors, and a second Navi 48
+reached over `/dev/dxg` that reports memory, ECC and the PCIe
+link and nothing else. The vendor files responded to that by
+drawing eleven permanently empty panels each, which the manifest
+had to spend several paragraphs telling you not to "fix".
+
+So every panel here takes the union of what the fleet supplies
+rather than naming one source: amdsmi first, node-exporter's
+hwmon second, and the alternate metric name where amdsmi
+publishes activity under two different ones. The clearest case is
+temperature — amdsmi supplies none at all on gfx1151, while
+hwmon has had an edge sensor on that card the whole time.
+
+Blank is still used, but it now means "no source on this host can
+answer", and each panel description names which card is missing
+from it and why. Verified against live Prometheus on adoption:
+all 33 queries parse, 32 return data, and the one that does not
+is the ECC-by-block table, which is empty exactly while no card
+has counted an error.
 
 ## Third-party dashboards
 
@@ -263,7 +295,7 @@ They now live under `vendor/`, with provenance recorded in
 `vendor/manifest.yaml`: UID, folder, upstream URL, and the
 date the JSON was captured.
 
-All five surviving vendor dashboards have a real upstream,
+All three surviving vendor dashboards have a real upstream,
 so refreshing one is fetch → diff → commit rather than
 "export whatever is running". Note that each has *diverged*
 from its upstream deliberately, and the manifest says how —
@@ -510,9 +542,10 @@ offers no hwmon amdgpu chip to fall back to.
 
 Note the fallback cannot rescue *any* WSL host for that
 reason, so the rename had to be handled by name. AMD's own
-vendor dashboards switch between the two names on a
+upstream dashboards switch between the two names on a
 `card_model` regex of MI-series board part numbers; do not
-copy that. The split is a function of exporter version, not
+copy that, and note it was one of the reasons the two
+vendored copies were retired on 2026-10-16. The split is a function of exporter version, not
 of card, and `amd-laptop` reports `AMD Radeon(TM) 8060S
 Graphics`, which matches none of those part numbers and lands
 on the wrong branch.

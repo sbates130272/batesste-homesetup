@@ -72,11 +72,27 @@ dashboards:
 
       Do NOT refresh from main without checking Loki first. Upstream
       85c6b424 (2026-09-01, NDJSON dispatch log) took it to 48 panels,
-      and 7 of the 9 new ones query a `loki` datasource. This server has
-      only prometheus and mysql provisioned, so those panels would render
-      as datasource errors. Either provision Loki first, or cherry-pick
-      the prometheus-only additions (the AIS Ops/Bytes/Snoop panels,
-      which upstream also renamed from AIS Status/AIS Total Bytes).
+      and 7 of the 9 new ones query a `loki` datasource. Either provision
+      Loki first, or cherry-pick the prometheus-only additions (the AIS
+      Ops/Bytes/Snoop panels, which upstream also renamed from AIS
+      Status/AIS Total Bytes).
+
+      Re-audited 2026-10-16. Upstream is now b9d9adc3 (2026-10-09, live
+      observability stack), still 48 panels, 50 prometheus targets and 8
+      loki ones. The original blocker above has expired -- Loki *is*
+      provisioned now, as snoc-beelink-loki -- but refreshing still buys
+      nothing, for a second reason: Loki carries only job="nginx" and
+      job="systemd-journal", and every one of those 8 panels selects
+      {job="hsa-snoop"}. The log stream has to exist before the panels
+      that read it are worth having, which means running hsa-snoop with
+      --log-dispatches and giving Alloy a scrape for its NDJSON. Until
+      then a refresh trades 39 working panels for 48 of which 8 are
+      empty. Note also that b9d9adc3 parameterises its datasources as
+      ${ds_prom}/${ds_loki}, so the datasource-binding edit applies to
+      it -- bind both, including the loki one, or provisioning will
+      leave them unresolved. The worked example is edit (a) on the two
+      retired AMD device-metrics-exporter entries at the end of this
+      file; they are the reason that edit has a letter.
 
   - uid: WwP1Px4Mz
     title: NVMe Exporter Device Metrics
@@ -109,188 +125,16 @@ dashboards:
       0=OK/1=WARN mappings. The dashboard also opened on an absolute time
       range frozen at 2026-03-04T16:26Z-16:46Z; it is now now-6h.
 
+      Re-audited 2026-10-16: 12736 is still revision 1, last updated
+      2020-08-01. Nothing upstream to merge, and the divergence above
+      stands.
+
       Imported without binding its ${DS_PROMETHEUS} input, so its panels
       pointed at either a literal unresolved variable or a datasource uid
       (afbhhnhhmsttsb) that does not exist on this server. All 48 real
       datasource references across the 20 panels were repointed to
       snoc-beelink-prometheus on adoption; the 49th is the built-in
       "-- Grafana --" annotation source and was left alone.
-
-  # ── AMD device-metrics-exporter ─────────────────────────────────
-  # Both files come from the same upstream tag, carry the same six
-  # local edits, and hit the same gfx1151 gaps. The long note is on
-  # the GPU entry; the Overview entry records only what differs.
-
-  - uid: ae0aj8euc43r4b
-    title: AMD GPU Metric Dashboard
-    file: dashboards/amd-related/amd-device-metrics-gpu.json
-    folder: AMD Related
-    upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json
-    upstream_ref: v1.5.1
-    upstream_metrics: https://github.com/ROCm/device-metrics-exporter
-    retrieved: 2026-09-06
-    created: 2026-09-06
-    notes: >-
-      Pinned to v1.5.1 because that is exactly what snoc-strix runs:
-      amdgpu-exporter 1.5.1-3~24.04, reporting v1.5.1-3 / GitCommit
-      66196fa73. Refresh by moving the tag when the package moves, not
-      from main. snoc-beelink has no egress to GitHub, so fetch through
-      snoc-strix:
-
-        ssh snoc-strix 'curl -sS https://raw.githubusercontent.com/\
-        ROCm/device-metrics-exporter/v1.5.1/grafana/dashboard_gpu.json'
-
-      Seven local edits. The first two are adoption boilerplate and a
-      re-fetch must redo them; the last five are real divergence and a
-      re-fetch would revert them:
-
-        (a) Dropped the __inputs / __elements / __requires import
-            wrapper and bound the 60 ${DS_PROMETHEUS} references to
-            ae8pyuqoyonpca plus the 3 ${DS_EXPRESSION} ones to
-            __expr__. Provisioning cannot answer import prompts --
-            skipping this is exactly how the NVMe dashboard ended up
-            pointing at a datasource uid that does not exist here.
-
-        (b) g_metrics_prefix defaulted to "amd_" (current, options and
-            query). This is a supported upstream knob, not a hack: its
-            own description reads "string to prefix names of metrics
-            queries (e.g. gpu_gfx_activity -> amd_gpu_gfx_activity)".
-
-        (c) Every gpu_gfx_busy_instantaneous selector gained an
-            `or ${g_metrics_prefix}gpu_gfx_activity{...}` fallback with
-            a byte-identical label selector -- 3 sites here (GPU Usage
-            B and C, GPU Compute Core Usage A). See the card_model note
-            below. On CDNA the first operand still wins, so upstream
-            behaviour is unchanged.
-
-        (d) The GPU Power Usage gauge queried
-            {"${g_metrics_prefix}gpu_average_package_power", hostname=...},
-            a quoted metric name inside the selector. That is the
-            Prometheus 3.0 UTF-8 name syntax and this server runs
-            2.45.3, which rejects it outright -- the panel showed a
-            parse error, not empty data. Rewritten to the classic
-            ${g_metrics_prefix}gpu_average_package_power{hostname=...}
-            form, which is semantically identical and parses on both.
-
-        (e) Retitled from "GPU", too generic for a folder shared with
-            HSA Snoop and Lemonade Metrics Dashboard. Retitled again
-            2026-09-15, to "AMD GPU Metric Dashboard", pairing it with
-            "AMD GPU Fleet Dashboard" below; the intermediate title was
-            "AMD GPU (device-metrics-exporter)", which named the
-            exporter rather than what the dashboard shows.
-
-        (f) Retagged from ["version: main"], which was untrue the
-            moment we pinned to v1.5.1.
-
-        (h) g_metrics_prefix and g_cluster_name set to hide: 2 in both
-            files -- 2026-09-08. Lettered (h) because (g) was already
-            taken by an Overview-only edit; this one applies to both.
-            Both pickers were inert but occupied the top bar. The
-            prefix is fixed at "amd_" by edit (b) and there is no
-            second value to choose: prometheus.yml rewrites every
-            __name__ to that prefix on ingest, so it is an invariant
-            of the TSDB rather than a per-host property. Cluster has
-            exactly one option, "amdgpu-k8s-metrics-exporter", which
-            is the exporter's packaged default string and not the name
-            of any cluster.
-
-            HIDDEN, NOT REMOVED, and the reason is not just the ~118
-            query references that would have to be rewritten.
-            g_cluster_name is load-bearing despite being meaningless:
-            g_hostname queries
-            label_values({cluster_name="$g_cluster_name"},hostname).
-            This Prometheus is a remote-write sink carrying AMD
-            datacenter GPUs, and those series carry no cluster_name at
-            all -- so that selector is the only thing keeping nine
-            MI350-class hostnames out of a homelab GPU picker.
-            Deleting the variable would widen the picker to the
-            datacenter; hiding it keeps the filter and drops the noise.
-
-      MetricsFieldPrefix: "amd_" is the exporter's *pristine* packaged
-      default -- /etc/metrics/config.json on snoc-strix has the md5
-      dpkg recorded, and upstream's own example/config.json sets the
-      same value at this tag. Yet upstream's dashboards default
-      g_metrics_prefix to "" and query bare gpu_*, so they do not work
-      against their own exporter out of the box. One panel in this file
-      even hardcodes amd_gpu_gfx_activity, which reads like a
-      half-finished fix. Keep (b) across upgrades.
-
-      The card_model regexes are a CDNA board-SKU allowlist. Panels
-      branch on card_model=~"102-D65208-0C|102-D67305-00|102-D65209-0C"
-      (and a longer MI-series list elsewhere), sending anything that
-      does not match into a !~ branch that queries
-      gpu_gfx_busy_instantaneous. Our card_model is "AMD Radeon 8060S
-      Graphics", so it always lands in that branch -- and amdsmi does
-      not supply gfx_busy_instantaneous on gfx1151. The result was
-      empty GPU-usage panels while amd_gpu_gfx_activity sat right there
-      populated. That is what (c) fixes.
-
-      EIGHT PANELS ARE DEAD ON gfx1151 AND MUST NOT BE "FIXED": PCIe
-      Max Speed, PCIe Counts, both PCIe Bandwidth panels, Energy
-      Consumed, GPU Temperature, Memory Temperature and Temperature
-      Sensors. amdsmi supplies no amd_pcie_*, no amd_gpu_*_temperature
-      and no amd_gpu_energy_consumed on Strix Halo -- the families are
-      absent from /metrics entirely, despite GPUConfig.Fields asking
-      for them. These are not dead for the fleet: snoc-thinkstation's
-      Navi 48 will populate them when that host returns. Repointing
-      them at something that resolves today would break them for the
-      only card that can answer, the same trap the hsa-snoop entry
-      above describes.
-
-      Verified 2026-09-06 against live Prometheus with the template
-      variables substituted: 0 of 31 targets fail to parse and 13
-      return data. The 18 empty ones are the CDNA =~ branches and the
-      absent families above.
-
-      `./sync-dashboards.sh --check` reports both AMD files as DRIFTED,
-      and that is expected and permanent. Unlike the three entries
-      around them, these were fetched from upstream rather than pulled
-      out of Grafana, so they still carry upstream's byte layout. The
-      whole diff is Grafana's normalisation on read: 16 threshold steps
-      losing `"value": null` and schemaVersion 39 -> 42. **Do not run
-      --pull to silence it.** That would replace these files with
-      Grafana's rendering and make the next `git diff` against v1.5.2
-      unreadable, which is the entire reason for pinning a tag.
-
-  - uid: fe0ayyeeoxvy8f
-    title: AMD GPU Fleet Dashboard
-    file: dashboards/amd-related/amd-device-metrics-overview.json
-    folder: AMD Related
-    upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json
-    upstream_ref: v1.5.1
-    upstream_metrics: https://github.com/ROCm/device-metrics-exporter
-    retrieved: 2026-09-06
-    created: 2026-09-06
-    notes: >-
-      Companion to the GPU dashboard above; read its notes first. Same
-      tag, same fetch path, same edits (a), (b), (c), (e), (f) and (h)
-      -- here that is 68 ${DS_PROMETHEUS} and 5 ${DS_EXPRESSION}
-      references and 9 gpu_gfx_busy_instantaneous fallback sites. Edit
-      (d) does not apply; this file has no quoted-metric selectors.
-
-      One extra edit, (g): the g_gpu_uuids variable queried
-      label_values(GPU_UUID) in both its `query` and its `definition`.
-      The label is lowercase gpu_uuid, so the picker was permanently
-      empty. Upstream typo, fixed here. Nothing references the
-      variable, so this only removes UI noise.
-
-      Retitled from "Overview", which in our folder tree reads as a
-      sibling of the first-party Home LAN Overview and is not. Retitled
-      again 2026-09-15, to "AMD GPU Fleet Dashboard", dropping the word
-      Overview entirely for the same reason and pairing it with "AMD GPU
-      Metric Dashboard" above; the intermediate title was "AMD GPU Fleet
-      Overview".
-
-      THREE PANELS READ ZERO BY DESIGN and must not be "fixed": Jobs,
-      Allocated GPUs, and Average GPU Usage of Allocated GPUs all
-      filter on job_id!="" or pod!="". Those labels come from a SLURM
-      or Kubernetes integration this homelab does not run, so there is
-      nothing to allocate GPUs to. Eight further panels are dead for
-      the gfx1151 telemetry reason described above.
-
-      Verified 2026-09-06 the same way: 0 of 44 targets fail to parse,
-      15 return data. It reports DRIFTED for the same harmless reason
-      as the GPU entry above, and must not be --pulled either.
 
   # ── Recovered from v2 storage ───────────────────────────────────
   # lemonade-built-in-metrics was stored in Grafana as a v2 dashboard
@@ -363,6 +207,23 @@ dashboards:
 
       The 2026-09-03 scrub added descriptions to the twelve panels that
       lacked them. Cosmetic, but it widens the diff against 25422 further.
+
+      Re-audited 2026-10-16: 25422 is still revision 1, last updated
+      2026-06-10, so there is nothing upstream to merge. Lemonade itself
+      has moved on though -- the fleet runs 2026.40.0 to 2026.42.1 and
+      now exports families no panel here reads: lemonade_routing_*,
+      lemonade_cache_tokens_total, lemonade_model_prompt_tokens* and the
+      llama.cpp spec-decode counters. Adding those is first-party work
+      against upstream_metrics, not a refresh; 25422 will not grow them.
+
+      All 23 metric names the panels reference still resolve, but only
+      lemonade_{server_up,requests_total,input_tokens_total,
+      output_tokens_total,loaded_models,max_loaded_models,
+      memory_used_gb,cpu_usage_percent} carry series for all three
+      hosts. The rest answer for snoc-strix alone, because the per-model
+      and GPU/NPU/VRAM families only appear once a host has actually
+      loaded a model. An empty panel on amd-laptop or snoc-gaming is
+      that, not breakage -- check the Instance variable before chasing it.
 
 # Dashboards deleted from the server. hsa-snoop-v1 and rocm-aic-dashboard
 # are archived under retired/ so they can be restored by hand --
@@ -512,3 +373,230 @@ retired:
       no per-plug color overrides, so its removal does not change the
       grafana-test check that every plug is the same color on every
       dashboard.
+
+  # ── Removed 2026-10-16, superseded rather than broken ───────────
+  # Both came from one upstream tag and both are replaced by the same
+  # first-party dashboard, so they are retired together. Nothing here
+  # was wrong: every local edit below still applies and the upstream
+  # JSON is still fetchable at the pinned tag, which is why the full
+  # adoption notes are carried over verbatim rather than summarised.
+  # Restoring one is: git show <commit>^:<path>, or re-fetch v1.5.1
+  # from GitHub and redo edits (a) through (h).
+
+  - uid: ae0aj8euc43r4b
+    title: AMD GPU Metric Dashboard
+    was: vendor/dashboards/amd-related/amd-device-metrics-gpu.json
+    folder: AMD Related
+    upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_gpu.json
+    upstream_ref: v1.5.1
+    upstream_metrics: https://github.com/ROCm/device-metrics-exporter
+    retrieved: 2026-09-06
+    created: 2026-09-06
+    deleted: 2026-10-16
+    reason: >-
+      Superseded by the first-party AMD GPU Homelab
+      (dashboards/amd-related/amd-gpu-homelab.json), which covers this
+      fleet rather than a datacenter of identical CDNA accelerators.
+
+      Not deleted for being broken. The queries are upstream's and they
+      parse; the problem is the assumption underneath them. This file
+      names one metrics source per panel, and the four cards here each
+      answer through a different one -- amdsmi for the Navi 48, hwmon
+      for the Strix Halo it has no temperature for, the alternate
+      gfx_busy_instantaneous name for the WSL host, and nothing at all
+      for the card behind /dev/dxg. The eight-panel gfx1151 gap
+      documented below, and the card_model SKU allowlist that causes
+      it, are the symptom.
+
+      The replacement takes the union of those sources per panel, so a
+      blank cell there means no source on that host can answer rather
+      than this card is not CDNA. Its temperature panel in particular
+      works on snoc-strix, which is the clearest case: amdsmi supplies
+      nothing on gfx1151 while hwmon has had an edge sensor all along.
+
+      Keep reading if you ever restore this. The notes below are the
+      only record of the seven adoption edits, and six of them would
+      have to be redone by hand on a re-fetch.
+    notes: >-
+      Pinned to v1.5.1 because that is what snoc-strix ran when this
+      was adopted: amdgpu-exporter 1.5.1-3~24.04, reporting v1.5.1-3 /
+      GitCommit 66196fa73. Refresh by moving the tag when the package
+      moves, not from main. snoc-beelink has no egress to GitHub, so
+      fetch through snoc-strix:
+
+        ssh snoc-strix 'curl -sS https://raw.githubusercontent.com/\
+        ROCm/device-metrics-exporter/v1.5.1/grafana/dashboard_gpu.json'
+
+      Seven local edits. The first two are adoption boilerplate and a
+      re-fetch must redo them; the last five are real divergence and a
+      re-fetch would revert them:
+
+        (a) Dropped the __inputs / __elements / __requires import
+            wrapper and bound the 60 ${DS_PROMETHEUS} references to
+            ae8pyuqoyonpca plus the 3 ${DS_EXPRESSION} ones to
+            __expr__. Provisioning cannot answer import prompts --
+            skipping this is exactly how the NVMe dashboard ended up
+            pointing at a datasource uid that does not exist here.
+
+        (b) g_metrics_prefix defaulted to "amd_" (current, options and
+            query). This is a supported upstream knob, not a hack: its
+            own description reads "string to prefix names of metrics
+            queries (e.g. gpu_gfx_activity -> amd_gpu_gfx_activity)".
+
+        (c) Every gpu_gfx_busy_instantaneous selector gained an
+            `or ${g_metrics_prefix}gpu_gfx_activity{...}` fallback with
+            a byte-identical label selector -- 3 sites here (GPU Usage
+            B and C, GPU Compute Core Usage A). See the card_model note
+            below. On CDNA the first operand still wins, so upstream
+            behaviour is unchanged.
+
+        (d) The GPU Power Usage gauge queried
+            {"${g_metrics_prefix}gpu_average_package_power", hostname=...},
+            a quoted metric name inside the selector. That is the
+            Prometheus 3.0 UTF-8 name syntax and this server runs
+            2.45.3, which rejects it outright -- the panel showed a
+            parse error, not empty data. Rewritten to the classic
+            ${g_metrics_prefix}gpu_average_package_power{hostname=...}
+            form, which is semantically identical and parses on both.
+
+        (e) Retitled from "GPU", too generic for a folder shared with
+            HSA Snoop and Lemonade Metrics Dashboard. Retitled again
+            2026-09-15, to "AMD GPU Metric Dashboard", pairing it with
+            "AMD GPU Fleet Dashboard" below; the intermediate title was
+            "AMD GPU (device-metrics-exporter)", which named the
+            exporter rather than what the dashboard shows.
+
+        (f) Retagged from ["version: main"], which was untrue the
+            moment we pinned to v1.5.1.
+
+        (h) g_metrics_prefix and g_cluster_name set to hide: 2 in both
+            files -- 2026-09-08. Lettered (h) because (g) was already
+            taken by an Overview-only edit; this one applies to both.
+            Both pickers were inert but occupied the top bar. The
+            prefix is fixed at "amd_" by edit (b) and there is no
+            second value to choose: prometheus.yml rewrites every
+            __name__ to that prefix on ingest, so it is an invariant
+            of the TSDB rather than a per-host property. Cluster has
+            exactly one option, "amdgpu-k8s-metrics-exporter", which
+            is the exporter's packaged default string and not the name
+            of any cluster.
+
+            HIDDEN, NOT REMOVED, and the reason is not just the ~118
+            query references that would have to be rewritten.
+            g_cluster_name is load-bearing despite being meaningless:
+            g_hostname queries
+            label_values({cluster_name="$g_cluster_name"},hostname).
+            This Prometheus is a remote-write sink carrying AMD
+            datacenter GPUs, and those series carry no cluster_name at
+            all -- so that selector is the only thing keeping nine
+            MI350-class hostnames out of a homelab GPU picker.
+            Deleting the variable would widen the picker to the
+            datacenter; hiding it keeps the filter and drops the noise.
+
+      MetricsFieldPrefix: "amd_" is the exporter's *pristine* packaged
+      default -- /etc/metrics/config.json on snoc-strix has the md5
+      dpkg recorded, and upstream's own example/config.json sets the
+      same value at this tag. Yet upstream's dashboards default
+      g_metrics_prefix to "" and query bare gpu_*, so they do not work
+      against their own exporter out of the box. One panel in this file
+      even hardcodes amd_gpu_gfx_activity, which reads like a
+      half-finished fix. Keep (b) across upgrades.
+
+      The card_model regexes are a CDNA board-SKU allowlist. Panels
+      branch on card_model=~"102-D65208-0C|102-D67305-00|102-D65209-0C"
+      (and a longer MI-series list elsewhere), sending anything that
+      does not match into a !~ branch that queries
+      gpu_gfx_busy_instantaneous. Our card_model is "AMD Radeon 8060S
+      Graphics", so it always lands in that branch -- and amdsmi does
+      not supply gfx_busy_instantaneous on gfx1151. The result was
+      empty GPU-usage panels while amd_gpu_gfx_activity sat right there
+      populated. That is what (c) fixes.
+
+      EIGHT PANELS ARE DEAD ON gfx1151 AND MUST NOT BE "FIXED": PCIe
+      Max Speed, PCIe Counts, both PCIe Bandwidth panels, Energy
+      Consumed, GPU Temperature, Memory Temperature and Temperature
+      Sensors. amdsmi supplies no amd_pcie_*, no amd_gpu_*_temperature
+      and no amd_gpu_energy_consumed on Strix Halo -- the families are
+      absent from /metrics entirely, despite GPUConfig.Fields asking
+      for them. These are not dead for the fleet: snoc-thinkstation's
+      Navi 48 will populate them when that host returns. Repointing
+      them at something that resolves today would break them for the
+      only card that can answer, the same trap the hsa-snoop entry
+      above describes.
+
+      The package has since moved -- snoc-strix runs v1.5.2-10 /
+      GitCommit 84dcc17a7 as of 2026-10-16, and upstream has tagged
+      v1.5.3 -- and the tag here was deliberately NOT bumped with it.
+      Both dashboard_gpu.json and dashboard_overview.json are
+      byte-identical at v1.5.1, v1.5.2 and v1.5.3 (md5 8f28c249 and
+      a845f3cf), so the pin names the last revision whose JSON was
+      actually diffed rather than the newest tag that exists. Re-check
+      the md5s when the package moves again; a refresh is only work
+      once they change.
+
+      Verified 2026-09-06 against live Prometheus with the template
+      variables substituted: 0 of 31 targets fail to parse and 13
+      return data. The 18 empty ones are the CDNA =~ branches and the
+      absent families above.
+
+      `./sync-dashboards.sh --check` reports both AMD files as DRIFTED,
+      and that is expected and permanent. Unlike the three entries
+      around them, these were fetched from upstream rather than pulled
+      out of Grafana, so they still carry upstream's byte layout. The
+      whole diff is Grafana's normalisation on read: 16 threshold steps
+      losing `"value": null` and schemaVersion 39 -> 42. **Do not run
+      --pull to silence it.** That would replace these files with
+      Grafana's rendering and make the next `git diff` against v1.5.2
+      unreadable, which is the entire reason for pinning a tag.
+
+  - uid: fe0ayyeeoxvy8f
+    title: AMD GPU Fleet Dashboard
+    was: vendor/dashboards/amd-related/amd-device-metrics-overview.json
+    folder: AMD Related
+    upstream: https://github.com/ROCm/device-metrics-exporter/blob/v1.5.1/grafana/dashboard_overview.json
+    upstream_ref: v1.5.1
+    upstream_metrics: https://github.com/ROCm/device-metrics-exporter
+    retrieved: 2026-09-06
+    created: 2026-09-06
+    deleted: 2026-10-16
+    reason: >-
+      Retired with its companion above and for the same reason;
+      superseded by the first-party AMD GPU Homelab. Its fleet-wide
+      framing is the part that carried over: the new dashboard's GPU
+      Fleet table is one row per card with every column sourced
+      independently, which is what this file was reached for and what
+      it could not do once the fleet stopped being homogeneous.
+
+      The three SLURM/Kubernetes panels below have no replacement and
+      do not need one -- there is still no scheduler here to allocate a
+      GPU to.
+    notes: >-
+      Companion to the GPU dashboard above; read its notes first. Same
+      tag, same fetch path, same edits (a), (b), (c), (e), (f) and (h)
+      -- here that is 68 ${DS_PROMETHEUS} and 5 ${DS_EXPRESSION}
+      references and 9 gpu_gfx_busy_instantaneous fallback sites. Edit
+      (d) does not apply; this file has no quoted-metric selectors.
+
+      One extra edit, (g): the g_gpu_uuids variable queried
+      label_values(GPU_UUID) in both its `query` and its `definition`.
+      The label is lowercase gpu_uuid, so the picker was permanently
+      empty. Upstream typo, fixed here. Nothing references the
+      variable, so this only removes UI noise.
+
+      Retitled from "Overview", which in our folder tree reads as a
+      sibling of the first-party Home LAN Overview and is not. Retitled
+      again 2026-09-15, to "AMD GPU Fleet Dashboard", dropping the word
+      Overview entirely for the same reason and pairing it with "AMD GPU
+      Metric Dashboard" above; the intermediate title was "AMD GPU Fleet
+      Overview".
+
+      THREE PANELS READ ZERO BY DESIGN and must not be "fixed": Jobs,
+      Allocated GPUs, and Average GPU Usage of Allocated GPUs all
+      filter on job_id!="" or pod!="". Those labels come from a SLURM
+      or Kubernetes integration this homelab does not run, so there is
+      nothing to allocate GPUs to. Eight further panels are dead for
+      the gfx1151 telemetry reason described above.
+
+      Verified 2026-09-06 the same way: 0 of 44 targets fail to parse,
+      15 return data. It reports DRIFTED for the same harmless reason
+      as the GPU entry above, and must not be --pulled either.
