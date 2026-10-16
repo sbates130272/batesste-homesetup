@@ -170,7 +170,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum(max by (server_name) (\n    amd_gpu_average_package_power{server_name=~\"$host\"}\n    or amd_gpu_package_power{server_name=~\"$host\"}\n    or (\n        (node_hwmon_power_watt{server_name=~\"$host\"} or node_hwmon_power_average_watt{server_name=~\"$host\"})\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n))",
+          "expr": "sum(max by (server_name) (amd_gpu_average_package_power{server_name=~\"$host\"})\nor\nmax by (server_name) (amd_gpu_package_power{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    (node_hwmon_power_watt{server_name=~\"$host\"} or node_hwmon_power_average_watt{server_name=~\"$host\"})\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n))",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -245,7 +245,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max(\n    max by (server_name) (\n    amd_gpu_edge_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp1\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)\n    or max by (server_name) (\n    amd_gpu_junction_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp2\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)\n    or max by (server_name) (\n    amd_gpu_memory_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp3\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)\n)",
+          "expr": "max(\n    label_replace(\n        max by (server_name) (amd_gpu_edge_temperature{server_name=~\"$host\"})\n        or\n        max by (server_name) (\n            node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp1\"}\n            and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n        ),\n        \"sensor_kind\", \"edge\", \"\", \"\"\n    )\n    or\n    label_replace(\n        max by (server_name) (amd_gpu_junction_temperature{server_name=~\"$host\"})\n        or\n        max by (server_name) (\n            node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp2\"}\n            and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n        ),\n        \"sensor_kind\", \"junction\", \"\", \"\"\n    )\n    or\n    label_replace(\n        max by (server_name) (amd_gpu_memory_temperature{server_name=~\"$host\"})\n        or\n        max by (server_name) (\n            node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp3\"}\n            and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n        ),\n        \"sensor_kind\", \"memory\", \"\", \"\"\n    )\n)",
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
@@ -259,7 +259,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Correctable, uncorrectable and deferred ECC counts summed over every block the exporter reports, for the selected hosts.\n\nAll four cards here publish the whole amd_gpu_ecc_* family and all of it reads zero, which is the expected state: none of this silicon has ECC memory enabled, so the counters exist and never move. The panel earns its place as a tripwire -- any non-zero value is either a genuine memory fault or a card reporting something new, and both are worth knowing about.\n\nPer-block detail is in the ECC table under Health.",
+      "description": "Correctable, uncorrectable and deferred ECC counts for the selected hosts, read from the exporter's own per-severity rollups rather than by summing the blocks.\n\nAll four cards here publish the whole amd_gpu_ecc_* family and all of it reads zero, which is the expected state: none of this silicon has ECC memory enabled, so the counters exist and never move. The panel earns its place as a tripwire -- any non-zero value is either a genuine memory fault or a card reporting something new, and both are worth knowing about.\n\nPer-block detail is in the ECC table under Health.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -769,7 +769,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_edge_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp1\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_edge_temperature{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp1\"}\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -782,7 +782,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_junction_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp2\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_junction_temperature{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp2\"}\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -795,7 +795,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_memory_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp3\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_memory_temperature{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp3\"}\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -808,7 +808,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_average_package_power{server_name=~\"$host\"}\n    or amd_gpu_package_power{server_name=~\"$host\"}\n    or (\n        (node_hwmon_power_watt{server_name=~\"$host\"} or node_hwmon_power_average_watt{server_name=~\"$host\"})\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_average_package_power{server_name=~\"$host\"})\nor\nmax by (server_name) (amd_gpu_package_power{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    (node_hwmon_power_watt{server_name=~\"$host\"} or node_hwmon_power_average_watt{server_name=~\"$host\"})\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -1025,7 +1025,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "The non-graphics engines: memory controller (UMC), matrix cores (MMA), video decode (VCN) and JPEG.\n\nUseful mostly as a division of labour. An LLM serving run shows up as matrix cores and memory controller moving together while the graphics engine does comparatively little; video and JPEG only move for media work, which on this fleet means essentially never.\n\nCoverage is uneven and that is the silicon, not the dashboard: UMC and MMA come from snoc-thinkstation alone, VCN and JPEG from snoc-thinkstation and amd-laptop. An empty panel here is normal on an idle fleet.",
+      "description": "The non-graphics engines: memory controller (UMC), matrix cores (MMA), video decode (VCN) and JPEG.\n\nUseful mostly as a division of labour. An LLM serving run shows up as matrix cores and memory controller moving together while the graphics engine does comparatively little; video and JPEG only move for media work, which on this fleet means essentially never.\n\nCoverage is uneven and that is the silicon, not the dashboard: UMC and MMA come from snoc-thinkstation alone, VCN from snoc-thinkstation and amd-laptop, and JPEG from amd-laptop alone -- the Navi 48 publishes no JPEG family at all, so a missing snoc-thinkstation JPEG series is the card, not a fault. An empty panel here is normal on an idle fleet.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1687,7 +1687,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_edge_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp1\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_edge_temperature{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp1\"}\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "legendFormat": "{{server_name}} edge",
           "range": true,
           "refId": "A"
@@ -1698,7 +1698,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_junction_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp2\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_junction_temperature{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp2\"}\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "legendFormat": "{{server_name}} junction",
           "range": true,
           "refId": "B"
@@ -1709,7 +1709,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_memory_temperature{server_name=~\"$host\"}\n    or (\n        node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp3\"}\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_memory_temperature{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    node_hwmon_temp_celsius{server_name=~\"$host\", sensor=\"temp3\"}\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "legendFormat": "{{server_name}} memory",
           "range": true,
           "refId": "C"
@@ -1808,7 +1808,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (server_name) (\n    amd_gpu_average_package_power{server_name=~\"$host\"}\n    or amd_gpu_package_power{server_name=~\"$host\"}\n    or (\n        (node_hwmon_power_watt{server_name=~\"$host\"} or node_hwmon_power_average_watt{server_name=~\"$host\"})\n        and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n    )\n)",
+          "expr": "max by (server_name) (amd_gpu_average_package_power{server_name=~\"$host\"})\nor\nmax by (server_name) (amd_gpu_package_power{server_name=~\"$host\"})\nor\nmax by (server_name) (\n    (node_hwmon_power_watt{server_name=~\"$host\"} or node_hwmon_power_average_watt{server_name=~\"$host\"})\n    and on (instance, chip) node_hwmon_chip_names{chip_name=\"amdgpu\"}\n)",
           "legendFormat": "{{server_name}}",
           "range": true,
           "refId": "A"
@@ -2019,7 +2019,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Any ECC block on any selected card with a non-zero count, correctable or not.\n\nEmpty is the correct and expected state, and the no-value text says so rather than leaving a blank panel that reads like a broken query. None of this silicon runs ECC memory; the exporter publishes the full 22-block family for every card regardless, all of it zero, so anything appearing here is new information by definition.\n\nThe filter is on the metric name, not a list of blocks, so a block this fleet has never reported still shows up the first time it counts something.",
+      "description": "Any ECC block on any selected card with a non-zero count, correctable or not.\n\nEmpty is the correct and expected state, and the no-value text says so rather than leaving a blank panel that reads like a broken query. None of this silicon runs ECC memory; the exporter publishes 19 blocks plus a rollup for each of the three severities -- 60 series per card -- all of it zero, so anything appearing here is new information by definition.\n\nThe filter is on the metric name, not a list of blocks, so a block this fleet has never reported still shows up the first time it counts something. The three amd_gpu_ecc_*_total rollups are excluded by name, because they are sums of the rows beside them: left in, one correctable fault in one block would render as two rows of 1 and read as two faults. The fleet-wide ECC tile above is where the rollups are used, which is the one place summing them is right.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -2072,7 +2072,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "{__name__=~\"amd_gpu_ecc_(correct|uncorrect|deferred)_.*\", server_name=~\"$host\"} > 0",
+          "expr": "label_replace(\n    label_replace(\n        {__name__=~\"amd_gpu_ecc_(correct|uncorrect|deferred)_.*\",\n         __name__!~\".*_total\",\n         server_name=~\"$host\"} > 0,\n        \"severity\", \"$1\", \"__name__\",\n        \"amd_gpu_ecc_(correct|uncorrect|deferred)_.*\"\n    ),\n    \"block\", \"$1\", \"__name__\",\n    \"amd_gpu_ecc_(?:correct|uncorrect|deferred)_(.*)\"\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "__auto",
@@ -2087,6 +2087,7 @@
           "options": {
             "excludeByName": {
               "Time": true,
+              "__name__": true,
               "deployment_mode": true,
               "gpu_compute_partition_type": true,
               "gpu_id": true,
@@ -2097,16 +2098,18 @@
               "job": true
             },
             "indexByName": {
-              "Value": 3,
-              "__name__": 2,
+              "Value": 4,
+              "block": 2,
               "card_model": 1,
-              "server_name": 0
+              "server_name": 0,
+              "severity": 3
             },
             "renameByName": {
               "Value": "Count",
-              "__name__": "Block",
+              "block": "Block",
               "card_model": "GPU",
-              "server_name": "Node"
+              "server_name": "Node",
+              "severity": "Severity"
             }
           }
         }

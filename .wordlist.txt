@@ -148,6 +148,7 @@ JSONs
 kanban
 keepalived
 keyrings
+Kubernetes
 latency
 Lemonade
 livelock
@@ -254,6 +255,7 @@ scrollback
 sd
 SHA
 SIGTERM
+SLURM
 SimpleFIN
 smartplug
 smartplugs

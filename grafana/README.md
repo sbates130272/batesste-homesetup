@@ -30,9 +30,12 @@ grafana/
       lan-overview.json
     home-network-related/     # folder: Home Network Related
       emporia-smartplugs-dashboard.json
+      icloud-dashboard.json
       node-exporter-full.json
       node-exporter-wifi.json
       speedtest-wan-testing.json
+    loki/                     # folder: homelab-loki
+      logs.json
     personal-finance/         # folder: Personal Finance
       firefly-overview.json
   vendor/                     # adopted third-party dashboards
@@ -224,12 +227,18 @@ Most providers also pin `folderUid`. Provisioning matches
 folders by title alone and will create a *second* folder
 with the same name rather than adopt an existing one;
 pinning the UID prevents that and keeps folder identity
-stable across a rebuild. The exception is
-`vendor-home-network-related`, which cannot pin
-`ee8pz914edpfkf` because `home-network-related` already
-does and Grafana rejects two providers claiming one UID.
-Title matching is safe there only while that provider
-survives; `dashboards.yaml` says what to do if it doesn't.
+stable across a rebuild.
+
+Two providers are unpinned, each because its twin already
+claims the UID and Grafana rejects two providers claiming one:
+`vendor-home-network-related` cannot pin `ee8pz914edpfkf`
+because `home-network-related` holds it, and the first-party
+`amd-related` cannot pin `bfhho76dk60hsf` because
+`vendor-amd-related` holds it. The second is worth knowing
+before you touch it — that unpinned, title-matched provider is
+the one placing AMD GPU Homelab into AMD Related. Title
+matching is safe for both only while the pinned twin survives;
+`dashboards.yaml` says what to do if one doesn't.
 
 | Folder | Dashboard | Description |
 |--------|-----------|-------------|
@@ -270,8 +279,11 @@ temperature and no graphics clock, the same APU again under WSL
 with power and activity but no sensors, and a second Navi 48
 reached over `/dev/dxg` that reports memory, ECC and the PCIe
 link and nothing else. The vendor files responded to that by
-drawing eleven permanently empty panels each, which the manifest
-had to spend several paragraphs telling you not to "fix".
+drawing panels that could never fill: eight on the GPU file, and
+eleven on the Fleet file, three of which read zero by design
+because they filter on SLURM and Kubernetes labels no homelab
+emits. Those counts are the manifest's, which spends several
+paragraphs telling you not to "fix" any of them.
 
 So every panel here takes the union of what the fleet supplies
 rather than naming one source: amdsmi first, node-exporter's

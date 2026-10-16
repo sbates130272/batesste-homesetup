@@ -78,15 +78,16 @@ dashboards:
       Status/AIS Total Bytes).
 
       Re-audited 2026-10-16. Upstream is now b9d9adc3 (2026-10-09, live
-      observability stack), still 48 panels, 50 prometheus targets and 8
-      loki ones. The original blocker above has expired -- Loki *is*
-      provisioned now, as snoc-beelink-loki -- but refreshing still buys
-      nothing, for a second reason: Loki carries only job="nginx" and
-      job="systemd-journal", and every one of those 8 panels selects
+      observability stack), still 48 panels, with 50 prometheus targets
+      and 8 loki ones -- those 8 across 7 panels, since one carries two.
+      The original blocker above has expired -- Loki *is* provisioned
+      now, as snoc-beelink-loki -- but refreshing still buys nothing,
+      for a second reason: Loki carries only job="nginx" and
+      job="systemd-journal", and all 7 of those panels select
       {job="hsa-snoop"}. The log stream has to exist before the panels
       that read it are worth having, which means running hsa-snoop with
       --log-dispatches and giving Alloy a scrape for its NDJSON. Until
-      then a refresh trades 39 working panels for 48 of which 8 are
+      then a refresh trades 39 working panels for 48 of which 7 are
       empty. Note also that b9d9adc3 parameterises its datasources as
       ${ds_prom}/${ds_loki}, so the datasource-binding edit applies to
       it -- bind both, including the loki one, or provisioning will
@@ -381,7 +382,11 @@ retired:
   # JSON is still fetchable at the pinned tag, which is why the full
   # adoption notes are carried over verbatim rather than summarised.
   # Restoring one is: git show <commit>^:<path>, or re-fetch v1.5.1
-  # from GitHub and redo edits (a) through (h).
+  # from GitHub and redo that file's edits. The lettering runs (a) to
+  # (h) across the pair rather than within either one: the GPU file
+  # carries seven, (a)-(f) and (h), and the Overview file carries
+  # those same six plus (g), which is its own. There is no edit (g) on
+  # the GPU file and never was.
 
   - uid: ae0aj8euc43r4b
     title: AMD GPU Metric Dashboard
@@ -415,17 +420,27 @@ retired:
       nothing on gfx1151 while hwmon has had an edge sensor all along.
 
       Keep reading if you ever restore this. The notes below are the
-      only record of the seven adoption edits, and six of them would
-      have to be redone by hand on a re-fetch.
+      only record of the seven adoption edits this file carried, and a
+      re-fetch has to redo all seven by hand -- two because upstream
+      never had them, five because upstream would revert them.
     notes: >-
       Pinned to v1.5.1 because that is what snoc-strix ran when this
       was adopted: amdgpu-exporter 1.5.1-3~24.04, reporting v1.5.1-3 /
       GitCommit 66196fa73. Refresh by moving the tag when the package
-      moves, not from main. snoc-beelink has no egress to GitHub, so
-      fetch through snoc-strix:
+      moves, not from main. Fetch it straight from the Grafana host:
 
-        ssh snoc-strix 'curl -sS https://raw.githubusercontent.com/\
-        ROCm/device-metrics-exporter/v1.5.1/grafana/dashboard_gpu.json'
+        curl -sS https://raw.githubusercontent.com/ROCm/\
+        device-metrics-exporter/v1.5.1/grafana/dashboard_gpu.json
+
+      This used to say snoc-beelink had no egress to GitHub and route
+      the fetch through snoc-strix. That is no longer true and was
+      re-tested on 2026-10-16: raw.githubusercontent.com and
+      api.github.com both answer 200 directly from snoc-beelink, and
+      the file above arrives with the md5 recorded below. Do not read
+      the neighbouring NVMe entry's "no direct egress to grafana.com"
+      as the same fact -- that one is still true, which is why the
+      grafana.com revision checks in this file went through snoc-strix
+      and the GitHub ones did not.
 
       Seven local edits. The first two are adoption boilerplate and a
       re-fetch must redo them; the last five are real divergence and a
