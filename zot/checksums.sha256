@@ -1,0 +1,24 @@
+# Pinned release artefacts for ZOT_VERSION in deploy.sh.
+#
+# These are the digests GitHub reports for the v2.1.22 assets, not a
+# checksums.sha256.txt downloaded alongside the binary. A checksum
+# fetched over the same connection as the thing it vouches for proves
+# nothing; this file is in git, reviewed in a commit, and is what
+# deploy.sh verifies against.
+#
+# Moving ZOT_VERSION means replacing both lines. Get them with:
+#
+#   gh api repos/project-zot/zot/releases/tags/<tag> \
+#     --jq '.assets[] | select(.name|startswith("zot-linux-amd64")
+#            or startswith("zli-linux-amd64"))
+#            | "\(.digest|ltrimstr("sha256:"))  \(.name)"'
+#
+# The version line is load-bearing, not a comment. Digests are keyed
+# by asset name, and the asset name does not carry a version -- so a
+# ZOT_VERSION bumped without touching this file would leave deploy.sh
+# matching the installed binary against the OLD digest, concluding it
+# was "already <new version>", and never downloading anything. The
+# mismatch is caught by comparing this line against ZOT_VERSION.
+version v2.1.22
+33b9b5bfe05d6788c076de951a01920477dbd6395c330146e23cc2340073e52e  zot-linux-amd64
+3c81df13c5a32ca5babeef305d538a0f6c743a99e10546aee41e7336ffcd7432  zli-linux-amd64

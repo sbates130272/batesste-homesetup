@@ -1,0 +1,85 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+#
+# zot, the OCI registry for the home LAN. Installed to
+# /etc/systemd/system/zot.service by deploy.sh.
+#
+# Derived from the unit upstream ships in examples/zot.service, with
+# the hardening and the memory ceiling this fleet wants added.
+
+[Unit]
+Description=zot OCI distribution registry
+Documentation=https://zotregistry.dev
+# network-online rather than network: zot binds a real interface
+# address (0.0.0.0 covers it, but the tailnet address arrives late),
+# and a bind that races the interface fails the unit outright.
+After=network-online.target local-fs.target
+Wants=network-online.target
+
+[Service]
+# zot sends sd_notify READY=1 once it is actually serving, so systemd
+# knows the difference between "process started" and "registry up".
+#
+# The floor is v2.1.22, which is also exactly what deploy.sh pins --
+# there is no margin here. sd_notify landed upstream on 2026-09-26,
+# after v2.1.21 shipped on the 6th, so v2.1.22 is the first release
+# that has it. Pinning ZOT_VERSION to anything older without also
+# changing this line to Type=simple gives a unit that starts fine,
+# never signals readiness, and is killed at TimeoutStartSec -- which
+# reads as a broken registry rather than a downgrade.
+Type=notify
+NotifyAccess=main
+# Generous because the first start after --with-cve downloads the
+# Trivy vulnerability database, which is slow from behind the
+# corporate egress and happens before readiness is signalled.
+TimeoutStartSec=5min
+
+ExecStart=/usr/local/bin/zot serve /etc/zot/config.json
+
+Restart=on-failure
+RestartSec=5s
+
+User=zot
+Group=zot
+
+# Blob pushes and the UI's concurrent manifest fetches each hold a
+# file descriptor; the default 1024 is reached by a single large
+# multi-arch push.
+LimitNOFILE=500000
+
+# snoc-strix has 30 GB and shares it with ROCm work that will take
+# every byte it can get. A registry that is only storing and serving
+# blobs does not need much -- the search extension's in-memory index
+# is the only thing that grows with the number of images. MemoryHigh
+# throttles and reclaims; MemoryMax is the backstop that kills zot
+# alone rather than letting the box go into the swap-thrash livelock
+# ../oomd exists because of. Raise both if you turn CVE scanning on:
+# Trivy wants well over a gigabyte on its own.
+MemoryHigh=2G
+MemoryMax=4G
+
+# Hardening. zot needs exactly one writable path -- its blob store --
+# and nothing else on this box.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+# Kept in step with ZOT_DATA in deploy.sh. ProtectSystem=strict makes
+# every other path read-only, including /var/lib, so this line is the
+# whole reason the registry can write at all.
+ReadWritePaths=/var/lib/zot
+
+[Install]
+WantedBy=multi-user.target

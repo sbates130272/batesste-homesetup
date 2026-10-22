@@ -284,6 +284,35 @@ scrape_configs:
           - /etc/prometheus/targets/gh-actions-exporter.json
         refresh_interval: 30s
 
+  # The zot container registry on snoc-strix -- ../zot. It serves
+  # its own /metrics on the same port as the registry API, so
+  # there is no exporter and no second port to open.
+  #
+  # Authenticated, and uniquely so among the jobs here. zot's
+  # accessControl names a single user, 'metrics', as the only one
+  # allowed to read the endpoint; every other account, and
+  # anonymous, gets a 403 there while still being able to pull
+  # images. So this job is basic_auth rather than the Bearer the
+  # Lemonade jobs use, and a 401/403 here means the password in
+  # the secrets file and the hash in /etc/zot/htpasswd on strix
+  # have drifted -- not that the registry is down.
+  #
+  # Scraped over the tailnet. zot binds 0.0.0.0:8080 because the
+  # LAN is where images are pulled from, so 10.0.0.242 would work
+  # too; the tailnet name is used for the same reason every other
+  # strix job uses it -- it survives the DHCP lease moving and it
+  # encrypts the basic_auth credentials that http:// otherwise
+  # sends in clear.
+  - job_name: zot
+    scheme: http
+    basic_auth:
+      username: metrics
+      password_file: /etc/prometheus/secrets/zot-metrics-password
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/zot.json
+        refresh_interval: 30s
+
   # Lemonade serves its own /metrics on its API port; there is
   # no separate exporter (the :9091 one this replaced is gone).
   # lemond binds loopback only on both hosts -- the tailnet

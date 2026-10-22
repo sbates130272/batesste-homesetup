@@ -21,6 +21,7 @@ backfilled
 backpressure
 backtested
 batesste
+bcrypt
 BDF
 beelink
 beelink's
@@ -28,6 +29,8 @@ Belkin
 bluetoothd
 BlueZ
 BSSID
+BuildKit
+buildx
 canonicalising
 certbot
 cgroup
@@ -41,6 +44,8 @@ conf
 config
 configs
 confnew
+containerd
+containerd's
 cpp
 CPUs
 cron
@@ -121,6 +126,7 @@ homesetup
 hostname
 hsa
 HSA
+htpasswd
 http
 https
 hwmon
@@ -168,6 +174,7 @@ LVM
 MacBook
 macOS
 MACs
+MagicDNS
 MBR
 MCP
 md
@@ -182,8 +189,10 @@ multicast
 Multicast
 mux
 nameservers
+namespace
 natively
 Navi
+nerdctl
 NetFirewallHyperVRule
 NetFirewallRule
 netplan
@@ -199,6 +208,7 @@ ntfy
 nvme
 NVMe
 observability
+OCI
 offen
 Ogg
 OMNI
@@ -219,6 +229,8 @@ PIDs
 pids
 pigz
 pipx
+Podman
+podman
 ppp
 prometheus
 Promtail
@@ -240,6 +252,7 @@ rebase
 rebasing
 regexes
 repo
+repo's
 repointed
 repointing
 rocm
@@ -254,6 +267,7 @@ scrape
 scrollback
 sd
 SHA
+SIGHUP
 SIGTERM
 SLURM
 SimpleFIN
@@ -270,6 +284,7 @@ Spining
 SSDP
 SSID
 SSL
+stdout
 streamable
 strix
 Strix
@@ -302,6 +317,7 @@ tok
 tokenless
 toolset
 tradeoff
+Trivy
 tsdb
 TTLs
 TTS
@@ -322,7 +338,9 @@ unrotated
 unroutable
 unscoped
 unstage
+untracked
 Upstream's
+upstream's
 upstreamable
 userspace
 UUIDs
@@ -360,4 +378,6 @@ yaml
 YAML
 yml
 zeroconf
+zot
+zot's
 ZScaler

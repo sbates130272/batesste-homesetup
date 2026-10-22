@@ -146,6 +146,44 @@ Prometheus re-reads the file on every scrape, so rotating
 the key needs no reload. `deploy.sh` refuses to run if the
 file is missing, and CI validates against a placeholder.
 
+The `zot` job needs a second one,
+`/etc/prometheus/secrets/zot-metrics-password`, created the
+same way and subject to the same `printf` warning. The value
+is `ZOT_METRICS_PASSWORD` in `zot/zot.secrets` on
+`snoc-strix`; that file is the only copy, so read it there
+rather than trying to recover it from the hash in
+`/etc/zot/htpasswd`. `deploy.sh` refuses to run without this
+file too.
+
+### The zot job
+
+The container registry on `snoc-strix` — see
+[zot/README.md](../zot/README.md) — serves its own
+`/metrics` on the same port as the registry API, so there is
+no exporter and no second port to open.
+
+It is the only `basic_auth` job in this config. zot's
+`accessControl.metrics` names a single user, `metrics`, as
+the only one allowed to read the endpoint; every other
+account gets a 403 there, and anonymous gets a 401, while
+both can still pull images. So a 401 or 403 on this job means
+the password file here and `/etc/zot/htpasswd` on the
+registry have drifted — not that the registry is down.
+
+It does take the target down, though: Prometheus treats any
+non-2xx scrape as a failure, so `up` goes to 0 and the
+target reads exactly like an unreachable registry. The
+distinction is in `lastError`, which says
+`server returned HTTP status 403 Forbidden` rather than
+`connection refused`. Check that before assuming the
+registry has fallen over.
+
+The target is the Tailscale name even though zot binds
+`0.0.0.0:8080` and `10.0.0.242` would work. Two reasons: it
+survives the DHCP lease moving, and the registry speaks
+plain HTTP, so the tailnet is what keeps the `basic_auth`
+credentials off the wire in clear.
+
 ### The lemonade-snoc-strix job
 
 Lemonade exposes its own metrics endpoint at

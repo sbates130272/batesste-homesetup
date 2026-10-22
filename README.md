@@ -212,6 +212,30 @@ GiB — about three weeks — because anything older is a Loki query. See
 load-bearing, and why `journalctl --disk-usage` is not a test that it
 worked.
 
+# Container registry
+
+The [zot](./zot) folder runs a container registry on `snoc-strix`, so
+the fleet pulls images from the LAN rather than reaching out to Docker
+Hub once per node per image. My `batesste-ansible` project points the
+nodes at it.
+
+[Harbor][ref-harbor] was the obvious candidate and turned out not to
+be installable the way I wanted it: it ships only as a stack of
+containers, with no package or binary release of any of its seven
+services. [zot][ref-zot] is a single static Go binary under systemd —
+no container runtime underneath the thing that stores the containers,
+which matters the first time the registry is what brings a node up —
+and it still has the web UI, the access control, the mirroring and the
+optional Trivy scanning that made Harbor attractive.
+
+It serves plain HTTP on `:8080` to the LAN, which means every client
+has to name it in `insecure-registries` before Docker will speak to
+it, and it means credentials cross the LAN in clear. Anonymous pulls
+are allowed and pushes are not, so only the build account needs a
+password at all. See [the README.md](./zot/README.md) for the client
+configuration, the account layout, and the handful of things that fail
+with a bare 401 and no explanation.
+
 # nginx
 
 The [nginx](./nginx) folder holds the reverse proxy configuration for
@@ -344,3 +368,5 @@ link to the server via the instructions in main repo.
 [ref-avahi]: https://avahi.org/
 [ref-alloy]: https://grafana.com/docs/alloy/latest/
 [ref-tailscale]: https://tailscale.com/
+[ref-harbor]: https://goharbor.io/
+[ref-zot]: https://zotregistry.dev/
