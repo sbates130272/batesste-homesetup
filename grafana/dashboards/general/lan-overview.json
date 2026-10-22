@@ -1993,6 +1993,18 @@
                 }
               },
               {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#052B51",
+                      "value": null
+                    }
+                  ]
+                }
+              },
+              {
                 "id": "decimals",
                 "value": 0
               },
