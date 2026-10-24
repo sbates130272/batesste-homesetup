@@ -82,6 +82,31 @@ EOF
     exit 1
 fi
 
+# Same check, same reason, for the zot job's basic_auth password.
+ZOT_METRICS_FILE="${PROM_ETC}/secrets/zot-metrics-password"
+if ! sudo test -r "${ZOT_METRICS_FILE}"; then
+    cat >&2 <<EOF
+Error: ${ZOT_METRICS_FILE} is missing or unreadable.
+
+The zot job scrapes the registry on snoc-strix as the 'metrics'
+user, the only account its access control lets read /metrics.
+The password is ZOT_METRICS_PASSWORD in zot/zot.secrets on
+snoc-strix -- that file is the only copy, so read it there
+rather than trying to recover it from the hash. Then:
+
+  sudo install -d -m 0750 -o prometheus -g prometheus \\
+      ${PROM_ETC}/secrets
+  printf %s "\$ZOT_METRICS_PASSWORD" \\
+      | sudo tee ${ZOT_METRICS_FILE} >/dev/null
+  sudo chown prometheus:prometheus ${ZOT_METRICS_FILE}
+  sudo chmod 0400 ${ZOT_METRICS_FILE}
+
+No trailing newline: Prometheus sends the file verbatim, and a
+stray \\n is a 401 that looks exactly like a wrong password.
+EOF
+    exit 1
+fi
+
 # Also under sudo, for the same traversal reason.
 echo "==> Validating config with promtool..."
 if ! sudo promtool check config "${PROM_YML}"; then
