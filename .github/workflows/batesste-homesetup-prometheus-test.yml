@@ -33,6 +33,16 @@ jobs:
             | sudo tee /etc/prometheus/secrets/lemonade-api-key \
               >/dev/null
           sudo chmod 0444 /etc/prometheus/secrets/lemonade-api-key
+          # The zot job's basic_auth password. Unlike the key above
+          # this one is not needed by promtool -- it stats
+          # credentials_file but not basic_auth.password_file, which
+          # was checked rather than assumed -- but ./deploy.sh refuses
+          # to run without it, and the dry-run step below is what
+          # catches that.
+          echo -n placeholder \
+            | sudo tee /etc/prometheus/secrets/zot-metrics-password \
+              >/dev/null
+          sudo chmod 0444 /etc/prometheus/secrets/zot-metrics-password
           # gh-actions-exporter/deploy.sh refuses to run without a
           # token, for the same reason ./deploy.sh refuses without the
           # lemonade key: the failure it prevents is a service that
