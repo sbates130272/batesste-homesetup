@@ -6,7 +6,30 @@
     "dedupe": true,
     "gc": true,
     "gcDelay": "1h",
-    "gcInterval": "24h"
+    "gcInterval": "24h",
+
+    "retention": {
+      "dryRun": false,
+      "delay": "24h",
+      "policies": [
+        {
+          "repositories": ["local/**"],
+          "deleteReferrers": false,
+          "deleteUntagged": false,
+          "keepTags": [
+            { "patterns": [".*"] }
+          ]
+        },
+        {
+          "repositories": ["**"],
+          "deleteReferrers": true,
+          "deleteUntagged": true,
+          "keepTags": [
+            { "patterns": [".*"], "pulledWithin": "720h" }
+          ]
+        }
+      ]
+    }
   },
 
   "http": {
@@ -66,6 +89,51 @@
       "prometheus": {
         "path": "/metrics"
       }
+    },
+    "sync": {
+      "enable": true,
+      "registries": [
+        {
+          "urls": ["https://docker.io"],
+          "onDemand": true,
+          "tlsVerify": true,
+          "maxRetries": 2,
+          "retryDelay": "2s",
+          "content": [
+            { "prefix": "library/**" },
+            { "prefix": "sbates130272/**" },
+            { "prefix": "rocm/**" },
+            { "prefix": "grafana/**" },
+            { "prefix": "prom/**" },
+            { "prefix": "fireflyiii/**" },
+            { "prefix": "offen/**" },
+            { "prefix": "mbentley/**" },
+            { "prefix": "billimek/**" },
+            { "prefix": "moby/**" }
+          ]
+        },
+        {
+          "urls": ["https://ghcr.io"],
+          "onDemand": true,
+          "tlsVerify": true,
+          "maxRetries": 2,
+          "retryDelay": "2s",
+          "content": [
+            { "prefix": "home-assistant/**" },
+            { "prefix": "project-zot/**" }
+          ]
+        },
+        {
+          "urls": ["https://quay.io"],
+          "onDemand": true,
+          "tlsVerify": true,
+          "maxRetries": 2,
+          "retryDelay": "2s",
+          "content": [
+            { "prefix": "prometheus/**" }
+          ]
+        }
+      ]
     }
   }
 }

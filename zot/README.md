@@ -100,7 +100,7 @@ server that never offered TLS — does not say so.
 `snoc-strix.local`.
 
 This matters more than it looks. The registry name is part of every
-image reference (`<name>/library/foo:v1`) and it has to match the
+image reference (`<name>/local/foo:v1`) and it has to match the
 client's `insecure-registries` entry character for character, so the
 fleet wants exactly one name, not a per-node choice. `.local` is not
 that name: mDNS is not uniform here. `snoc-beelink` resolves
@@ -155,19 +155,40 @@ working, with no change to any file under configuration management.
 
 ```json
 {
-  "insecure-registries": ["snoc-strix.fold-leaffish.ts.net:8080"]
+  "insecure-registries": ["snoc-strix.fold-leaffish.ts.net:8080"],
+  "registry-mirrors": ["http://snoc-strix.fold-leaffish.ts.net:8080"]
 }
 ```
 
-Reload, not restart. `insecure-registries` is one of the options
-Docker re-reads on SIGHUP, so adding the registry costs nothing — this
-was measured on `snoc-strix` with 35 containers running, all of which
-survived. A restart would have taken every one of them down for no
-reason.
+Both keys, and they do different jobs. `insecure-registries` is what
+lets the client speak plain HTTP to this host at all, and is required
+to pull `snoc-strix.fold-leaffish.ts.net:8080/local/foo` by name.
+`registry-mirrors` is what makes a bare `docker pull alpine` come from
+here — Docker consults the mirror before Docker Hub, falls back to Hub
+if the mirror misses or is down, and needs no other change anywhere.
 
-The asymmetry is worth knowing: adding an entry applies on reload,
-*removing* one does not. Delete the file, reload, and the daemon keeps
-serving the old list until it is genuinely restarted.
+Two limits on the mirror. It applies to **Docker Hub only** — Docker
+has no equivalent for `ghcr.io` or `quay.io`, so images from those are
+cached here but must be addressed explicitly to come from here. And
+the scheme must be spelled `http://` in `registry-mirrors` while
+`insecure-registries` takes a bare `host:port`; the asymmetry is
+Docker's, not a typo.
+
+Verified on `snoc-strix` against the live registry, with the cache
+emptied first: a bare `docker pull alpine` succeeded, `library/alpine`
+appeared in the catalog, the access log shows Docker asking this
+registry at `/v2/library/alpine/manifests/latest?ns=docker.io`, the
+amd64 platform manifest is served `200`, 3.8 MB of real layers are on
+disk, and a direct request for the first layer returns `200` with
+exactly the 3,853,109 bytes the manifest declares. A second pull moved
+`zot_repo_downloads_total{repo="library/alpine"}` by two.
+
+That last check is the one worth repeating if this is ever changed.
+An earlier revision of this setup served the multi-arch *index* from
+here and silently fetched everything underneath it from Docker Hub —
+the catalog, the access log and the download counter all looked
+correct while no layer was ever cached. Serving the index proves
+nothing; serving the platform manifest and a layer does.
 
 ### Podman
 
@@ -289,12 +310,81 @@ index. Raise both ceilings in the same change.
 
 ## Pull-through mirroring
 
-Not configured, but it is the reason `extensions.sync` exists and the
-obvious next thing to want from a registry on a corporate network.
-Adding a `sync` block with `onDemand: true` against `docker.io` makes
-zot fetch and cache upstream images the first time anything asks for
-them, so the second node to need a base image gets it over the LAN.
-See upstream's `examples/config-sync.json`.
+Configured, against `docker.io`, `ghcr.io` and `quay.io`. The fleet
+pulls the same base images repeatedly over a corporate egress; this
+makes the second node to want one get it over the LAN instead.
+
+It is transparent. A plain `docker pull alpine` on a configured client
+is served from here — no registry prefix, no change to any Dockerfile
+or compose file — because Docker asks its configured mirror first. The
+client config is one extra line beside the `insecure-registries` entry;
+see "Pointing clients at it".
+
+`https://docker.io` looks like the wrong URL, and is not: zot resolves
+it to `registry-1.docker.io` itself. This was checked in its logs
+rather than assumed.
+
+### What is mirrored, and why it is a list
+
+Sync is scoped by `content` prefixes rather than left open, and the
+list is the load-bearing part of this configuration. Today it covers
+`library/**` on Docker Hub — every official image, which is most of
+what the fleet pulls — plus the handful of organisations actually in
+use here (`sbates130272`, `rocm`, `grafana`, `prom`, `fireflyiii`,
+`offen`, `mbentley`, `billimek`, `moby`), `home-assistant` and
+`project-zot` on `ghcr.io`, and `prometheus` on `quay.io`.
+
+Adding an organisation is one line. Leaving one out is not a failure:
+a repository outside the list is simply never proxied, the client gets
+an immediate 404, and Docker goes to the upstream as it always did.
+Nothing breaks, it just is not cached.
+
+The list exists because of what an unscoped `**` does to pushes. On a
+miss, zot tries each configured upstream before answering — and
+`docker push` of a *new* repository begins with exactly that lookup,
+so a push to a name no upstream has waits on three registries and then
+gets **503**, which fails the push outright. Measured: the same
+request is `404` with no prefix match and `503` under a `**` prefix,
+and a first push fails against the 503. Because `local/**` matches no
+prefix, a push there is answered in under a second.
+
+`onDemandInBackground` looks like the fix for this and is a trap. It
+does turn the 503 into a 404 and pushes do work — but a 404 means the
+client never asks zot for the platform manifest beneath a multi-arch
+index, so nothing below the index is ever fetched. The result was a
+registry that looked like it was caching, held a 9 KB index and no
+layers, and quietly sent every pull to Docker Hub anyway. It is off
+deliberately; do not turn it on to fix a push problem.
+
+### What stops it filling the disk
+
+Nothing in zot evicts by default: its garbage collector reclaims
+untagged manifests and dangling blobs, and a cached image is tagged, so
+it would stay forever. Anonymous pull is allowed here by design, which
+means anything on the LAN or the tailnet can cause this box to fetch
+and keep an arbitrary public image. Four images came to 617 MB in
+testing, one of them 616 MB on its own.
+
+So `storage.retention` carries two policies, and **order matters** —
+zot takes the first whose repository glob matches:
+
+| Policy | Effect |
+| --- | --- |
+| `local/**` | Kept forever. Nothing here is evicted. |
+| `**` | Tags pulled within the last 720h (30 days) are kept; anything colder is deleted, along with untagged manifests. |
+
+This is why the repository you push to matters. **Push to `local/`.**
+Anything outside it is treated as cache and will be evicted once it
+goes thirty days without a pull — including, if you put it there, an
+image you built and meant to keep.
+
+Verified by shortening the window to ten seconds on a scratch
+instance: the cached upstream image was deleted and the image under
+`local/` kept its tag.
+
+`local/` also keeps local pushes clear of the upstream namespaces now
+in use here — `library/*` is where cached Docker Hub official images
+land, and pushing your own `library/foo` would collide with that.
 
 ## Prometheus integration
 
@@ -347,8 +437,8 @@ restarted because the binary changed.
 ```
 curl -s http://snoc-strix.fold-leaffish.ts.net:8080/v2/_catalog | jq
 docker login snoc-strix.fold-leaffish.ts.net:8080 -u ci
-docker tag alpine:latest snoc-strix.fold-leaffish.ts.net:8080/library/alpine:latest
-docker push snoc-strix.fold-leaffish.ts.net:8080/library/alpine:latest
+docker tag alpine:latest snoc-strix.fold-leaffish.ts.net:8080/local/alpine:v1
+docker push snoc-strix.fold-leaffish.ts.net:8080/local/alpine:v1
 zli images list --config local
 journalctl -u zot -f
 ```
