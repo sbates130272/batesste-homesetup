@@ -18,6 +18,7 @@ avahi
 Avahi
 backend
 backfilled
+Backfilling
 backpressure
 backtested
 batesste
@@ -38,6 +39,7 @@ cgroups
 CDNA
 changelog
 CIBC
+CIBC's
 CLI
 codebase
 conf
@@ -58,6 +60,7 @@ datasource
 datasources
 dBm
 DBs
+Dedup
 denylist
 Dependabot
 Dependabot's
@@ -176,6 +179,7 @@ MacBook
 macOS
 MACs
 MagicDNS
+Mastercard
 MBR
 MCP
 md
@@ -247,6 +251,7 @@ Qwen
 radeon
 Radeon
 raithlin
+RBC
 rdma
 reachability
 README
@@ -367,6 +372,7 @@ WebUI
 webui
 WebUI's
 Wemo
+WestJet
 WhatsApp
 WiFi
 wifi

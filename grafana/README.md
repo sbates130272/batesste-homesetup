@@ -838,8 +838,63 @@ it is the same stale number on both sides.
 
 Because SimpleFIN caps history at 90 days, the
 2026-05-08 → 2026-06-05 window was already beyond
-recovery by the time the outage was found. That gap
-is being backfilled from a CIBC CSV export.
+recovery by the time the outage was found. The cap
+is a hard one: asking for 180 days does not fail, it
+returns the same 90 days alongside an `exceeds limit
+of 90 days and was capped` error.
+
+That window was backfilled from CIBC CSV exports on
+2026-10-24, along with a second outage window
+(2026-09-03 → 2026-10-24, recovered from SimpleFIN
+once the CIBC link was re-authorised) and the RBC
+WestJet Mastercard, which had no entries after
+2026-05-02.
+
+## Backfilling from a bank CSV
+
+`simplefin/scripts/csv_backfill.py` imports a bank
+CSV export into Firefly for a window SimpleFIN can
+no longer reach. Dedup lives in `csv_match.py`,
+because neither date nor description can be compared
+literally:
+
+- CIBC's chequing export prefixes the description
+  with a transaction type (`Internet Banking`, with a
+  trailing space) that SimpleFIN omits, and spells
+  out reference numbers
+  SimpleFIN masks (`000000118710` vs `XXXXXXXX8710`).
+- CIBC's **VISA** export dates a row by when it
+  posted; SimpleFIN reports when it was transacted,
+  one to four days earlier. Matching on an exact date
+  recognises 5 of 144 rows and re-imports the rest.
+
+So rows are matched on amount, direction and a
+normalized description within a date tolerance
+(default 4 days). Direction is not optional: CIBC
+bills a $16.95 service charge and refunds an
+identical $16.95 discount the same day, and matching
+on absolute amount alone pairs the two and leaves
+both sides wrong.
+
+Repeated charges are real — CIBC billed five
+identical $3.50 vending machine charges on
+2026-06-01 — so each row's `external_id` carries an
+occurrence index, and a re-run probes forward past
+indices already present rather than skipping. Without
+that, four of those five vanish as duplicates of the
+first.
+
+Validate the tolerance before trusting a run: the
+date-offset histogram should be one-sided (Firefly
+never later than the CSV), and the match count should
+plateau as the tolerance widens. On the 2026-06 VISA
+export it plateaus at 56 from 4 days through 8.
+
+```bash
+cd ~/.hermes/workspace/simplefin/scripts
+./csv_backfill.py --file ../csv-backfill/cibc-visa.csv \
+    --account-id 7            # --apply to write
+```
 
 ## Workflow
 
