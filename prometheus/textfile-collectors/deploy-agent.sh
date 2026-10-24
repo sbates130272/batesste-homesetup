@@ -23,6 +23,9 @@ script is run from. Run it on each GPU machine, and on the backup
 host -- the same "copy it to the target machine" model the repo
 already uses for loki/alloy/deploy-agent.sh.
 
+This script is Linux and systemd only. macOS hosts are served by
+deploy-agent-darwin.sh, which installs mac-wifi.sh under launchd.
+
 It installs rocm-version.sh plus its timer everywhere, wsl-wifi.sh
 plus its timer on WSL hosts only, where it is the only way to get
 a WiFi signal reading at all, and s3-backup-age.sh plus its timer
@@ -115,6 +118,15 @@ detect_textfile_dir() {
     # renderings resolve, and an unset default still yields empty.
     "${NE_BIN}" --help 2>&1 | sed -n "${pat}" | head -1
 }
+
+# Checked before the missing-defaults error below, which would
+# otherwise be the message a Mac operator gets: technically true,
+# since there is no /etc/default on macOS, and useless.
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "Error: this is the Linux deploy script; this host is Darwin." >&2
+    echo "Use deploy-agent-darwin.sh instead." >&2
+    exit 1
+fi
 
 if [[ ! -f "${NE_DEFAULTS}" ]]; then
     echo "Error: ${NE_DEFAULTS} not found." >&2

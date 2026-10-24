@@ -8,6 +8,7 @@ amd
 amdgpu
 amdsmi
 ansible
+APFS
 APU
 ARGS
 ARP
@@ -119,6 +120,8 @@ hardcodes
 hardcoding
 HBM
 hermes
+Homebrew
+Homebrew's
 homebridge
 Homebridge
 Homebridge's
@@ -160,6 +163,7 @@ keepalived
 keyrings
 Kubernetes
 latency
+launchd
 Lemonade
 livelock
 llm
@@ -235,10 +239,12 @@ PIDs
 pids
 pigz
 pipx
+plist
 Podman
 podman
 ppp
 prometheus
+PromQL
 Promtail
 promtool
 protanopia
@@ -281,8 +287,10 @@ SimpleFIN
 smartplug
 smartplugs
 SmartPlugs
+SMC
 SMTP
 snoc
+Sonoma
 speedtest
 Speedtest
 SPI

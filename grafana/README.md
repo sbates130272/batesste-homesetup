@@ -677,10 +677,6 @@ Row 3 *is* live, despite `snoc-shannon` looking dead. Of its
 three targets only `10.0.0.80` responds, and it flaps — around
 24% up over 24h. When it answers it reports `Darwin 24.6.0 /
 arm64`, so the cell fills in and empties as the Mac sleeps.
-Its **Memory %**, **RAM** and **Link** cells stay blank even
-when it is up: the Darwin node-exporter has a much smaller
-collector set and emits neither `node_memory_MemAvailable_bytes`
-nor `node_network_info`.
 
 That flapping is also why **CPU %** is `and on (instance)
 node_uname_info`. It is the panel's only range query, so when
@@ -690,6 +686,66 @@ under the staleness marker — leaving a nameless row carrying
 nothing but a CPU percentage. Spining it on the same series as
 the rest of the table makes the host either fully present or
 fully absent.
+
+### What the Darwin node-exporter does not export
+
+`snoc-shannon`'s **Memory %**, **RAM**, **Distro** and **Link**
+cells were blank even when it was up, and it was absent from
+**Filesystem Capacity** entirely. The `darwin` build serves 107
+metric families against roughly 500 on Linux, and four columns
+were reading metrics that are simply not in it. Three are fixed
+in the dashboard; the fourth needed a collector.
+
+**Memory % and RAM.** Darwin exports no
+`node_memory_MemAvailable_bytes` and no
+`node_memory_MemTotal_bytes`. Total is `node_memory_total_bytes`,
+and the rest is the Mach page breakdown. The second branch is
+
+```
+(internal - purgeable + wired + compressed) / total
+```
+
+which is what Activity Monitor calls **Memory Used**, and it
+reads 75.6% on a host where `free + inactive + purgeable` gives
+73.8% and `active + wired + compressed` gives 69.4%. Inactive
+is deliberately not counted: it is reclaimable, and counting it
+reads a healthy Mac as full.
+
+**Distro.** `node_os_info` *is* exported on macOS, which is why
+this looked like a harder problem than it was — it arrives with
+every label present and `pretty_name` empty, because there is
+no `os-release` file to read one out of. The real answer is in
+`name="macOS"` and `version_id="15.6.1"`, so the second branch
+`label_join`s them into `macOS 15.6.1`. A `windows_exporter`
+host would still be blank; nothing on this LAN runs one.
+
+**Filesystem Capacity** excluded `apfs` from its `fstype`
+filter. Adding it is not enough on its own: an APFS container
+shares one pool of free space across every volume in it, and
+node-exporter reports that pool once per volume, so
+`snoc-shannon` returns **nine identical rows** at 994 GB / 247
+GB for `/`, `/System/Volumes/Data`, `/System/Volumes/Preboot`
+and six more. The `mountpoint!~"/System/Volumes/.*"` exclusion
+leaves `/` alone, which is the number Finder shows for the
+disk. No Linux mountpoint matches the pattern.
+
+**Link and WiFi (dBm)** could not be fixed in PromQL. Darwin
+exports no `node_network_info` at all, so both terms of the
+Link sum have nothing to read, and there is no wifi collector
+in the build. Both columns are fed by the `mac-wifi.sh`
+textfile collector instead — `mac_link_up{kind="wired"}` and
+`{kind="wifi"}` for Link, `mac_wifi_signal_dbm` for the signal.
+See the prometheus README for why the readings come from
+`networksetup` and `system_profiler`, and what happens when
+Location Services withholds the RSSI.
+
+One thing is still honestly blank on this host: **GPU
+Inventory** ignores it, because `snoc-shannon` is an Apple
+M-series machine and every query there joins on
+`node_hwmon_chip_names{chip_name="amdgpu"}`. Its `thermal`
+collector also fails on every scrape — the SMC collector does
+not work on Apple Silicon — so it contributes no temperatures
+either.
 
 ### AMD LLM metrics are window gauges, not counters
 

@@ -901,6 +901,83 @@ panel, and one of these two hosts is a corporate laptop that
 roams onto networks whose names have no business being written
 into a homelab TSDB with 90-day retention.
 
+## The macOS WiFi collector
+
+`mac-wifi.sh` publishes WiFi signal and link state on
+`snoc-shannon`, feeding the same **WiFi (dBm)** and **Link**
+columns on Node Fleet that `wsl-wifi.sh` feeds on the two WSL
+hosts. It is installed by `deploy-agent-darwin.sh`, not by
+`deploy-agent.sh`.
+
+**The `darwin` node-exporter is a much smaller binary than the
+Linux one**, and that is the whole reason this exists. Version
+1.12.1 `goos=darwin` serves 107 metric families against roughly
+500 on Linux. Two of the absences matter here:
+
+- No `node_wifi_*`. The wifi collector is built on nl80211 and
+  `/proc/net/wireless` and is not compiled into the `darwin`
+  build at all. **Do not add `--collector.wifi` on a Mac** the
+  way the root README describes doing on Linux: this is not the
+  WSL case where the flag is accepted and yields nothing, it is
+  an unknown flag, and node-exporter exits on it.
+- No `node_network_info`. The Link column's wired and wireless
+  terms are both built on it, so a Mac contributes to neither
+  side of the sum and drops out of the `+` join entirely.
+
+**`mac_link_up` is emitted for both kinds, always, including
+as 0.** The Link column sums a wired term worth 2 and a
+wireless term worth 1, and a PromQL `+` drops any series
+missing from either side. A Mac on WiFi with no cable that
+published only the wireless term would vanish from the join
+and take every other column in its row with it. This is the
+same trap the Linux branches avoid with their `or (... * 0)`
+zero defaults, arrived at from the other direction.
+
+**The kind comes from `networksetup -listallhardwareports`,
+not the interface name.** On a Mac `en0` is the radio on a
+laptop and the cable on a Mac mini, and Thunderbolt docks hand
+out `en5` upwards in enumeration order. The hardware-port map
+is authoritative, unprivileged, and returns in milliseconds.
+`ifconfig <dev>`'s `status: active` then gives carrier for a
+cable and association for a radio; it is not the same as the
+interface being `UP`, which a disconnected Mac leaves set.
+
+**The RSSI costs more than everything else combined, and the
+obvious source is gone.** `airport -I` was deprecated in Sonoma
+14.4 and the private framework binary behind it has been
+removed; on Sequoia it prints a deprecation notice and nothing
+else. `wdutil info` is accurate but needs root and has no
+stable output contract. That leaves `system_profiler
+SPAirPortDataType`, which is unprivileged and documented and
+takes one to three seconds. Hence `StartInterval 300` in the
+plist, the same five-minute reasoning as the WSL timer.
+
+**A withheld RSSI reports 0, not a guess.** Since Sequoia,
+parts of the `Current Network Information` block are withheld
+unless the caller holds Location Services authorisation, so
+`mac_wifi_signal_present` says which case you are in. Unlike
+`wsl-wifi.sh` there is no quality percentage to fall back on,
+and there is nothing to derive dBm from. The Link column works
+either way; only **WiFi (dBm)** goes blank.
+
+**The plist carries a `@TEXTFILE_DIR@` placeholder.** On Linux
+the textfile directory is layered onto a host-agnostic unit
+with a systemd drop-in. launchd has no drop-in mechanism, so
+`deploy-agent-darwin.sh` renders the placeholder at install
+time to keep the file in git host-agnostic.
+
+**`deploy-agent-darwin.sh` refuses to configure node-exporter
+itself.** If it cannot find a textfile directory node-exporter
+already reads, it stops and prints what to add. Homebrew's
+formula ships a plist with no arguments and rewrites it on
+every `brew upgrade`, so a flag this script wrote there would
+disappear silently, and the failure mode is the one the Linux
+hosts had for months with `rocm-version`: a correct `.prom`
+file that nobody scrapes and an empty dashboard column.
+
+**SSID and BSSID are deliberately not exported**, for the same
+reason `wsl-wifi.sh` omits them.
+
 ## Things prometheus.yml cannot express
 
 Two files here configure the *processes* rather than the

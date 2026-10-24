@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+
+  SPDX-License-Identifier: MIT
+
+  launchd equivalent of mac-wifi.service + mac-wifi.timer. macOS has no
+  systemd, so the unit and its schedule are one file: StartInterval is
+  the timer and ProgramArguments is the service.
+
+  Note that an XML comment cannot contain a double dash, so the prose
+  here uses semicolons where the rest of the repo would use an em dash.
+
+  @TEXTFILE_DIR@ is substituted by deploy-agent-darwin.sh at install
+  time. On Linux the same problem is solved with a systemd drop-in, so
+  that the unit tracked in git stays host-agnostic while the directory
+  stays a property of the host. launchd has no drop-in mechanism; a
+  plist is read whole or not at all, so the placeholder is how this
+  file keeps the same property.
+
+  StartInterval 300 rather than 60 for the same reason wsl-wifi runs on
+  a five-minute timer: the reading costs real time to take.
+  system_profiler SPAirPortDataType takes one to three seconds, which
+  is not a thing to do every minute on a battery-powered laptop, and
+  WiFi signal does not move fast enough to be worth it.
+
+  RunAtLoad fires once at boot and at install, so the file exists
+  before the first interval elapses rather than leaving the Node Fleet
+  columns blank for five minutes after a reboot.
+
+  Errors go to a log file because there is no journal to read them
+  back out of. Stdout is discarded: the collector writes its output to
+  the textfile directory, not to the terminal, so anything on stdout
+  would be a bug.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.batesste.mac-wifi</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/mac-wifi.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>TEXTFILE_DIR</key>
+        <string>@TEXTFILE_DIR@</string>
+    </dict>
+
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+
+    <key>StandardErrorPath</key>
+    <string>/var/log/mac-wifi.err</string>
+</dict>
+</plist>
