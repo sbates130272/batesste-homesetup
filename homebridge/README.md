@@ -102,18 +102,37 @@ as a local check can honestly go.
 | `homebridge-plugin-emporia`              | Energy monitors, EV charger |
 | `homebridge-network-presence`            | Per-person presence sensors |
 
-Two more are installed but carry no platform in `config.json`, so they
-load nothing:
+`homebridge-automation-calendar` (seasons, week and month of the
+year, twilight/sunrise/sunset) joined them on 2026-11-02 and is the
+sixth child bridge, on `:33242`.
+
+One plugin is still installed but carries no platform in
+`config.json`, so it loads nothing:
 
 | Plugin                                   | State                       |
 | ---------------------------------------- | --------------------------- |
 | `@homebridge-plugins/homebridge-resideo` | Installed, never configured |
-| `homebridge-automation-calendar`         | In `disabledPlugins`        |
 
-`homebridge-automation-calendar` still has two accessory entries in
-`config.json`, which is why the disable is explicit rather than the
-absence of configuration. Removing the plugin means removing those
-too.
+It cannot be configured into use here: there is no Resideo or
+Honeywell Home device on the LAN and no Resideo account. The reason it
+is installed at all is the one in
+[`../home-assistant/README.md`](../home-assistant/README.md) — it is
+the only plugin in the tree that calls `api.matter`, so it was kept as
+the Matter experiment rather than as a device integration. Leave it or
+remove it; it costs disk and a line in the plugin list.
+
+### Why automation-calendar was disabled, and what fixed it
+
+It carried **two** `AutomationCalendar` accessory entries with the
+same `name` and the same house coordinates to five decimal places —
+one with a `_bridge` block, one without. Two accessories with one name
+collide in HomeKit, and disabling the plugin was the workaround.
+
+The fix was to delete the entry *without* the `_bridge` — every other
+plugin here runs on its own child bridge, so the bridged one is the
+one that matches the house — upgrade `0.1.1` to `0.2.1`, and empty
+`disabledPlugins`. The plugin is maintained upstream; `0.1.1` had just
+sat there for as long as the duplicate did.
 
 Every device platform runs as a child bridge — its own process, its
 own HAP identity, its own tile in the Home app — so one plugin
@@ -123,16 +142,93 @@ are.
 
 ### The Emporia plugin is a local tarball
 
-`homebridge-plugin-emporia` is installed from
-`~/Projects/homebridge-plugin-emporia/homebridge-plugin-emporia-1.0.0.tgz`,
-not from npm — a `file:` dependency in
-`/var/lib/homebridge/package.json`.
+`homebridge-plugin-emporia` is installed from a `file:` dependency in
+`/var/lib/homebridge/package.json`, not from npm.
 
-If that working copy goes away the plugin keeps running from
-`node_modules` and then disappears at the next `npm install` in
-`/var/lib/homebridge`, with no error that anyone reads. `deploy.sh`
-warns when the tarball is missing but does not rebuild it: that is a
-`npm pack` in a repository this one does not own.
+**That dependency used to point into `~batesste`, and it had broken
+every plugin install on this host.** `/home/batesste` is `0750`, so
+the `homebridge` user could not traverse it, and `npm install` in
+`/var/lib/homebridge` aborted `EACCES` on the tarball before it got as
+far as the package anyone was actually asking for:
+
+```text
+npm error code EACCES
+npm error path /home/batesste/Projects/homebridge-plugin-emporia/...tgz
+npm error   requiredBy: '.'
+```
+
+A `file:` dependency is resolved on *every* install, so this was not
+specific to the Emporia plugin — no plugin could be added or upgraded
+at all. It is why `homebridge-automation-calendar` sat on `0.1.1` with
+`0.2.1` published.
+
+The tarball now lives at
+`/var/lib/homebridge/local-plugins/homebridge-plugin-emporia-1.0.0.tgz`,
+owned by `homebridge`, and the dependency is the relative
+`file:local-plugins/...`. Nothing under `/home` is on the path any
+more.
+
+This whole arrangement is scheduled to go away: see
+[the publishing note](#publishing-the-emporia-plugin) below.
+
+## systemd and logging
+
+Two things here are the same kind of bug — a correct fix written into
+a file that something else owns and rewrites.
+
+### `KillMode` lives in a drop-in, not in the unit
+
+The apt package ships `KillMode=process`, and that is still true in
+`2.0.23`. `hb-service` runs one child bridge per plugin as a separate
+process; with `KillMode=process` systemd signals only the supervisor,
+the children are orphaned, and they keep their HAP ports bound. The
+next start fails `EADDRINUSE` on `8581`, `51950` and `44851` and the
+unit crash-loops. That was diagnosed on 2026-06-11.
+
+The fix — `KillMode=mixed` — was correct, but it was edited directly
+into `/usr/lib/systemd/system/homebridge.service`, which apt owns.
+`dpkg -V homebridge` had been flagging the unit as modified ever
+since, and `2.0.23` was already sitting in the repo waiting to revert
+it silently.
+
+It is now
+`/etc/systemd/system/homebridge.service.d/10-killmode.conf`, the unit
+file is back to the packaged original, and `dpkg -V` is clean. Confirm
+with:
+
+```console
+$ systemctl show homebridge -p KillMode -p DropInPaths
+KillMode=mixed
+DropInPaths=/etc/systemd/system/homebridge.service.d/10-killmode.conf
+```
+
+Stopping the unit still logs `Found left-over process ... Ignoring` for
+a child bridge or two. That is cosmetic and not the 2026-06 bug:
+systemd `SIGKILL`s every process in the cgroup, and the warning is a
+race between that sweep and the restart in the same second. The test
+that matters is that no `EADDRINUSE` appears and the new bridges bind
+their ports — both true since the change.
+
+### logrotate needs `copytruncate`
+
+`/etc/logrotate.d/homebridge` is hand-written, not packaged, and used
+`create`. `hb-service` opens `homebridge.log` once at startup and
+never reopens it, so a rotation left the supervisor writing into a
+renamed-then-deleted inode:
+
+```console
+$ sudo ls -l /proc/<supervisor-pid>/fd | grep log
+l-wx------ 21 -> /var/lib/homebridge/homebridge.log.1 (deleted)
+```
+
+The log had been 0 bytes since the rotation at 2026-10-29 00:00 — four
+days during which the bridge was perfectly healthy and said nothing
+anywhere, `journalctl -u homebridge` included. This is the
+`rocm-version` failure again: the service works, the record of it goes
+nowhere, and nobody notices because nothing errors.
+
+`create` is now `copytruncate`, which truncates in place and keeps the
+descriptor valid. Only 64 bytes were trapped, so nothing was lost.
 
 ## Credentials, and what is in git
 
@@ -168,6 +264,39 @@ Re-capture it after any change made through the Config UI:
 $ ./sync-config.sh
 $ git diff -- homebridge/config.redacted.json
 ```
+
+## Publishing the Emporia plugin
+
+The plugin is being published to npm as **`homebridge-emporia`**,
+which retires the `file:` dependency, the staged tarball, the
+`EMPORIA_TARBALL` check in `deploy.sh` and the section above. Source
+is at [`sbates130272/homebridge-emporia`][ref-emporia-repo].
+
+It is worth publishing rather than keeping local. Two Emporia plugins
+exist on npm — `homebridge-emporia-vue-log` and
+`homebridge-emporia-vue-plugin` — and both are read-only virtual
+switches that borrow an unrelated service, one reporting watts as
+*lux* on a light sensor. Neither exposes an Emporia smart outlet as a
+HomeKit `Outlet`, and neither can switch one. None of the 707
+Homebridge-verified plugins is an Emporia plugin.
+
+**The rename is a migration, not a version bump.** Cached accessories
+record the plugin that created them:
+
+```console
+$ sudo jq -r '.[0].plugin' \
+    /var/lib/homebridge/accessories/cachedAccessories.0E4494DB4E91
+homebridge-plugin-emporia
+```
+
+Installing under the new name orphans all eight of them. The platform
+alias is unchanged (`EmporiaEnergy`), so `config.json` needs no edit,
+but the cutover wants doing once — after the npm publish, not before —
+and the Home app should be checked for renamed or duplicated tiles
+afterwards. This host therefore stays on
+`homebridge-plugin-emporia@1.0.0` until then.
+
+[ref-emporia-repo]: https://github.com/sbates130272/homebridge-emporia
 
 ## Home Assistant
 

@@ -58,6 +58,7 @@ crontab
 CSV
 cua
 curation
+cutover
 datacenter
 datasource
 datasources
@@ -144,6 +145,7 @@ IAM
 icloud
 iCloud
 idempotently
+inode
 inodes
 integrations
 interop
@@ -176,6 +178,7 @@ LLMs
 LMCache
 LocalPort
 LocalPorts
+logrotate
 loki
 lookups
 loopback
@@ -272,6 +275,7 @@ repo
 repo's
 repointed
 repointing
+Resideo
 rocm
 ROCm
 rollout
