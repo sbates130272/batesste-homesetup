@@ -99,7 +99,7 @@ as a local check can honestly go.
 | `homebridge-eufy-security`               | Cameras and doorbell        |
 | `@homebridge-plugins/homebridge-govee`   | Lights                      |
 | `@homebridge-plugins/homebridge-wemo`    | Outlets                     |
-| `homebridge-plugin-emporia`              | Energy monitors, EV charger |
+| `homebridge-emporia`                     | Energy monitors, EV charger |
 | `homebridge-network-presence`            | Per-person presence sensors |
 
 `homebridge-automation-calendar` (seasons, week and month of the
@@ -140,16 +140,16 @@ crashing does not take the others with it. The five above are what the
 `homebridge: <plugin>` processes under `systemctl status homebridge`
 are.
 
-### The Emporia plugin is a local tarball
+### The Emporia plugin used to be a local tarball
 
-`homebridge-plugin-emporia` is installed from a `file:` dependency in
-`/var/lib/homebridge/package.json`, not from npm.
+Every plugin here now comes from npm. That was not true until
+2026-11-02, and the exception had quietly broken plugin management on
+this host.
 
-**That dependency used to point into `~batesste`, and it had broken
-every plugin install on this host.** `/home/batesste` is `0750`, so
-the `homebridge` user could not traverse it, and `npm install` in
-`/var/lib/homebridge` aborted `EACCES` on the tarball before it got as
-far as the package anyone was actually asking for:
+`homebridge-plugin-emporia` was a `file:` dependency pointing into
+`~batesste`. `/home/batesste` is `0750`, so the `homebridge` user
+could not traverse it, and `npm install` in `/var/lib/homebridge`
+aborted before reaching whatever package was actually being installed:
 
 ```text
 npm error code EACCES
@@ -157,19 +157,17 @@ npm error path /home/batesste/Projects/homebridge-plugin-emporia/...tgz
 npm error   requiredBy: '.'
 ```
 
-A `file:` dependency is resolved on *every* install, so this was not
-specific to the Emporia plugin — no plugin could be added or upgraded
-at all. It is why `homebridge-automation-calendar` sat on `0.1.1` with
-`0.2.1` published.
+A `file:` dependency is resolved on *every* install, so this was never
+specific to the Emporia plugin — **no plugin could be added or
+upgraded at all.** It is why `homebridge-automation-calendar` sat on
+`0.1.1` for a year with `0.2.1` published, and why the duplicate
+accessory entry that disabled it was never cleaned up.
 
-The tarball now lives at
-`/var/lib/homebridge/local-plugins/homebridge-plugin-emporia-1.0.0.tgz`,
-owned by `homebridge`, and the dependency is the relative
-`file:local-plugins/...`. Nothing under `/home` is on the path any
-more.
-
-This whole arrangement is scheduled to go away: see
-[the publishing note](#publishing-the-emporia-plugin) below.
+The fix was to publish the plugin: see
+[the publishing note](#publishing-the-emporia-plugin) below. Worth
+remembering as a shape, though — a dependency on a path only one
+human can read looks fine until it is the thing standing between you
+and every future upgrade.
 
 ## systemd and logging
 
@@ -267,12 +265,12 @@ $ git diff -- homebridge/config.redacted.json
 
 ## Publishing the Emporia plugin
 
-The plugin is being published to npm as **`homebridge-emporia`**,
-which retires the `file:` dependency, the staged tarball, the
-`EMPORIA_TARBALL` check in `deploy.sh` and the section above. Source
+Published to npm on 2026-11-02 as
+[**`homebridge-emporia`**][ref-emporia-npm] `1.1.0`, which retired the
+`file:` dependency, the staged tarball and the section above. Source
 is at [`sbates130272/homebridge-emporia`][ref-emporia-repo].
 
-It is worth publishing rather than keeping local. Two Emporia plugins
+It was worth publishing rather than keeping local. Two Emporia plugins
 exist on npm — `homebridge-emporia-vue-log` and
 `homebridge-emporia-vue-plugin` — and both are read-only virtual
 switches that borrow an unrelated service, one reporting watts as
@@ -280,21 +278,50 @@ switches that borrow an unrelated service, one reporting watts as
 HomeKit `Outlet`, and neither can switch one. None of the 707
 Homebridge-verified plugins is an Emporia plugin.
 
-**The rename is a migration, not a version bump.** Cached accessories
-record the plugin that created them:
+### The rename was a migration, not a version bump
+
+Cached accessories record the plugin that created them, and the
+plugin's `PLUGIN_NAME` is what Homebridge passes to
+`registerPlatformAccessories`. Renaming the package therefore orphans
+every accessory it owns — all eight here — and an orphaned accessory
+is removed and re-added, which in the Home app means losing its room,
+its name and any automation referencing it.
+
+That was avoided by rewriting the identifier in the cache while the
+service was stopped, rather than letting Homebridge discover the
+mismatch at startup:
 
 ```console
-$ sudo jq -r '.[0].plugin' \
-    /var/lib/homebridge/accessories/cachedAccessories.0E4494DB4E91
-homebridge-plugin-emporia
+$ sudo systemctl stop homebridge
+$ sudo python3 - <<'PY'
+import json, glob
+for f in glob.glob('/var/lib/homebridge/accessories/*cachedAccessories*'):
+    d = json.load(open(f))
+    for a in d:
+        if a.get('plugin') == 'homebridge-plugin-emporia':
+            a['plugin'] = 'homebridge-emporia'
+    json.dump(d, open(f, 'w'))
+PY
+$ sudo systemctl start homebridge
 ```
 
-Installing under the new name orphans all eight of them. The platform
-alias is unchanged (`EmporiaEnergy`), so `config.json` needs no edit,
-but the cutover wants doing once — after the npm publish, not before —
-and the Home app should be checked for renamed or duplicated tiles
-afterwards. This host therefore stays on
-`homebridge-plugin-emporia@1.0.0` until then.
+Do the `.bak` files alongside them too. The platform alias is
+unchanged (`EmporiaEnergy`), so `config.json` needed no edit at all.
+
+The log is how you tell it worked. Eight `Loading cached accessory`
+lines and no orphan or unregister message means HomeKit never saw a
+change:
+
+```text
+[Emporia Energy] Loading cached accessory: living-room-desk
+[Emporia Energy] Child bridge started successfully (plugin v1.1.0).
+```
+
+Had it gone the other way, the backup taken first —
+`/var/lib/homebridge/accessories-backup-<timestamp>` — is the way
+back.
+
+[ref-emporia-npm]: https://www.npmjs.com/package/homebridge-emporia
 
 [ref-emporia-repo]: https://github.com/sbates130272/homebridge-emporia
 

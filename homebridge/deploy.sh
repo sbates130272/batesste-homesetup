@@ -44,20 +44,18 @@ UI_HOST="127.0.0.1"
 UI_PORT=18581
 TS_PORT=8581
 
-# homebridge-plugin-emporia is installed from a tarball rather than
-# from npm -- see package.json in /var/lib/homebridge.
+# Every plugin now comes from npm, so there is no tarball to check for
+# and no file: dependency to go stale. That was not true until the
+# Emporia plugin was published as homebridge-emporia on 2026-11-02;
+# before that it was a file: dependency on a path under ~batesste,
+# which is 0750, so the homebridge user could not read it and EVERY
+# `npm install` in /var/lib/homebridge failed EACCES -- a file:
+# dependency is resolved on every install, not just its own.
 #
-# It is staged inside the Homebridge storage directory, owned by the
-# homebridge user, and NOT in a working copy under /home. It used to
-# live under ~batesste, which is 0750: the homebridge user could not
-# traverse it, so `npm install` in /var/lib/homebridge aborted EACCES
-# on this tarball before reaching whatever package was actually being
-# installed. A file: dependency is resolved on every install, so that
-# broke plugin installs and upgrades across the board, not just this
-# plugin's.
-#
-# Goes away once the plugin is published to npm as homebridge-emporia.
-EMPORIA_TARBALL="${EMPORIA_TARBALL:-/var/lib/homebridge/local-plugins/homebridge-plugin-emporia-1.0.0.tgz}"
+# Asserted instead: nothing in the dependency list is a file: or link:
+# spec. If one reappears, plugin management is about to break again
+# and the error will name the wrong package.
+HB_PKG_JSON=/var/lib/homebridge/package.json
 
 # The apt package ships KillMode=process (still true in 2.0.23), which
 # orphans the per-plugin child bridges on stop and leaves their HAP
@@ -118,18 +116,20 @@ command -v tailscale >/dev/null || {
 }
 echo "    jq, tailscale: ok"
 
-if [[ -e "${EMPORIA_TARBALL}" ]]; then
-    echo "    emporia tarball: ok"
+LOCAL_DEPS="$(sudo jq -r '
+    (.dependencies // {}) | to_entries[]
+    | select(.value | test("^(file:|link:|\\.{1,2}/)"))
+    | "\(.key) -> \(.value)"' "${HB_PKG_JSON}" 2>/dev/null || true)"
+if [[ -z "${LOCAL_DEPS}" ]]; then
+    echo "    plugin deps: all from npm"
 else
-    echo "    WARNING: ${EMPORIA_TARBALL} is missing." >&2
-    echo "             homebridge-plugin-emporia is a file: dependency on" >&2
-    echo "             that path, and a file: dependency is resolved on" >&2
-    echo "             every install -- so while it is missing, NO plugin" >&2
-    echo "             can be installed or upgraded in /var/lib/homebridge." >&2
-    echo "             Rebuild it with 'npm pack' in the plugin's working" >&2
-    echo "             copy and stage it with:" >&2
-    echo "               sudo install -o homebridge -g homebridge -m 644 \\" >&2
-    echo "                   <tarball> ${EMPORIA_TARBALL}" >&2
+    echo "    WARNING: ${HB_PKG_JSON} has local plugin dependencies:" >&2
+    echo "${LOCAL_DEPS}" | sed 's/^/               /' >&2
+    echo "             A file: dependency is resolved on every install, so" >&2
+    echo "             if one of these is unreadable by the homebridge" >&2
+    echo "             user, NO plugin can be installed or upgraded here" >&2
+    echo "             and npm will blame whichever package you asked for." >&2
+    echo "             Publish it, or stage it inside /var/lib/homebridge." >&2
 fi
 
 # Asserted, not merely reported: an apt upgrade of homebridge restores
