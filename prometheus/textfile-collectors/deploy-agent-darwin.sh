@@ -72,44 +72,58 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 # Where node-exporter actually reads textfiles from, in the order the
-# flag is resolved: the running process, then any plist that launches
-# it, then the binary's own compiled-in default.
+# flag is resolved: the running process, then Homebrew's args file,
+# then any plist that launches it, then the compiled-in default.
 #
 # The running process is checked first and is the only authoritative
-# source. Homebrew's node_exporter formula ships a plist with no
-# arguments, so a textfile directory on a Mac is nearly always
-# something a human added by hand, and the plist that carries it is
-# not necessarily the one Homebrew currently manages.
+# source. Homebrew's node_exporter formula ships a plist that runs a
+# wrapper, not the binary, and the wrapper expands an args file:
+#
+#   exec .../bin/node_exporter $(</opt/homebrew/etc/node_exporter.args)
+#
+# so the flag is never in the plist even on a host that has it. That
+# file is the supported place to put it, and because it lives under
+# etc/ Homebrew preserves it across `brew upgrade` rather than
+# rewriting it the way it does the plist.
+#
+# The pattern is ERE via sed -E, and that is not a style choice. The
+# Linux script's BRE uses \? for an optional quote, which is a GNU
+# extension; BSD sed does not support it and fails *silently*,
+# printing nothing rather than erroring. Lifting that pattern verbatim
+# made this function return empty on a host where `ps` plainly showed
+# the flag.
 #
 # The same trap as the Linux script applies and for the same reason:
 # an empty answer makes the caller want to supply a directory of its
 # own, which would redirect node-exporter away from one it may already
 # be serving. That is why this script refuses rather than guesses.
 detect_textfile_dir() {
-    local dir pat plist
-    pat='s/.*--collector\.textfile\.directory[= ]"\?\([^" ]*\).*/\1/p'
+    local dir pat f
+    pat='s/.*--collector\.textfile\.directory[= ]"?([^" ]*).*/\1/'
 
-    dir="$(ps -Ao args= 2>/dev/null | grep '[n]ode_exporter' | sed -n "${pat}" | tail -1)"
+    dir="$(ps -Ao args= 2>/dev/null | grep '[n]ode_exporter' \
+        | sed -nE "${pat}p" | tail -1)"
     [[ -n "${dir}" ]] && { echo "${dir}"; return; }
 
-    for plist in \
+    for f in \
+        /opt/homebrew/etc/node_exporter.args \
+        /usr/local/etc/node_exporter.args \
         "${DAEMON_DIR}"/*node_exporter*.plist \
-        "${HOME}"/Library/LaunchAgents/*node_exporter*.plist \
-        /opt/homebrew/opt/node_exporter/*.plist \
-        /usr/local/opt/node_exporter/*.plist
+        "${HOME}"/Library/LaunchAgents/*node_exporter*.plist
     do
-        [[ -f "${plist}" ]] || continue
-        dir="$(sed -n "${pat}" "${plist}" | tail -1)"
+        [[ -f "${f}" ]] || continue
+        dir="$(sed -nE "${pat}p" "${f}" | tail -1)"
         [[ -n "${dir}" ]] && { echo "${dir}"; return; }
     done
 
     command -v node_exporter >/dev/null 2>&1 || return 0
-    node_exporter --help 2>&1 | sed -n "${pat}" | head -1
+    node_exporter --help 2>&1 | sed -nE "${pat}p" | head -1
 }
 
 echo "==> Detecting the node-exporter textfile directory..."
 TEXTFILE_DIR="$(detect_textfile_dir)"
 if [[ -z "${TEXTFILE_DIR}" ]]; then
+    BREW_PREFIX="$(brew --prefix 2>/dev/null || echo /opt/homebrew)"
     cat >&2 <<EOF
     ERROR: node-exporter on this host reads no textfile directory.
 
@@ -118,14 +132,22 @@ if [[ -z "${TEXTFILE_DIR}" ]]; then
     rocm-version: the .prom file was correct and the dashboard column
     was empty.
 
-    Add the flag to whatever launches node_exporter here, restart it,
-    and re-run this script. For a Homebrew install that is:
+    On a Homebrew install the supported place for the flag is the
+    args file the service wrapper expands, not the plist:
 
-      --collector.textfile.directory=/usr/local/var/node_exporter/textfile_collector
+      D=${BREW_PREFIX}/var/node_exporter/textfile_collector
+      mkdir -p "\$D"
+      echo "--collector.textfile.directory=\$D" \\
+          >> ${BREW_PREFIX}/etc/node_exporter.args
+      launchctl kickstart -k gui/\$(id -u)/homebrew.mxcl.node_exporter
 
-    Note that \`brew upgrade node_exporter\` rewrites its own plist and
-    will drop the flag again. This script does not edit that plist for
-    you precisely because Homebrew owns it.
+    That file lives under etc/, so \`brew upgrade\` preserves it. The
+    plist does not, which is why the flag does not belong there.
+    Confirm it took with:
+
+      ps -Ao args= | grep '[n]ode_exporter'
+
+    then re-run this script.
 EOF
     exit 1
 fi
@@ -171,11 +193,24 @@ if $DRY_RUN; then
     exit 0
 fi
 
+# launchctl kickstart returns as soon as it has *asked* launchd to
+# start the job, not when the job has finished. The collector then
+# spends one to three seconds inside system_profiler before it writes
+# anything, so checking for the file immediately reports a successful
+# install as a failure -- which is exactly what the first real run of
+# this script did. Poll instead of sleeping a fixed amount: a loaded
+# job that is genuinely broken still fails here, just 30s later.
 echo "==> Result:"
-if [[ -f "${TEXTFILE_DIR}/mac-wifi.prom" ]]; then
-    grep -v '^#' "${TEXTFILE_DIR}/mac-wifi.prom" | sed 's/^/    /'
+PROM="${TEXTFILE_DIR}/mac-wifi.prom"
+for _ in $(seq 1 30); do
+    [[ -f "${PROM}" ]] && break
+    sleep 1
+done
+
+if [[ -f "${PROM}" ]]; then
+    grep -v '^#' "${PROM}" | sed 's/^/    /'
 else
-    echo "    ERROR: ${TEXTFILE_DIR}/mac-wifi.prom was not written" >&2
+    echo "    ERROR: ${PROM} was not written" >&2
     echo "           Check /var/log/mac-wifi.err" >&2
     exit 1
 fi

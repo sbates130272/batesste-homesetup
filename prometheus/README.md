@@ -968,12 +968,71 @@ time to keep the file in git host-agnostic.
 
 **`deploy-agent-darwin.sh` refuses to configure node-exporter
 itself.** If it cannot find a textfile directory node-exporter
-already reads, it stops and prints what to add. Homebrew's
-formula ships a plist with no arguments and rewrites it on
-every `brew upgrade`, so a flag this script wrote there would
-disappear silently, and the failure mode is the one the Linux
-hosts had for months with `rocm-version`: a correct `.prom`
-file that nobody scrapes and an empty dashboard column.
+already reads, it stops and prints what to add, because the
+failure mode of guessing is the one the Linux hosts had for
+months with `rocm-version`: a correct `.prom` file that nobody
+scrapes and an empty dashboard column.
+
+**The flag goes in Homebrew's args file, not its plist.** The
+formula's plist does not run `node_exporter` at all; it runs a
+wrapper that expands an args file:
+
+```sh
+exec .../bin/node_exporter $(</opt/homebrew/etc/node_exporter.args)
+```
+
+so on `snoc-shannon` the setup was
+
+```sh
+D=/opt/homebrew/var/node_exporter/textfile_collector
+mkdir -p "$D"
+echo "--collector.textfile.directory=$D" \
+    >> /opt/homebrew/etc/node_exporter.args
+launchctl kickstart -k gui/$(id -u)/homebrew.mxcl.node_exporter
+```
+
+The plist is regenerated wholesale on upgrade, which is why the
+flag does not belong there. **The args file is the better place
+but not a safe one**: `snoc-shannon` still carries a
+`node_exporter.args~` from January 2025 containing
+`--collector.wifi`, so at some point Homebrew moved the live
+file aside and installed an empty default in its place. Treat
+the flag as something to re-check after `brew upgrade
+node_exporter`, not something that survives it by construction.
+If the **WiFi (dBm)** and **Link** columns ever empty out on
+this host while it is plainly awake, look here first.
+
+That stale `~` file is also the evidence for the warning above.
+`--collector.wifi` was tried on this Mac once, and the `darwin`
+binary's answer is unambiguous:
+
+```text
+node_exporter: error: unknown long flag '--collector.wifi', try --help
+```
+
+It does not start. That is why the root README tells you not to
+add it here.
+
+Note that node-exporter runs as a *user* LaunchAgent on this
+host while the collector runs as a *system* LaunchDaemon, so
+the textfile directory is root-owned and world-readable.
+
+**The detection pattern is ERE, and that is not a style
+choice.** `deploy-agent.sh` matches the flag with a BRE using
+`\?` for the optional quote. That is a GNU extension: BSD `sed`
+does not support it and fails *silently*, printing nothing
+rather than raising an error. Lifting the pattern verbatim made
+detection return empty on a host where `ps` plainly showed the
+flag, and the script dutifully refused to install on a
+correctly configured Mac.
+
+**Location Services did not withhold the RSSI in practice.** The
+collector runs as root out of `/Library/LaunchDaemons` and
+`system_profiler` still reported `Signal / Noise`;
+`snoc-shannon` reads −72 dBm against a −91 dBm noise floor.
+`mac_wifi_signal_present` exists because the opposite outcome
+is documented and plausible, not because it has been observed
+here.
 
 **SSID and BSSID are deliberately not exported**, for the same
 reason `wsl-wifi.sh` omits them.

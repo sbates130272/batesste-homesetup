@@ -11,6 +11,7 @@ ansible
 APFS
 APU
 ARGS
+args
 ARP
 auth
 automations
@@ -30,6 +31,7 @@ beelink's
 Belkin
 bluetoothd
 BlueZ
+BRE
 BSSID
 BuildKit
 buildx
@@ -163,7 +165,9 @@ keepalived
 keyrings
 Kubernetes
 latency
+LaunchAgent
 launchd
+LaunchDaemon
 Lemonade
 livelock
 llm
