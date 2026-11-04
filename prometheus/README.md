@@ -901,6 +901,142 @@ panel, and one of these two hosts is a corporate laptop that
 roams onto networks whose names have no business being written
 into a homelab TSDB with 90-day retention.
 
+## The macOS WiFi collector
+
+`mac-wifi.sh` publishes WiFi signal and link state on
+`snoc-shannon`, feeding the same **WiFi (dBm)** and **Link**
+columns on Node Fleet that `wsl-wifi.sh` feeds on the two WSL
+hosts. It is installed by `deploy-agent-darwin.sh`, not by
+`deploy-agent.sh`.
+
+**The `darwin` node-exporter is a much smaller binary than the
+Linux one**, and that is the whole reason this exists. Version
+1.12.1 `goos=darwin` serves 107 metric families against roughly
+500 on Linux. Two of the absences matter here:
+
+- No `node_wifi_*`. The wifi collector is built on nl80211 and
+  `/proc/net/wireless` and is not compiled into the `darwin`
+  build at all. **Do not add `--collector.wifi` on a Mac** the
+  way the root README describes doing on Linux: this is not the
+  WSL case where the flag is accepted and yields nothing, it is
+  an unknown flag, and node-exporter exits on it.
+- No `node_network_info`. The Link column's wired and wireless
+  terms are both built on it, so a Mac contributes to neither
+  side of the sum and drops out of the `+` join entirely.
+
+**`mac_link_up` is emitted for both kinds, always, including
+as 0.** The Link column sums a wired term worth 2 and a
+wireless term worth 1, and a PromQL `+` drops any series
+missing from either side. A Mac on WiFi with no cable that
+published only the wireless term would vanish from the join
+and take every other column in its row with it. This is the
+same trap the Linux branches avoid with their `or (... * 0)`
+zero defaults, arrived at from the other direction.
+
+**The kind comes from `networksetup -listallhardwareports`,
+not the interface name.** On a Mac `en0` is the radio on a
+laptop and the cable on a Mac mini, and Thunderbolt docks hand
+out `en5` upwards in enumeration order. The hardware-port map
+is authoritative, unprivileged, and returns in milliseconds.
+`ifconfig <dev>`'s `status: active` then gives carrier for a
+cable and association for a radio; it is not the same as the
+interface being `UP`, which a disconnected Mac leaves set.
+
+**The RSSI costs more than everything else combined, and the
+obvious source is gone.** `airport -I` was deprecated in Sonoma
+14.4 and the private framework binary behind it has been
+removed; on Sequoia it prints a deprecation notice and nothing
+else. `wdutil info` is accurate but needs root and has no
+stable output contract. That leaves `system_profiler
+SPAirPortDataType`, which is unprivileged and documented and
+takes one to three seconds. Hence `StartInterval 300` in the
+plist, the same five-minute reasoning as the WSL timer.
+
+**A withheld RSSI reports 0, not a guess.** Since Sequoia,
+parts of the `Current Network Information` block are withheld
+unless the caller holds Location Services authorisation, so
+`mac_wifi_signal_present` says which case you are in. Unlike
+`wsl-wifi.sh` there is no quality percentage to fall back on,
+and there is nothing to derive dBm from. The Link column works
+either way; only **WiFi (dBm)** goes blank.
+
+**The plist carries a `@TEXTFILE_DIR@` placeholder.** On Linux
+the textfile directory is layered onto a host-agnostic unit
+with a systemd drop-in. launchd has no drop-in mechanism, so
+`deploy-agent-darwin.sh` renders the placeholder at install
+time to keep the file in git host-agnostic.
+
+**`deploy-agent-darwin.sh` refuses to configure node-exporter
+itself.** If it cannot find a textfile directory node-exporter
+already reads, it stops and prints what to add, because the
+failure mode of guessing is the one the Linux hosts had for
+months with `rocm-version`: a correct `.prom` file that nobody
+scrapes and an empty dashboard column.
+
+**The flag goes in Homebrew's args file, not its plist.** The
+formula's plist does not run `node_exporter` at all; it runs a
+wrapper that expands an args file:
+
+```sh
+exec .../bin/node_exporter $(</opt/homebrew/etc/node_exporter.args)
+```
+
+so on `snoc-shannon` the setup was
+
+```sh
+D=/opt/homebrew/var/node_exporter/textfile_collector
+mkdir -p "$D"
+echo "--collector.textfile.directory=$D" \
+    >> /opt/homebrew/etc/node_exporter.args
+launchctl kickstart -k gui/$(id -u)/homebrew.mxcl.node_exporter
+```
+
+The plist is regenerated wholesale on upgrade, which is why the
+flag does not belong there. **The args file is the better place
+but not a safe one**: `snoc-shannon` still carries a
+`node_exporter.args~` from January 2025 containing
+`--collector.wifi`, so at some point Homebrew moved the live
+file aside and installed an empty default in its place. Treat
+the flag as something to re-check after `brew upgrade
+node_exporter`, not something that survives it by construction.
+If the **WiFi (dBm)** and **Link** columns ever empty out on
+this host while it is plainly awake, look here first.
+
+That stale `~` file is also the evidence for the warning above.
+`--collector.wifi` was tried on this Mac once, and the `darwin`
+binary's answer is unambiguous:
+
+```text
+node_exporter: error: unknown long flag '--collector.wifi', try --help
+```
+
+It does not start. That is why the root README tells you not to
+add it here.
+
+Note that node-exporter runs as a *user* LaunchAgent on this
+host while the collector runs as a *system* LaunchDaemon, so
+the textfile directory is root-owned and world-readable.
+
+**The detection pattern is ERE, and that is not a style
+choice.** `deploy-agent.sh` matches the flag with a BRE using
+`\?` for the optional quote. That is a GNU extension: BSD `sed`
+does not support it and fails *silently*, printing nothing
+rather than raising an error. Lifting the pattern verbatim made
+detection return empty on a host where `ps` plainly showed the
+flag, and the script dutifully refused to install on a
+correctly configured Mac.
+
+**Location Services did not withhold the RSSI in practice.** The
+collector runs as root out of `/Library/LaunchDaemons` and
+`system_profiler` still reported `Signal / Noise`;
+`snoc-shannon` reads −72 dBm against a −91 dBm noise floor.
+`mac_wifi_signal_present` exists because the opposite outcome
+is documented and plausible, not because it has been observed
+here.
+
+**SSID and BSSID are deliberately not exported**, for the same
+reason `wsl-wifi.sh` omits them.
+
 ## Things prometheus.yml cannot express
 
 Two files here configure the *processes* rather than the

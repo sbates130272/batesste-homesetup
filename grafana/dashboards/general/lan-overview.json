@@ -39,7 +39,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "One row per host running node-exporter, joined on instance: distro, kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Distro is node_exporter's os-release collector (node_os_info pretty_name), so it is blank on macOS and on Windows hosts served by windows_exporter -- those have no os-release file to read. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
+      "description": "One row per host running node-exporter, joined on instance: distro, kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Distro is node_exporter's os-release collector (node_os_info pretty_name) on Linux. macOS has no os-release file, so node_os_info arrives with an empty pretty_name and the name/version_id labels carrying the real answer -- the second branch label_joins those into 'macOS 15.6.1' rather than leaving the cell blank. A Windows host served by windows_exporter would still be blank; nothing on this LAN runs one. Memory % and RAM are likewise two branches: Darwin exports neither node_memory_MemAvailable_bytes nor node_memory_MemTotal_bytes, so macOS is computed from the Mach page classes instead -- see the repo README for why it is internal - purgeable + wired + compressed and not something simpler. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -472,7 +472,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (instance) ((1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100)",
+          "expr": "max by (instance) ((1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100)\nor\nmax by (instance) (\n    (\n        node_memory_internal_bytes - node_memory_purgeable_bytes\n      + node_memory_wired_bytes\n      + node_memory_compressed_bytes\n    )\n  / node_memory_total_bytes * 100\n)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -483,7 +483,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (instance) (node_memory_MemTotal_bytes)",
+          "expr": "max by (instance) (node_memory_MemTotal_bytes)\nor\nmax by (instance) (node_memory_total_bytes)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -516,7 +516,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (instance) (node_wifi_station_signal_dbm)\nor\nmax by (instance) (wsl_wifi_signal_dbm)",
+          "expr": "max by (instance) (node_wifi_station_signal_dbm)\nor\nmax by (instance) (wsl_wifi_signal_dbm)\nor\nmax by (instance) (mac_wifi_signal_dbm)",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -528,7 +528,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(\n    (\n        max by (instance) (\n            node_network_info{operstate=\"up\", device=~\"(en|eth).*\", address!~\"00:15:5d:.*\"}\n            unless on (instance, address) wsl_wifi_adapter\n        )\n        or (max by (instance) (node_network_info) * 0)\n    ) * 2\n)\n+\n(\n    max by (instance) (node_network_info{operstate=\"up\", device=~\"wl.*\"})\n    or max by (instance) (wsl_wifi_connected)\n    or (max by (instance) (node_network_info) * 0)\n)",
+          "expr": "(\n    (\n        max by (instance) (\n            node_network_info{operstate=\"up\", device=~\"(en|eth).*\", address!~\"00:15:5d:.*\"}\n            unless on (instance, address) wsl_wifi_adapter\n        )\n        or max by (instance) (mac_link_up{kind=\"wired\"})\n        or (max by (instance) (node_network_info) * 0)\n    ) * 2\n)\n+\n(\n    max by (instance) (node_network_info{operstate=\"up\", device=~\"wl.*\"})\n    or max by (instance) (wsl_wifi_connected)\n    or max by (instance) (mac_link_up{kind=\"wifi\"})\n    or (max by (instance) (node_network_info) * 0)\n)",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -569,7 +569,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (instance, pretty_name) (node_os_info)",
+          "expr": "max by (instance, pretty_name) (node_os_info{pretty_name!=\"\"})\nor\nmax by (instance, pretty_name) (\n    label_join(\n        node_os_info{pretty_name=\"\", name!=\"\"},\n        \"pretty_name\", \" \", \"name\", \"version_id\"\n    )\n)",
           "format": "table",
           "hide": false,
           "instant": true,
@@ -1509,7 +1509,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "One row per mounted filesystem on every host running node-exporter, covering ext4, xfs and btrfs only -- tmpfs, vfat, 9p and the rest are excluded deliberately, since none of them are storage you can run out of in a way worth paging about.\n\nCapacity is reported in bytes alongside the fill percentage because the two answer different questions. 90% of /boot is 1.6 GB and a five-minute fix; 90% of a 1 TB root is 100 GB and a weekend. The percentage tells you how urgent it is, Free tells you how much room you actually have, and Size tells you whether the mount is worth growing. Used is size minus avail rather than the used counter node-exporter exports, so it includes the root-reserved blocks that avail hides -- Used + Free is slightly less than Size on ext4 for exactly that reason.\n\nRows are joined on an instance@mountpoint key built with label_join rather than on instance alone, because instance is not unique here: a host has several mounts and joining on it collapses them to one arbitrary row. Device is shown because two mountpoints can sit on one block device -- amd-laptop reports / and /var/lib/docker as separate rows against the same /dev/sdd, which is one pool of space counted twice, not two.",
+      "description": "One row per mounted filesystem on every host running node-exporter, covering ext4, xfs, btrfs and apfs only -- tmpfs, vfat, 9p and the rest are excluded deliberately, since none of them are storage you can run out of in a way worth paging about.\n\nThe mountpoint!~\"/System/Volumes/.*\" exclusion exists for apfs alone and is not cosmetic. An APFS container shares one pool of free space across every volume in it, and node-exporter reports that pool once per volume: snoc-shannon returns nine identical 994 GB / 247 GB rows, for /, /System/Volumes/Data, /System/Volumes/Preboot and six more. Dropping the /System/Volumes/ tree leaves / alone, which is the figure Finder shows for the disk. No Linux mountpoint matches the pattern.\n\nCapacity is reported in bytes alongside the fill percentage because the two answer different questions. 90% of /boot is 1.6 GB and a five-minute fix; 90% of a 1 TB root is 100 GB and a weekend. The percentage tells you how urgent it is, Free tells you how much room you actually have, and Size tells you whether the mount is worth growing. Used is size minus avail rather than the used counter node-exporter exports, so it includes the root-reserved blocks that avail hides -- Used + Free is slightly less than Size on ext4 for exactly that reason.\n\nRows are joined on an instance@mountpoint key built with label_join rather than on instance alone, because instance is not unique here: a host has several mounts and joining on it collapses them to one arbitrary row. Device is shown because two mountpoints can sit on one block device -- amd-laptop reports / and /var/lib/docker as separate rows against the same /dev/sdd, which is one pool of space counted twice, not two.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -1724,7 +1724,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "label_join(max by (instance, server_name, device, mountpoint, fstype) (node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}), \"fskey\", \"@\", \"instance\", \"mountpoint\")",
+          "expr": "label_join(max by (instance, server_name, device, mountpoint, fstype) (node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint!~\"/System/Volumes/.*\"}), \"fskey\", \"@\", \"instance\", \"mountpoint\")",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1737,7 +1737,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (fskey) (label_join(\n  node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"} - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "expr": "max by (fskey) (label_join(\n  node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint!~\"/System/Volumes/.*\"} - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint!~\"/System/Volumes/.*\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1750,7 +1750,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (fskey) (label_join(\n  node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "expr": "max by (fskey) (label_join(\n  node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint!~\"/System/Volumes/.*\"},\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -1763,7 +1763,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "max by (fskey) (label_join(\n  (1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs\"}) * 100,\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
+          "expr": "max by (fskey) (label_join(\n  (1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint!~\"/System/Volumes/.*\"} / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint!~\"/System/Volumes/.*\"}) * 100,\n\"fskey\", \"@\", \"instance\", \"mountpoint\"))",
           "format": "table",
           "instant": true,
           "legendFormat": "",
@@ -3778,7 +3778,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "WiFi signal strength per node. Closer to 0 is better.",
+      "description": "WiFi signal strength per node. Closer to 0 is better.\n\nThree sources, because no single collector covers this fleet. node_wifi_station_signal_dbm is node-exporter's own wifi collector and works only on native Linux; wsl_wifi_signal_dbm comes from the wsl-wifi textfile collector on amd-laptop and snoc-gaming, where the radio lives on the Windows side of the VM; mac_wifi_signal_dbm comes from the mac-wifi textfile collector on snoc-shannon, where node-exporter's darwin build has no wifi collector at all. This panel charted only the first for a long time, which silently omitted every host that is not native Linux.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3862,7 +3862,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "node_wifi_station_signal_dbm",
+          "expr": "node_wifi_station_signal_dbm\nor\nwsl_wifi_signal_dbm\nor\nmac_wifi_signal_dbm",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{server_name}}",
@@ -4761,7 +4761,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Memory usage percentage per node.",
+      "description": "Memory usage percentage per node.\n\nThe second branch is macOS, which exports no MemAvailable. It is the Mach page breakdown Activity Monitor calls Memory Used: internal (app memory) less the purgeable part of it, plus wired, plus compressed. Inactive is deliberately not counted -- it is reclaimable, and counting it reads a healthy Mac as full.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -4813,7 +4813,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100",
+          "expr": "(1 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) * 100\nor\n(\n    (\n        node_memory_internal_bytes - node_memory_purgeable_bytes\n      + node_memory_wired_bytes\n      + node_memory_compressed_bytes\n    )\n  / node_memory_total_bytes * 100\n)",
           "format": "time_series",
           "instant": false,
           "legendFormat": "{{server_name}}",

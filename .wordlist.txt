@@ -8,8 +8,10 @@ amd
 amdgpu
 amdsmi
 ansible
+APFS
 APU
 ARGS
+args
 ARP
 auth
 automations
@@ -18,6 +20,7 @@ avahi
 Avahi
 backend
 backfilled
+Backfilling
 backpressure
 backtested
 batesste
@@ -28,6 +31,7 @@ beelink's
 Belkin
 bluetoothd
 BlueZ
+BRE
 BSSID
 BuildKit
 buildx
@@ -38,6 +42,7 @@ cgroups
 CDNA
 changelog
 CIBC
+CIBC's
 CLI
 codebase
 conf
@@ -53,11 +58,13 @@ crontab
 CSV
 cua
 curation
+cutover
 datacenter
 datasource
 datasources
 dBm
 DBs
+Dedup
 denylist
 Dependabot
 Dependabot's
@@ -116,6 +123,8 @@ hardcodes
 hardcoding
 HBM
 hermes
+Homebrew
+Homebrew's
 homebridge
 Homebridge
 Homebridge's
@@ -136,6 +145,7 @@ IAM
 icloud
 iCloud
 idempotently
+inode
 inodes
 integrations
 interop
@@ -157,6 +167,9 @@ keepalived
 keyrings
 Kubernetes
 latency
+LaunchAgent
+launchd
+LaunchDaemon
 Lemonade
 livelock
 llm
@@ -165,6 +178,7 @@ LLMs
 LMCache
 LocalPort
 LocalPorts
+logrotate
 loki
 lookups
 loopback
@@ -176,6 +190,7 @@ MacBook
 macOS
 MACs
 MagicDNS
+Mastercard
 MBR
 MCP
 md
@@ -231,10 +246,12 @@ PIDs
 pids
 pigz
 pipx
+plist
 Podman
 podman
 ppp
 prometheus
+PromQL
 Promtail
 promtool
 protanopia
@@ -247,6 +264,7 @@ Qwen
 radeon
 Radeon
 raithlin
+RBC
 rdma
 reachability
 README
@@ -257,6 +275,7 @@ repo
 repo's
 repointed
 repointing
+Resideo
 rocm
 ROCm
 rollout
@@ -276,8 +295,10 @@ SimpleFIN
 smartplug
 smartplugs
 SmartPlugs
+SMC
 SMTP
 snoc
+Sonoma
 speedtest
 Speedtest
 SPI
@@ -336,6 +357,7 @@ unjoinable
 unmonitored
 Unpair
 unprefixed
+unregister
 unreproducible
 unrotated
 unroutable
@@ -367,6 +389,7 @@ WebUI
 webui
 WebUI's
 Wemo
+WestJet
 WhatsApp
 WiFi
 wifi

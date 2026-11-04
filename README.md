@@ -88,7 +88,13 @@ ExecStart=
 ExecStart=/usr/bin/prometheus-node-exporter $ARGS --collector.wifi
 ```
 Note that unfortunately this collector is not available for macOS and
-so this won't work on Mac-based systems.
+so this won't work on Mac-based systems. Do not add the flag there
+anyway: it is not compiled into the `darwin` build, so node-exporter
+exits on the unknown flag rather than ignoring it. `snoc-shannon` is
+covered instead by the `mac-wifi.sh` textfile collector, installed by
+[`deploy-agent-darwin.sh`](./prometheus/textfile-collectors/deploy-agent-darwin.sh);
+see [the prometheus README.md](./prometheus/README.md) for what it
+reads and why it reads it that way.
 
 Note that in order to gather more data we alter the retention default
 policy in Prometheus. In Ubuntu we do this via adding the following to

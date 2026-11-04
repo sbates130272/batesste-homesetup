@@ -44,13 +44,25 @@ UI_HOST="127.0.0.1"
 UI_PORT=18581
 TS_PORT=8581
 
-# homebridge-plugin-emporia is installed from a tarball in a sibling
-# working copy rather than from npm -- see package.json in
-# /var/lib/homebridge. If that directory goes away, the plugin
-# survives in node_modules until the next `npm install`, and then
-# disappears with no error anyone reads. Checked, not fixed: rebuilding
-# it is a `npm pack` in a repo this script does not own.
-EMPORIA_TARBALL="${EMPORIA_TARBALL:-$HOME/Projects/homebridge-plugin-emporia/homebridge-plugin-emporia-1.0.0.tgz}"
+# Every plugin now comes from npm, so there is no tarball to check for
+# and no file: dependency to go stale. That was not true until the
+# Emporia plugin was published as homebridge-emporia on 2026-11-02;
+# before that it was a file: dependency on a path under ~batesste,
+# which is 0750, so the homebridge user could not read it and EVERY
+# `npm install` in /var/lib/homebridge failed EACCES -- a file:
+# dependency is resolved on every install, not just its own.
+#
+# Asserted instead: nothing in the dependency list is a file: or link:
+# spec. If one reappears, plugin management is about to break again
+# and the error will name the wrong package.
+HB_PKG_JSON=/var/lib/homebridge/package.json
+
+# The apt package ships KillMode=process (still true in 2.0.23), which
+# orphans the per-plugin child bridges on stop and leaves their HAP
+# ports bound, crash-looping the next start on EADDRINUSE. The fix
+# belongs in a drop-in: the unit file is apt's and is rewritten on
+# upgrade.
+KILLMODE_DROPIN=/etc/systemd/system/homebridge.service.d/10-killmode.conf
 
 usage() {
     cat <<EOF
@@ -104,15 +116,35 @@ command -v tailscale >/dev/null || {
 }
 echo "    jq, tailscale: ok"
 
-if [[ -e "${EMPORIA_TARBALL}" ]]; then
-    echo "    emporia tarball: ok"
+LOCAL_DEPS="$(sudo jq -r '
+    (.dependencies // {}) | to_entries[]
+    | select(.value | test("^(file:|link:|\\.{1,2}/)"))
+    | "\(.key) -> \(.value)"' "${HB_PKG_JSON}" 2>/dev/null || true)"
+if [[ -z "${LOCAL_DEPS}" ]]; then
+    echo "    plugin deps: all from npm"
 else
-    echo "    WARNING: ${EMPORIA_TARBALL} is missing." >&2
-    echo "             homebridge-plugin-emporia is a file: dependency on" >&2
-    echo "             that path. It keeps working from node_modules until" >&2
-    echo "             the next npm install in /var/lib/homebridge, which" >&2
-    echo "             will then drop it. Rebuild it with 'npm pack' in" >&2
-    echo "             the plugin's working copy." >&2
+    echo "    WARNING: ${HB_PKG_JSON} has local plugin dependencies:" >&2
+    echo "${LOCAL_DEPS}" | sed 's/^/               /' >&2
+    echo "             A file: dependency is resolved on every install, so" >&2
+    echo "             if one of these is unreadable by the homebridge" >&2
+    echo "             user, NO plugin can be installed or upgraded here" >&2
+    echo "             and npm will blame whichever package you asked for." >&2
+    echo "             Publish it, or stage it inside /var/lib/homebridge." >&2
+fi
+
+# Asserted, not merely reported: an apt upgrade of homebridge restores
+# KillMode=process in the unit, and the drop-in is what survives it.
+if [[ -e "${KILLMODE_DROPIN}" ]]; then
+    echo "    killmode drop-in: ok"
+else
+    echo "    WARNING: ${KILLMODE_DROPIN} is missing." >&2
+    echo "             Without it homebridge inherits KillMode=process" >&2
+    echo "             from the apt unit, orphaning the child bridges on" >&2
+    echo "             stop and crash-looping the next start on" >&2
+    echo "             EADDRINUSE. Restore it with:" >&2
+    echo "               printf '[Service]\\nKillMode=mixed\\n' |" >&2
+    echo "                   sudo tee ${KILLMODE_DROPIN}" >&2
+    echo "               sudo systemctl daemon-reload" >&2
 fi
 
 # ── Package ──────────────────────────────────────────────────────

@@ -10,12 +10,6 @@
       "latitude": 0,
       "longitude": 0,
       "name": "AutomationCalendar"
-    },
-    {
-      "accessory": "AutomationCalendar",
-      "latitude": 0,
-      "longitude": 0,
-      "name": "AutomationCalendar"
     }
   ],
   "bridge": {
@@ -25,9 +19,7 @@
     "port": 51950,
     "username": "0E:64:CD:60:B7:2C"
   },
-  "disabledPlugins": [
-    "homebridge-automation-calendar"
-  ],
+  "disabledPlugins": [],
   "platforms": [
     {
       "host": "127.0.0.1",
@@ -43,7 +35,7 @@
         "port": 44851,
         "username": "0E:44:94:DB:4E:91"
       },
-      "debug": true,
+      "debug": false,
       "devices": [
         {
           "deviceGid": 166264,
@@ -51,7 +43,37 @@
           "name": "REDACTED"
         },
         {
+          "deviceGid": 181300,
+          "hide": false,
+          "name": "REDACTED"
+        },
+        {
           "deviceGid": 289761,
+          "hide": false,
+          "name": "REDACTED"
+        },
+        {
+          "deviceGid": 289780,
+          "hide": false,
+          "name": "REDACTED"
+        },
+        {
+          "deviceGid": 411810,
+          "hide": false,
+          "name": "REDACTED"
+        },
+        {
+          "deviceGid": 411815,
+          "hide": false,
+          "name": "REDACTED"
+        },
+        {
+          "deviceGid": 411820,
+          "hide": false,
+          "name": "REDACTED"
+        },
+        {
+          "deviceGid": 411833,
           "hide": false,
           "name": "REDACTED"
         }
