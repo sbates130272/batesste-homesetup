@@ -14,6 +14,7 @@ ARGS
 args
 ARP
 auth
+autofill
 automations
 autostarts
 avahi
@@ -123,6 +124,8 @@ hardcodes
 hardcoding
 HBM
 hermes
+Hermex
+Hermex's
 Homebrew
 Homebrew's
 homebridge
@@ -240,12 +243,14 @@ OpenAI's
 openbox
 OUI
 passthrough
+PBKDF
 PCIe
 perf
 PIDs
 pids
 pigz
 pipx
+plaintext
 plist
 Podman
 podman
@@ -259,6 +264,7 @@ proxied
 proxying
 pty
 PV
+PWA
 PyPI
 Qwen
 radeon
@@ -286,6 +292,7 @@ runbook
 sbates
 scrape
 scrollback
+scrypt
 sd
 SHA
 SIGHUP
@@ -344,6 +351,7 @@ Trivy
 tsdb
 TTLs
 TTS
+TUI
 TXT
 UI
 UID
@@ -383,6 +391,7 @@ vSwitch
 vxwm
 WAL
 WAN
+Webapp
 webhook
 WebSocket
 WebUI

@@ -175,6 +175,23 @@ before the Origin check is reached and the session token is only handed
 out to a real browser session. If live updates in the dashboard ever
 stall over the tailnet, this shim is the first thing to suspect.
 
+That is still the state of it after the update to Hermes 0.23.2: an
+unauthenticated upgrade request through the shim gets `403` from the
+dashboard's WebSocket layer, which shows the upgrade is forwarded and
+nothing about what an authenticated one does.
+
+### The dashboard shim states the scheme itself
+
+`X-Forwarded-Proto` in `sites-available/hermes-dashboard` is the literal
+`https`, not `$scheme`. The listener is plain HTTP, so `$scheme` told the
+dashboard every request was `http`, and the dashboard withholds `Secure`
+and the `__Host-` cookie prefix on that basis — for sessions that were
+TLS all the way from the browser's side. Since the update to Hermes
+0.23.2 this is the only job the shim still clearly does; the `Host`
+rewrite it was written for has become optional. Whether `tailscale
+serve` pointed straight at 9119 would send the right header on its own
+has not been captured.
+
 See [the hermes README.md](../hermes/README.md) for the rest of that
 story.
 

@@ -8,8 +8,8 @@
 # User-scoped for two concrete reasons, not tidiness:
 #
 #   - It can reach the login session's gpg-agent at /run/user/1000/gnupg.
-#     A system unit cannot, and WebUI needs it to sign the commits Hermex
-#     makes into ~/.hermes/workspace.
+#     A system unit cannot, and WebUI needs it to sign a commit made from
+#     its Git panel, into a repository under ~/.hermes/webui/workspace.
 #   - ~/.config/environment.d/ only applies to user units. That is where this
 #     service's environment now lives (the `systemd` package in the dotfiles),
 #     so there is not an Environment= line in here to drift from it.

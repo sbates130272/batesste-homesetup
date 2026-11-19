@@ -1,23 +1,32 @@
 # Host/Origin shim for the Hermes dashboard.
 #
 # The dashboard binds 127.0.0.1:9119 and enforces a DNS-rebinding guard
-# (GHSA-ppp5-vxwm-4cf7): on a loopback bind it accepts only loopback
-# Host values, and the WebSocket handshake applies the same test to
-# Origin. tailscale serve forwards the tailnet hostname verbatim, so
-# proxying straight to 9119 yields:
+# (GHSA-ppp5-vxwm-4cf7, _is_accepted_host in
+# hermes_cli/web_server_boundary.py). When this vhost was written the
+# guard accepted only loopback Host values on a loopback bind, and
+# tailscale serve forwards the tailnet hostname verbatim, so proxying
+# straight to 9119 was refused. This vhost normalises Host and Origin
+# back to loopback so the tailnet path works.
+#
+# Since the update to Hermes 0.23.2 that rewrite is no longer required:
+# the guard also accepts the hostname of dashboard.public_url (upstream
+# since 0.21.6), which is set, so a
+# request carrying the tailnet Host is answered 200 on 9119 directly and
+# anything else still gets
 #
 #   {"detail":"Invalid Host header. Dashboard requests must use the
-#     hostname the server was bound to."}
+#     bound hostname or the configured public hostname."}
 #
-# This vhost normalises both headers back to loopback so the tailnet
-# path works. That does re-permit what the guard blocks, which is a
+# The vhost is kept because it is the one place that can state the
+# scheme. See X-Forwarded-Proto below.
+#
+# The rewrite does re-permit what the guard blocks, which is a
 # deliberate trade: the guard defends against a malicious website
 # rebinding DNS in a victim's browser, whereas everything reaching this
 # listener has already passed Tailscale's TLS and tailnet ACLs. The
-# dashboard's own dashboard.basic_auth login still applies behind this
-# (GET / returns 302 to the login page), so tailnet membership is the
-# outer gate, not the only one -- but do not expose this vhost beyond
-# loopback regardless.
+# dashboard's own dashboard.basic_auth login still applies behind this,
+# so tailnet membership is the outer gate, not the only one -- but do
+# not expose this vhost beyond loopback regardless.
 #
 # tailscale serve points at 9120, not 9119:
 #   tailscale serve --bg --https 9119 http://127.0.0.1:9120
@@ -39,7 +48,15 @@ server {
 
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Not $scheme. This listener is plain HTTP, so $scheme is "http",
+        # and the dashboard decides cookie hardening on the scheme it is
+        # told (detect_https in hermes_cli/dashboard_auth/cookies.py):
+        # "http" gets bare cookie names without Secure, "https" gets
+        # __Host- names with Secure. The only remote way to reach this
+        # listener is tailscale serve, which is always TLS on the client
+        # side. A local process on loopback is told https as well.
+        proxy_set_header X-Forwarded-Proto https;
 
         # Long-lived WS connections; ws_ping_interval is 20s.
         proxy_read_timeout  3600s;
