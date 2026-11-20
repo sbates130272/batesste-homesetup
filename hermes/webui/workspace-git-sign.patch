@@ -1,4 +1,4 @@
-From 1b837f4a3e2190220c4966d36c43e06a756622bb Mon Sep 17 00:00:00 2001
+From 25ba89aa433ba6ceea772ef05430df5128d43a0b Mon Sep 17 00:00:00 2001
 From: Stephen Bates <sbates@raithlin.com>
 Date: Thu, 17 Sep 2026 09:37:09 -0600
 Subject: [PATCH] workspace_git: Make the GPG-signing override opt-out
@@ -30,18 +30,18 @@ Signed-off-by: Stephen Bates <sbates@raithlin.com>
  1 file changed, 38 insertions(+), 6 deletions(-)
 
 diff --git a/api/workspace_git.py b/api/workspace_git.py
-index a63a3f65..8a580cdd 100644
+index 6de9f6e39..1f86a0ad2 100644
 --- a/api/workspace_git.py
 +++ b/api/workspace_git.py
-@@ -32,6 +32,7 @@ STATUS_FILE_LIMIT = 500
+@@ -39,6 +39,7 @@ STATUS_FILE_LIMIT = 500
  DIFF_SIZE_LIMIT = 512 * 1024
  COMMIT_MESSAGE_DIFF_LIMIT = 64 * 1024
  WORKSPACE_GIT_DESTRUCTIVE_ENV = "HERMES_WEBUI_WORKSPACE_GIT_DESTRUCTIVE"
 +WORKSPACE_GIT_SIGN_ENV = "HERMES_WEBUI_WORKSPACE_GIT_SIGN"
- _GIT_ENV_SCRUB_KEYS = (
-     "GIT_DIR",
-     "GIT_WORK_TREE",
-@@ -67,15 +68,31 @@ _GIT_HARDENED_CONFIG = (
+ _HERMES_BRANCH_SWITCH_STASH_PREFIX = "hermes-webui branch switch"
+ _GIT_HARDENED_CONFIG = (
+     # Workspace Git operations can run against repositories provided by agents,
+@@ -51,15 +52,31 @@ _GIT_HARDENED_CONFIG = (
      ("fetch.recurseSubmodules", "false"),
  )
  _GIT_DESTRUCTIVE_HARDENED_CONFIG = (
@@ -77,7 +77,7 @@ index a63a3f65..8a580cdd 100644
  )
  
  
-@@ -92,6 +109,9 @@ def _hardened_git_argv(
+@@ -77,6 +94,9 @@ def _hardened_git_argv(
      if destructive:
          for key, value in _GIT_DESTRUCTIVE_HARDENED_CONFIG:
              argv.extend(["-c", f"{key}={value}"])
@@ -87,7 +87,7 @@ index a63a3f65..8a580cdd 100644
          if hooks_path:
              argv.extend(["-c", f"core.hooksPath={hooks_path}"])
      if attributes_file:
-@@ -100,8 +120,8 @@ def _hardened_git_argv(
+@@ -85,8 +105,8 @@ def _hardened_git_argv(
      return argv
  
  
@@ -98,7 +98,7 @@ index a63a3f65..8a580cdd 100644
          "1",
          "true",
          "yes",
-@@ -109,6 +129,18 @@ def workspace_git_destructive_enabled() -> bool:
+@@ -94,6 +114,18 @@ def workspace_git_destructive_enabled() -> bool:
      }
  
  
@@ -115,8 +115,8 @@ index a63a3f65..8a580cdd 100644
 +
 +
  def _clean_git_env(extra: dict[str, str] | None = None) -> dict[str, str]:
-     env = os.environ.copy()
-     if extra:
+     return clean_git_env(extra)
+ 
 -- 
 2.43.0
 

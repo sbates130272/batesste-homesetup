@@ -38,6 +38,27 @@ command_allowlist:
   - script execution via -e/-c flag
   - tirith:pipe_to_interpreter
 
+  # ---- Captured 2026-11-19, after the v0.21.4 -> v0.23.2 update ----
+  #
+  # Nine more answered "always" at a prompt since the last capture, found
+  # only because the post-update ./deploy.sh --dry-run offered to delete
+  # them. Recorded as they stood in the live config, not re-justified one
+  # by one.
+  - delete in root path
+  - docker compose restart/stop/kill/down (container lifecycle)
+  - force kill processes
+  - git reset --hard (destroys uncommitted changes)
+  - shell command via -c/-lc flag
+  - shell execution via heredoc
+  - tirith:curl_pipe_shell
+  - tirith:plain_http_to_sink
+  - tirith:schemeless_to_sink
+
+  # ---- Captured 2026-11-20 ----
+  #
+  # One more answered "always" at a prompt, found the same way.
+  - kill process via pgrep/pidof expansion (self-termination)
+
   # ---- computer_use ----
   #
   # Hermes gates every action its _ACTIONS table marks `destructive` through

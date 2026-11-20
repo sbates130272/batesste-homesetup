@@ -66,3 +66,31 @@ computer_use:
   # applies when the driver process has WAYLAND_DISPLAY. Left false so a
   # future desktop-environment change has to be a deliberate edit.
   native_wayland: false
+
+# Not the container above: this is Hermes' own per-profile Xvnc + Xfce
+# screen on the host, the one Hermex shows as "Bot" and the dashboard
+# streams over /api/display/ws.
+#
+# Since 2026-11-20 computer_use acts here too. HERMES_CUA_DRIVER_CMD is
+# commented out in ~/.hermes/.env, so Hermes uses its own pinned host
+# driver (`hermes computer-use install`) and points it at this screen.
+# Re-running deploy.sh puts the override back and sends computer_use to
+# the container again, where nobody watching the Bot screen can see it.
+bot_desktop:
+  # The default is 1440x900, and the launcher pins 96 DPI with no config
+  # key for it, so geometry is the only lever on how large things look.
+  # A phone fits the whole screen to its width: 1440 px across ~390 pt is
+  # 0.27x and unreadable; 960 is 0.41x. Kept landscape because it is not
+  # known how Hermex letterboxes a portrait screen. Read once at
+  # `hermes computer-use screen start`, so a running screen keeps its size.
+  geometry: 960x600
+  # The screen stops itself after 30 idle minutes. Without this the next
+  # headed browser launch finds no display and silently goes headless.
+  auto_start: true
+
+browser:
+  # Off by default, and off means `--headless=new` even with the Bot
+  # Desktop up: the agent browses, the pages load, and the screen a
+  # person is watching shows an empty desktop. Only this key decides it;
+  # a running screen does not.
+  headed: true

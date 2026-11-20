@@ -175,6 +175,24 @@ before the Origin check is reached and the session token is only handed
 out to a real browser session. If live updates in the dashboard ever
 stall over the tailnet, this shim is the first thing to suspect.
 
+It has since been exercised from a real client, though not from a
+browser. On 2026-11-19 the Hermex iOS app signed in through this shim
+and `~/.hermes/logs/dashboard-auth.log` recorded `login_success`
+followed by `ws_ticket_minted`. The dashboard's own live updates in a
+desktop browser over the tailnet remain unchecked.
+
+### The dashboard shim states the scheme itself
+
+`X-Forwarded-Proto` in `sites-available/hermes-dashboard` is the literal
+`https`, not `$scheme`. The listener is plain HTTP, so `$scheme` told the
+dashboard every request was `http`, and the dashboard withholds `Secure`
+and the `__Host-` cookie prefix on that basis — for sessions that were
+TLS all the way from the browser's side. Since the update to Hermes
+0.23.2 this is the only job the shim still clearly does; the `Host`
+rewrite it was written for has become optional. Whether `tailscale
+serve` pointed straight at 9119 would send the right header on its own
+has not been captured.
+
 See [the hermes README.md](../hermes/README.md) for the rest of that
 story.
 

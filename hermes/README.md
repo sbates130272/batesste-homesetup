@@ -113,8 +113,8 @@ status` sweep and need `--user` on every command.
 | Unit | Scope | Listens on | Reached via |
 | --- | --- | --- | --- |
 | `hermes-gateway.service` | user | `0.0.0.0:8642` | LAN, bearer key |
-| `hermes-dashboard.service` | user | `127.0.0.1:9119` | `tailscale serve :9119` → nginx `:9120` |
-| `hermes-webui.service` | user | `127.0.0.1:8787` | nginx `/hermes`, basic auth |
+| `hermes-dashboard.service` | user | `127.0.0.1:9119` | `tailscale serve :9119` → nginx `:9120`, then the dashboard's own login |
+| `hermes-webui.service` | user | `127.0.0.1:8787` | `tailscale serve :8787`, direct — no nginx — then the WebUI's own password |
 | `batesste-cua-driver` (container) | docker | `127.0.0.1:6080` | noVNC, view-only; the driver itself is `docker exec` only |
 | WhatsApp bridge (child of the gateway) | none — spawned process | `127.0.0.1:3020` | the gateway only |
 
@@ -129,23 +129,150 @@ commenting that line out. It is commented rather than deleted, so
 re-enabling is removing one `#` and restarting the gateway.
 `TELEGRAM_ALLOWED_USERS` was left in place for the same reason.
 
+What `ExecStart` names is not what runs. The dashboard unit names
+`~/.hermes/hermes-agent/venv/bin/python` and the WebUI `/usr/bin/python3`;
+both re-execute under Hermes' own managed interpreter,
+`~/.hermes/tools/python-3.14.x…/`. The gateway unit names a launcher,
+`~/.hermes/hermes-agent/.hermes/bin/hermes`, that starts on that
+interpreter directly, and `~/.local/bin/hermes` — the command line — goes
+through the same launcher. Upstream has worked this way since 0.22; it
+arrived here with the 0.21.4 → 0.23.2 update. The venv is still there,
+still Python 3.11, and now useful for one thing: a one-off script that
+imports Hermes modules has to be run with `venv/bin/python` from the
+checkout directory, because the managed interpreter invoked by hand does
+not have the dependencies on its path.
+
 `hermes-webui` is a **separate project** (`~/Projects/hermes-webui`), not
-part of the agent. It happens to run out of the Hermes venv. Its unit is
-the one in [`systemd/user/`](./systemd/user/) that is a whole unit rather
-than a drop-in, because nothing else generates it — it used to be a
-hand-written system unit tracked nowhere, and had already drifted from the
-stray copy in the project checkout.
+part of the agent. It imports the agent in-process, which is why it follows
+the agent onto the same interpreter. Its unit is the one in
+[`systemd/user/`](./systemd/user/) that is a whole unit rather than a
+drop-in, because nothing else generates it — it used to be a hand-written
+system unit tracked nowhere, and had already drifted from the stray copy
+in the project checkout.
 
 It is user-scoped for two reasons that are not tidiness: only a user unit
-can reach the login session's gpg-agent, which it needs to sign the commits
-Hermes makes into the workspace; and only a user unit reads
-`~/.config/environment.d/`, which is where its environment lives. That file
-belongs to the `systemd` package in the dotfiles, not to this repo — see
-[`webui/`](./webui/) for the whole picture, including the one local patch
-that checkout carries.
+can reach the login session's gpg-agent, which its Git panel needs to sign
+a commit; and only a user unit reads `~/.config/environment.d/`, which is
+where its environment lives. That file belongs to the `systemd` package in
+the dotfiles, not to this repo — see [`webui/`](./webui/) for the whole
+picture, including the one local patch that checkout carries, what that
+patch does and does not cover, and the password.
 
 The dashboard's path through nginx is not incidental — see
 [Appendix: why nginx is in the path](#appendix-a--the-dashboard-and-port-9119).
+
+## Front ends: which one does what
+
+There are three ways to talk to this agent from a browser or a phone, and
+they are not interchangeable. Sessions by origin in `~/.hermes/state.db`
+on 2026-11-19: 339 cron, 63 WebUI, 45 CLI, five between kanban, one-shot
+and WhatsApp, and two `tui` from June — the label the dashboard's chat
+shares with `hermes --tui` in a terminal, so at most two from the
+dashboard. None from Hermex.
+
+| | Dashboard (`:9119`) | WebUI (`:8787`) | Hermex on the dashboard |
+| --- | --- | --- | --- |
+| Chat | the Hermes TUI in a browser terminal | a real chat UI | native iOS |
+| Git panel | none | yes | yes |
+| A commit made from the UI is signed | — | yes, with the patch | **no** |
+| File editor | none | yes | — |
+| Login | `dashboard.basic_auth` | its own password | `dashboard.basic_auth` |
+
+The dashboard in a browser is an admin console with a terminal in it. The
+richer workspace Hermes ships — Git review, a file tree, a host terminal —
+belongs to the Desktop app and to "Webapp" mode, which serves that same
+workspace from the gateway. Webapp is not enabled here, its bundle is not
+built, and its default port is `127.0.0.1:9120`, **which the nginx shim
+already holds**. Move one of them before setting `webapp.enabled`.
+
+So the WebUI stays, for now, for two reasons: it is the only interactive
+front end anyone actually uses, and its Git panel is the only commit
+button on this box that produces a signed commit.
+
+### Signing, and where it does not happen
+
+Three different code paths make commits, and they do not agree:
+
+- **The agent runs `git commit` itself**, through its terminal tool, from
+  any front end. Nothing overrides Git's configuration on that path, both
+  units have the session's `HOME` and `XDG_RUNTIME_DIR`, and so
+  `~/.gitconfig` signing applies. This does not depend on the WebUI.
+- **The WebUI's Git panel**, which signs only because of the
+  [local patch](./webui/).
+- **The dashboard's commit route**, `POST /api/git/review/commit`, used by
+  Hermex's Git screen and by the Desktop and Webapp review panes. It runs
+  Git with `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` pointed at
+  `/dev/null` (`hermes_cli/_subprocess_compat.py`), so the signing
+  configuration is never read and the commit comes out unsigned. Confirmed
+  on 0.23.2 by calling the function against a scratch repository.
+
+The practical rule: **from Hermex, ask the agent to commit in chat; do not
+use the Git screen's commit button.**
+
+Signing is also not as airtight as the patch makes it sound. Five unsigned
+commits carrying this user's identity landed in repositories under
+`~/.hermes/webui/workspace` between 2026-09-18 and 2026-11-07, after the
+patch went in. Which path made them has not been established.
+
+## Connecting Hermex
+
+[Hermex](https://github.com/uzairansaruzi/hermex) is a third-party iOS
+client. From 2.0 it talks to the Hermes dashboard directly and treats
+hermes-webui as a legacy server type. It does not use the gateway API on
+8642 and `API_SERVER_KEY` plays no part.
+
+Everything the server side needs is already in `~/.hermes/config.yaml`:
+
+| Key | What it is |
+| --- | --- |
+| `dashboard.public_url` | `https://snoc-beelink.fold-leaffish.ts.net:9119` — the exact address the phone uses |
+| `dashboard.basic_auth.username` | compared exactly, case-sensitively |
+| `dashboard.basic_auth.password_hash` | scrypt; the password itself is stored nowhere |
+| `dashboard.basic_auth.secret` | signs sessions; leave it alone |
+
+Setting `public_url` is what turns the login on for a loopback bind, and
+it is also what lets the dashboard accept the tailnet hostname
+(Appendix A).
+
+In the app, add a server with the `public_url` value exactly: `https`, the
+`:9119`, no path. Not the bare hostname — 443 on this host is the Funnel
+gateway, a different service, and answers `/api/status` with 404 — and
+not `:8787`, which
+would add the WebUI as a legacy server. Type the credentials rather than
+accepting autofill: several unrelated logins live on this hostname at
+other ports.
+
+A failed attempt is recorded in `~/.hermes/logs/dashboard-auth.log` as
+`login_failure` with `invalid_credentials`, which does not say which half
+was wrong. Ten attempts a minute per client, then `429`.
+
+First connected 2026-11-19, after a password reset: the log shows
+`login_success` followed by `ws_ticket_minted`, so sign-in and the
+WebSocket ticket both work through the nginx shim.
+
+### Resetting the dashboard password
+
+There is no command for it, and the interactive prompt Hermes offers on
+first run never fires under systemd. Generate a hash:
+
+```bash
+cd ~/.hermes/hermes-agent
+venv/bin/python -B -c "import getpass; from plugins.dashboard_auth.basic import hash_password; print(hash_password(getpass.getpass('New dashboard password: ')))"
+```
+
+Put the result in `dashboard.basic_auth.password_hash` with
+`hermes config edit`. It needs no quoting in YAML; the `$` signs in it
+only matter if it is passed through a double-quoted shell string. Leave
+`password` empty. Then:
+
+```bash
+systemctl --user restart hermes-dashboard
+curl --noproxy '*' -s http://127.0.0.1:9119/api/status   # auth_required: true, auth_providers: ["basic"]
+```
+
+The new hash ends every existing dashboard session once the restart loads
+it: session keys are derived from it. A restart on its own signs nobody
+out while `secret` is set.
 
 ## The WhatsApp bridge
 
@@ -515,8 +642,11 @@ to a model in the resident three.
 
 ## Backups
 
-`hermes backup --output <file>.zip` writes a full agent backup (~180 MB:
-sessions, state DBs, config, workspace). The weekly off-site copy is
+`hermes backup --output <file>.zip` writes a full agent backup (sessions,
+state DBs, config, workspace). It was ~180 MB in September 2026 and 908 MB
+on 2026-11-19, and it reports a couple of dozen files it "could not add":
+Chrome cache under `workspace/cron/chrome-profile/` with timestamps before
+1980, which ZIP cannot represent. Nothing of value. The weekly off-site copy is
 [`../backup/batesste-hermes-s3-backup.*`](../backup), a user timer that
 is **currently disabled** — its last run failed with
 `InvalidAccessKeyId`, so the AWS credentials in `~/.secrets.env` need
@@ -528,8 +658,42 @@ Take one before any `hermes update`:
 hermes backup --output /var/tmp/hermes-pre-upgrade-$(date +%F).zip
 ```
 
+## Updating
+
+Last done 2026-11-19, v0.21.4 → v0.23.2, config format v45 → v54. In order:
+
+```bash
+hermes backup --output /var/tmp/hermes-pre-upgrade-$(date +%F).zip
+hermes update --plan      # read-only: what is running and how it restarts
+hermes update --yes
+./deploy.sh --dry-run     # what the update undid, if anything
+```
+
+Three things the last one taught:
+
+- **`deploy.sh --dry-run` is the audit, not a formality.** That update
+  left the model routing, the units and the credentials alone. The only
+  thing the dry run offered to change was `command_allowlist` — nine
+  approvals answered "always" since the previous capture, which a real
+  run would have deleted. They are in [`approvals.yaml`](./approvals.yaml)
+  now. Read the diff before applying it.
+- **The uncommitted local change in the checkout survives.** `hermes
+  update` stashes it and re-applies it on top (`agent/prompt_builder.py`
+  at the time of writing). It says so in a few lines of the update
+  output, kept in `~/.hermes/logs/update.log`, and nowhere else.
+- **The gateway takes about half a minute to listen again.** The unit is
+  `active` well before 8642 and the WhatsApp bridge on 3020 come back, so
+  a port check straight after the restart reads as a failure.
+
+The WebUI is updated separately — see [`webui/`](./webui/#updating).
+
 ## Known gaps
 
+- **A commit made from Hermex's Git screen is unsigned**, as is one from
+  the Desktop or Webapp review pane. See
+  [Signing](#signing-and-where-it-does-not-happen). Untested alternative
+  to avoiding the button: `commit.gpgsign` and `user.signingkey` in each
+  repository's own `.git/config`, which that route does still read.
 - **`hermes-gateway` binds `0.0.0.0:8642`.** The API server is
   key-authenticated, but it is the same exposure shape as Appendix A and
   it is not behind `tailscale serve`. Fix is `API_SERVER_HOST=127.0.0.1`
@@ -574,29 +738,29 @@ tailscaled: localListener failed to listen on 100.118.22.104:9119,
 
 It did manage to claim the IPv6 tailnet address, so the serve entry
 half-worked and the breakage was easy to miss. The `0.0.0.0` bind was
-also a real exposure: no auth provider is configured, so the dashboard
-was reachable **unauthenticated** from any LAN host.
+also a real exposure: no auth provider was configured at the time, so
+the dashboard was reachable **unauthenticated** from any LAN host. (One
+is now — `dashboard.basic_auth`, see
+[Connecting Hermex](#connecting-hermex) — and current Hermes refuses a
+non-loopback bind without one; the `--insecure` still on the unit's
+command line is accepted and ignored.)
 
 [`systemd/user/hermes-dashboard.service.d/override.conf`](./systemd/user/hermes-dashboard.service.d/override.conf)
 moves it to `--host 127.0.0.1`, which is also what upstream recommends.
 It is a drop-in rather than an edit so that a reinstall cannot silently
 undo it.
 
-Moving to loopback trips a second guard. The dashboard enforces a
-DNS-rebinding defence (GHSA-ppp5-vxwm-4cf7, `_is_accepted_host` in
-`hermes_cli/web_server.py`): on a loopback bind it accepts only loopback
-`Host` values, and the WebSocket handshake applies the same test to
-`Origin`. A `0.0.0.0` bind disables the guard entirely, which is the only
-reason the tailnet path used to work. `tailscale serve` forwards the
-tailnet hostname verbatim, so pointing it straight at 9119 returns:
+Moving to loopback tripped a second guard. The dashboard enforces a
+DNS-rebinding defence (GHSA-ppp5-vxwm-4cf7, `_is_accepted_host`, now in
+`hermes_cli/web_server_boundary.py`): on a loopback bind it accepted only
+loopback `Host` values, and the WebSocket handshake applies the same test
+to `Origin`. A `0.0.0.0` bind disables the guard entirely, which is the
+only reason the tailnet path used to work. `tailscale serve` forwards the
+tailnet hostname verbatim, so pointing it straight at 9119 was refused.
 
-```
-{"detail":"Invalid Host header. Dashboard requests must use the
-  hostname the server was bound to."}
-```
-
-There is no allowed-hosts setting, so an nginx vhost on `127.0.0.1:9120`
-normalises both headers back to loopback and serve points at that:
+There was no allowed-hosts setting then, so an nginx vhost on
+`127.0.0.1:9120` normalises both headers back to loopback and serve
+points at that:
 
 ```bash
 tailscale serve --bg --https 9119 http://127.0.0.1:9120
@@ -606,9 +770,37 @@ See [nginx/sites-available/hermes-dashboard](../nginx/sites-available/hermes-das
 This does re-permit what the guard blocks. The trade is deliberate:
 the guard exists to stop a malicious website rebinding DNS in a victim's
 browser, whereas everything reaching that listener has already passed
-Tailscale's TLS and tailnet ACLs. Since the dashboard has no auth
-provider, tailnet membership is the only thing gating it — **the shim
-must stay bound to loopback.**
+Tailscale's TLS and tailnet ACLs. The dashboard's login sits behind it,
+so tailnet membership is the outer gate rather than the only one — but
+**the shim must stay bound to loopback** regardless.
+
+### What the update to 0.23.2 changed
+
+There is an allowed-hosts setting now, in effect: the guard also accepts
+the hostname of `dashboard.public_url`. Upstream has had that since
+0.21.6; it reached this box with the 0.21.4 → 0.23.2 update. With that
+set, 9119 answers the
+tailnet `Host` directly, with or without the port, and refuses anything
+else:
+
+```
+{"detail":"Invalid Host header. Dashboard requests must use the bound
+  hostname or the configured public hostname."}
+```
+
+So the `Host` and `Origin` rewrite is no longer what makes the path work,
+and serve could point straight at 9119. The shim is kept for a different
+job. The dashboard hardens its cookies only when it believes the request
+arrived over HTTPS — `__Host-` names with `Secure`, against bare names
+without — and it believes whatever `X-Forwarded-Proto` a loopback proxy
+tells it. The vhost used to pass `$scheme`, which on a plain-HTTP
+listener is `http`, so sessions that were TLS end to end from the
+browser's side got the weak cookies. It now sends `https` outright.
+Removing the shim would hand that decision to whatever `tailscale serve`
+forwards, which nobody has captured.
+
+Changing the header renames the cookies, so it signs every browser out
+once.
 
 ## Appendix B — a duplicate system unit that restarted 140,989 times
 
