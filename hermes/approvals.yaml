@@ -54,6 +54,11 @@ command_allowlist:
   - tirith:plain_http_to_sink
   - tirith:schemeless_to_sink
 
+  # ---- Captured 2026-11-20 ----
+  #
+  # One more answered "always" at a prompt, found the same way.
+  - kill process via pgrep/pidof expansion (self-termination)
+
   # ---- computer_use ----
   #
   # Hermes gates every action its _ACTIONS table marks `destructive` through
