@@ -150,8 +150,10 @@ Upstream ships with no login. Its README calls `tailscale serve` the
 preferred remote path on a single-operator tailnet, but its own Serve
 recipe (`docs/remote-access.md`) sets a password first, and tells
 deployments behind a same-host proxy to set
-`HERMES_WEBUI_TRUST_FORWARDED_FOR=1`. Neither was done here, which leaves
-one sharp edge. With auth off, the WebUI admits every request and reserves
+`HERMES_WEBUI_TRUST_FORWARDED_FOR=1`. Neither was done here until
+2026-11-19, when a password was set; this is what was open before, and
+what would be again if `password_hash` were ever cleared. With auth off,
+the WebUI admits every request and reserves
 only the embedded terminal — a PTY shell as the service user — and the
 first-run setup routes for callers it considers local, judged by the
 socket peer (`_onboarding_request_is_local` in `api/routes.py`). Everything
@@ -159,8 +161,9 @@ socket peer (`_onboarding_request_is_local` in `api/routes.py`). Everything
 tailnet is "local", and the gate that was meant to stop a remote shell
 does not.
 
-A password closes it. There are two places to put one and only one is
-right for this box:
+A password closes it: with one set, an unauthenticated `/api/sessions`
+or `/api/settings` gets `401`, and only `/health` still answers. There
+are two places to put one and only one is right for this box:
 
 - `HERMES_WEBUI_PASSWORD` is the plaintext, in the environment. Here that
   means `~/.config/environment.d/50-hermes.conf`, which is mode 0664,

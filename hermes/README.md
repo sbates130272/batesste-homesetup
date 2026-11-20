@@ -114,7 +114,7 @@ status` sweep and need `--user` on every command.
 | --- | --- | --- | --- |
 | `hermes-gateway.service` | user | `0.0.0.0:8642` | LAN, bearer key |
 | `hermes-dashboard.service` | user | `127.0.0.1:9119` | `tailscale serve :9119` → nginx `:9120`, then the dashboard's own login |
-| `hermes-webui.service` | user | `127.0.0.1:8787` | `tailscale serve :8787`, direct — no nginx, and no login until a password is set |
+| `hermes-webui.service` | user | `127.0.0.1:8787` | `tailscale serve :8787`, direct — no nginx — then the WebUI's own password |
 | `batesste-cua-driver` (container) | docker | `127.0.0.1:6080` | noVNC, view-only; the driver itself is `docker exec` only |
 | WhatsApp bridge (child of the gateway) | none — spawned process | `127.0.0.1:3020` | the gateway only |
 
@@ -245,6 +245,10 @@ other ports.
 A failed attempt is recorded in `~/.hermes/logs/dashboard-auth.log` as
 `login_failure` with `invalid_credentials`, which does not say which half
 was wrong. Ten attempts a minute per client, then `429`.
+
+First connected 2026-11-19, after a password reset: the log shows
+`login_success` followed by `ws_ticket_minted`, so sign-in and the
+WebSocket ticket both work through the nginx shim.
 
 ### Resetting the dashboard password
 
@@ -685,22 +689,11 @@ The WebUI is updated separately — see [`webui/`](./webui/#updating).
 
 ## Known gaps
 
-- **`hermes-webui` has no login until a password is set.** With auth off
-  it admits every request and keeps only the embedded terminal — a shell
-  as this user — and first-run setup for local callers. Every request
-  `tailscale serve` relays
-  arrives from loopback, so every tailnet peer counts as local. See
-  [`webui/`](./webui/#authentication) for the one command that closes it.
-  Delete this entry once `/api/auth/status` reports `auth_enabled: true`.
 - **A commit made from Hermex's Git screen is unsigned**, as is one from
   the Desktop or Webapp review pane. See
   [Signing](#signing-and-where-it-does-not-happen). Untested alternative
   to avoiding the button: `commit.gpgsign` and `user.signingkey` in each
   repository's own `.git/config`, which that route does still read.
-- **Hermex has never completed a login here.** The path is checked as far
-  as it can be without credentials — status, the login page and the
-  WebSocket handshake all answer through the shim — but the token
-  exchange and chat over WebSocket have not been exercised.
 - **`hermes-gateway` binds `0.0.0.0:8642`.** The API server is
   key-authenticated, but it is the same exposure shape as Appendix A and
   it is not behind `tailscale serve`. Fix is `API_SERVER_HOST=127.0.0.1`

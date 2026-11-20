@@ -175,10 +175,11 @@ before the Origin check is reached and the session token is only handed
 out to a real browser session. If live updates in the dashboard ever
 stall over the tailnet, this shim is the first thing to suspect.
 
-That is still the state of it after the update to Hermes 0.23.2: an
-unauthenticated upgrade request through the shim gets `403` from the
-dashboard's WebSocket layer, which shows the upgrade is forwarded and
-nothing about what an authenticated one does.
+It has since been exercised from a real client, though not from a
+browser. On 2026-11-19 the Hermex iOS app signed in through this shim
+and `~/.hermes/logs/dashboard-auth.log` recorded `login_success`
+followed by `ws_ticket_minted`. The dashboard's own live updates in a
+desktop browser over the tailnet remain unchecked.
 
 ### The dashboard shim states the scheme itself
 
