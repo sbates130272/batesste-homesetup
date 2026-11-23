@@ -15,9 +15,12 @@ Restart=on-failure
 RestartSec=30s
 
 # DynamicUser rather than a service account, so there is no user to
-# create on a rebuild and nothing owns state between restarts -- the
-# exporter has none, it refetches everything on start.
+# create on a rebuild. The only thing that needs to own state between
+# restarts is the run-event counter (increase() over a deploy that
+# zeroed it would read as zero failures), so StateDirectory gives the
+# dynamic user a writable /var/lib/private/gh-actions-exporter.
 DynamicUser=yes
+StateDirectory=gh-actions-exporter
 
 # The token stays root-owned 0400 in /etc and is handed in as a
 # credential, so it is never readable through the service's own view of
