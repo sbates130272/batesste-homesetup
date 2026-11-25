@@ -116,6 +116,7 @@ gpu
 grafana
 Grafana
 Grafana's
+grafana's
 gRPC
 GTT
 gzip
@@ -254,6 +255,7 @@ plaintext
 plist
 Podman
 podman
+postinst
 ppp
 prometheus
 PromQL
@@ -330,6 +332,7 @@ sysfs
 syslog
 systemctl
 systemd
+systemd's
 tailnet
 Tailscale
 tailscaled
@@ -360,6 +363,7 @@ UIs
 unallocated
 uncached
 Uncertified
+Uncomment
 unguessable
 unjoinable
 unmonitored

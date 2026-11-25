@@ -169,19 +169,48 @@ for f in contact-points notification-policies rules; do
 done
 
 # contact-points.yaml expands $NTFY_TOPIC_URL from the grafana-server
-# environment. Grafana substitutes an unset variable with the empty
-# string rather than refusing to start, so the failure is a contact
-# point that resolves to no URL and drops every notification silently
-# -- the same class of quiet failure the backup alerts exist to catch,
-# and it would take out the alerting instead of the backup.
+# environment, and an unset variable expands to the empty string.
+# Grafana does not accept that: provisioning rejects a contact point
+# with no url ("required field 'url' is not specified"), the router
+# module never starts, and grafana serves nothing while systemd still
+# reports the unit active. Missing is therefore fatal here, not a
+# warning -- deploying it takes the instance off the network.
+#
+# A placeholder is the lesser failure and only warns: grafana serves,
+# alerts go to a topic nobody reads. Worth saying loudly on every
+# deploy, not worth refusing one.
+#
+# The syntax check comes first because grafana's postinst sources this
+# file as shell: a value needing quotes -- anything with <, >, spaces
+# or a glob -- breaks `dpkg --configure` for every package on the host,
+# not just grafana, and leaves grafana half-configured (iF). systemd's
+# EnvironmentFile= parses literally and would not have noticed, which
+# is how an unquoted placeholder shipped. grafana.postinst is
+# #!/usr/bin/env sh, so check with sh -n and not bash -n: dash is the
+# parser that actually runs, and it rejects things bash accepts.
 if ! $DEFAULTS_ENCRYPTED; then
-    if ! grep -q '^NTFY_TOPIC_URL=' "${SCRIPT_DIR}/grafana-server.defaults"; then
-        echo "    ERROR: NTFY_TOPIC_URL is not set in grafana-server.defaults." >&2
+    if ! sh -n "${SCRIPT_DIR}/grafana-server.defaults" 2>/dev/null; then
+        echo "    ERROR: grafana-server.defaults is not valid POSIX shell;" >&2
+        echo "           grafana's postinst sources it and would wedge dpkg." >&2
+        sh -n "${SCRIPT_DIR}/grafana-server.defaults" 2>&1 | sed 's/^/           /' >&2
         exit 1
     fi
-    if grep -q '^NTFY_TOPIC_URL=thishastochange$' "${SCRIPT_DIR}/grafana-server.defaults"; then
+
+    # Read the expanded value rather than grepping the line: unset,
+    # NTFY_TOPIC_URL=, and NTFY_TOPIC_URL="" all reach grafana as the
+    # empty string and all take it down, but only the first is visible
+    # to a grep for the assignment.
+    ntfy_url=$(sh -c '. "$1" >/dev/null 2>&1; printf %s "${NTFY_TOPIC_URL-}"' \
+                   _ "${SCRIPT_DIR}/grafana-server.defaults")
+    if [[ -z "${ntfy_url}" ]]; then
+        echo "    ERROR: NTFY_TOPIC_URL is unset or empty in" >&2
+        echo "           grafana-server.defaults. Grafana will fail to" >&2
+        echo "           provision alerting and serve nothing at all." >&2
+        exit 1
+    fi
+    if [[ "${ntfy_url}" == *thishastochange* ]]; then
         echo "    WARNING: NTFY_TOPIC_URL is still the placeholder; alerts" >&2
-        echo "             will be delivered nowhere. Set a real topic URL." >&2
+        echo "             are delivered to a topic nobody is subscribed to." >&2
     fi
 fi
 

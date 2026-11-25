@@ -125,14 +125,35 @@ credential with exactly the same failure mode, and pointing the
 backup alarm at it means the alarm can rot the same way the
 backup did.
 
+**`NTFY_TOPIC_URL` must always be set to something non-empty.**
+Grafana does not read an empty contact-point `url` as "no
+destination" — provisioning rejects the file, the router module
+never starts, and Grafana serves nothing at all while systemd
+still reports the unit active. Commenting the variable out took
+the instance down on 2026-11-25, Tailscale funnel included.
+`deploy.sh` now refuses to deploy a file where it is missing.
+
+It currently holds the `thishastochange` placeholder, so Grafana
+serves normally but alerts go to a topic nobody is subscribed
+to — including the backup-age rules below. Replace it with a
+real topic URL to make alerting live.
+
 **The topic URL is the credential.** On ntfy.sh anyone holding
 it can read and publish to the topic, so pick an unguessable
-name, keep the placeholder in the repo, and set the real value
-on the host. `deploy.sh` fails if the variable is missing
-entirely and warns if it is still `thishastochange`, because
-Grafana expands an unset variable to the empty string rather
-than refusing to start — which would silently drop every
-notification.
+name. Set the real value *in the repo*, not on the host:
+`grafana-server.defaults` is git-crypt encrypted, so the secret
+is safe committed, and `deploy.sh` copies the file over
+`/etc/default/grafana-server`, so a host-only value lasts until
+the next deploy.
+
+**Quote it.** systemd's `EnvironmentFile=` parses this file
+literally, but grafana's postinst *sources* it as `sh`. An
+unquoted value containing `<`, `>`, spaces or a glob is a syntax
+error there, which wedges `dpkg --configure` for every package
+on the host and leaves grafana half-configured. `deploy.sh`
+runs `sh -n` over the file to catch this, errors on a leftover
+`thishastochange` placeholder, and warns when the variable is
+absent.
 
 Verify delivery after any change. A wrong URL does not error;
 ntfy accepts a POST to any topic, including one nobody is
