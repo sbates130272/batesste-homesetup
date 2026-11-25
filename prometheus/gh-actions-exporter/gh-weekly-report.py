@@ -27,7 +27,6 @@ It also warns when up{job="gh-actions-exporter"} is 0, since every number
 above is then stale.
 """
 import json
-import sys
 import time
 import urllib.parse
 import urllib.request
@@ -95,15 +94,26 @@ def main():
         if v > 0:
             per_repo[m.get("repo", "?")][m.get("conclusion", "?")] += v
 
+    # Cancelled and skipped runs never reached a verdict, so folding them
+    # into a "failure rate" would let a burst of cancellations read as a
+    # collapse in CI health. Rate is failures over runs that actually
+    # decided; the other two are reported alongside, not buried in it.
+    def tally(pred):
+        return sum(v for d in per_repo.values() for k, v in d.items() if pred(k))
+
     total = sum(sum(d.values()) for d in per_repo.values())
-    fails = sum(
-        v for d in per_repo.values() for k, v in d.items() if k not in ("success", "skipped")
-    )
+    cancelled = tally(lambda k: k == "cancelled")
+    skipped = tally(lambda k: k == "skipped")
+    fails = tally(lambda k: k not in ("success", "skipped", "cancelled"))
+    decided = total - cancelled - skipped
 
     out = []
     out.append(time.strftime("GitHub Actions weekly report — %A %d %b %Y (last 7 days)", time.localtime(now)))
-    out.append(f"Runs concluded in window: {total} | non-success: {fails}"
-               + (f" ({100.0*fails/total:.0f}%)" if total else ""))
+    out.append(f"Runs concluded in window: {total}")
+    out.append(f"  failed:    {fails} of {decided} decided"
+               + (f" ({100.0*fails/decided:.0f}%)" if decided else ""))
+    out.append(f"  cancelled: {cancelled}")
+    out.append(f"  skipped:   {skipped}")
     if reset_count:
         out.append(f"NOTE: counter reset(s) in window ({reset_count}) — counts are spliced across them.")
     if counter_age_h is not None and counter_age_h < WINDOW_HOURS:
