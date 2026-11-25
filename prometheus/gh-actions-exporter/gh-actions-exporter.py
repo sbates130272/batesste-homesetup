@@ -191,6 +191,11 @@ def collect_repo(client, repo):
     branch, plus a tally of conclusions across every run on the page.
     The tally spans all branches on purpose: it is a texture of how CI
     is going, where the per-workflow view is the actionable part.
+
+    Also returns `completed`: every completed default-branch run on the
+    page, not just the newest per workflow. The gauges only ever want
+    the newest, but the event counter has to see each run exactly once,
+    and a busy workflow can finish several within one refresh interval.
     """
     data = client.get(
         f"/repos/{repo['full_name']}/actions/runs",
@@ -201,6 +206,7 @@ def collect_repo(client, repo):
     conclusions = {}
     in_progress = 0
     latest = {}
+    completed = []
     for run in runs:
         conclusion = run.get("conclusion")
         if conclusion:
@@ -217,6 +223,13 @@ def collect_repo(client, repo):
         workflow = run.get("name") or run.get("path") or "unknown"
         started = parse_timestamp(run.get("run_started_at") or run.get("created_at"))
         finished = parse_timestamp(run.get("updated_at"))
+        completed.append(
+            {
+                "workflow": workflow,
+                "run_id": run.get("id"),
+                "conclusion": conclusion,
+            }
+        )
         # The API returns runs newest first, so the first one seen for a
         # workflow is the latest one.
         if workflow in latest:
@@ -230,6 +243,7 @@ def collect_repo(client, repo):
 
     return {
         "workflows": latest,
+        "completed": completed,
         "conclusions": conclusions,
         "in_progress": in_progress,
     }
@@ -309,22 +323,29 @@ class Collector:
         except OSError as exc:
             logger.warning("Could not save state file %s: %s", self._state_file, exc)
 
-    def _count_events(self, repo_name, workflows):
+    def _count_events(self, repo_name, completed):
         """Bump per-run counters for runs newly seen since last refresh.
 
-        First sight of a run is its completion: collect_repo only
-        reports completed runs, so one unseen run id means exactly one
-        finished run. Run ids already in _seen are ignored, and a run
-        that fell off the sampled page before its first sighting is lost
-        — acceptable at a 5-minute refresh versus a 200-run page.
+        Takes every completed default-branch run on the sampled page,
+        not the newest-per-workflow view the gauges use: a workflow that
+        finishes several runs inside one refresh interval must count as
+        several. First sight of a run is its completion, so one unseen
+        run id means exactly one finished run, and ids already in _seen
+        are ignored.
+
+        A run that fell off the page entirely before its first sighting
+        is lost. That is a real bound, but a distant one: the page holds
+        RUNS_PER_PAGE runs against a 5-minute refresh, so losing one
+        needs that many runs across the whole repo between refreshes.
         """
         events = self._state["events"]
         seen_repo = self._seen.setdefault(repo_name, {})
         changed = False
-        for workflow, run in workflows.items():
+        for run in completed:
             run_id = run.get("run_id")
             if run_id is None:
                 continue
+            workflow = run["workflow"]
             seen = seen_repo.setdefault(workflow, set())
             if run_id in seen:
                 continue
@@ -375,6 +396,7 @@ class Collector:
                 logger.error("Collecting %s failed: %s", repo["full_name"], exc)
                 result = {
                     "workflows": {},
+                    "completed": [],
                     "conclusions": {},
                     "in_progress": 0,
                     "ok": False,
@@ -391,7 +413,7 @@ class Collector:
                 self._state["repos"] = repos
                 for name, result in repos.items():
                     if result["ok"]:
-                        self._count_events(name, result["workflows"])
+                        self._count_events(name, result["completed"])
             self._state["last_refresh"] = started
             self._state["duration"] = duration
             self._state["errors"] += errors
