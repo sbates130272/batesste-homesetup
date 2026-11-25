@@ -42,6 +42,10 @@ DEFAULT_INTERVAL = 300
 DEFAULT_DISCOVERY_INTERVAL = 3600
 DEFAULT_MAX_REPO_AGE_DAYS = 90
 DEFAULT_TOKEN_FILE = "/etc/gh-actions-exporter/token"
+# Event counters survive restarts: a counter that forgets its value on
+# every deploy makes every `increase()` over the outage window a lie.
+# /var/lib/private is where DynamicUser services get writable state.
+DEFAULT_STATE_FILE = "/var/lib/private/gh-actions-exporter/state.json"
 
 API_ROOT = "https://api.github.com"
 USER_AGENT = "gh-actions-exporter (+https://github.com/sbates130272/batesste-homesetup)"
@@ -187,6 +191,11 @@ def collect_repo(client, repo):
     branch, plus a tally of conclusions across every run on the page.
     The tally spans all branches on purpose: it is a texture of how CI
     is going, where the per-workflow view is the actionable part.
+
+    Also returns `completed`: every completed default-branch run on the
+    page, not just the newest per workflow. The gauges only ever want
+    the newest, but the event counter has to see each run exactly once,
+    and a busy workflow can finish several within one refresh interval.
     """
     data = client.get(
         f"/repos/{repo['full_name']}/actions/runs",
@@ -197,6 +206,7 @@ def collect_repo(client, repo):
     conclusions = {}
     in_progress = 0
     latest = {}
+    completed = []
     for run in runs:
         conclusion = run.get("conclusion")
         if conclusion:
@@ -213,6 +223,13 @@ def collect_repo(client, repo):
         workflow = run.get("name") or run.get("path") or "unknown"
         started = parse_timestamp(run.get("run_started_at") or run.get("created_at"))
         finished = parse_timestamp(run.get("updated_at"))
+        completed.append(
+            {
+                "workflow": workflow,
+                "run_id": run.get("id"),
+                "conclusion": conclusion,
+            }
+        )
         # The API returns runs newest first, so the first one seen for a
         # workflow is the latest one.
         if workflow in latest:
@@ -226,6 +243,7 @@ def collect_repo(client, repo):
 
     return {
         "workflows": latest,
+        "completed": completed,
         "conclusions": conclusions,
         "in_progress": in_progress,
     }
@@ -252,14 +270,103 @@ class Collector:
         self._repos_fetched_at = 0.0
         self._state = {
             "repos": {},
+            "events": {},
             "last_refresh": None,
             "duration": 0.0,
             "errors": 0,
         }
+        self._seen = {}  # repo -> workflow -> run ids already counted
+        self._state_file = getattr(args, "state_file", None)
+        self._load_state()
+
+    def _load_state(self):
+        if not self._state_file or not os.path.exists(self._state_file):
+            return
+        try:
+            with open(self._state_file) as handle:
+                saved = json.load(handle)
+            self._state["events"] = saved.get("events", {})
+            self._seen = {
+                repo: {wf: set(ids) for wf, ids in wfs.items()}
+                for repo, wfs in saved.get("seen", {}).items()
+            }
+            logger.info(
+                "Loaded %d event series from %s",
+                sum(
+                    len(c)
+                    for wfs in self._state["events"].values()
+                    for c in wfs.values()
+                ),
+                self._state_file,
+            )
+        except (OSError, ValueError) as exc:
+            logger.warning("Could not load state file %s: %s", self._state_file, exc)
+
+    def _save_state(self):
+        if not self._state_file:
+            return
+        tmp = self._state_file + ".tmp"
+        try:
+            os.makedirs(os.path.dirname(self._state_file), exist_ok=True)
+            with open(tmp, "w") as handle:
+                json.dump(
+                    {
+                        "events": self._state["events"],
+                        "seen": {
+                            repo: {wf: sorted(ids) for wf, ids in wfs.items()}
+                            for repo, wfs in self._seen.items()
+                        },
+                    },
+                    handle,
+                )
+            os.replace(tmp, self._state_file)
+        except OSError as exc:
+            logger.warning("Could not save state file %s: %s", self._state_file, exc)
+
+    def _count_events(self, repo_name, completed):
+        """Bump per-run counters for runs newly seen since last refresh.
+
+        Takes every completed default-branch run on the sampled page,
+        not the newest-per-workflow view the gauges use: a workflow that
+        finishes several runs inside one refresh interval must count as
+        several. First sight of a run is its completion, so one unseen
+        run id means exactly one finished run, and ids already in _seen
+        are ignored.
+
+        A run that fell off the page entirely before its first sighting
+        is lost. That is a real bound, but a distant one: the page holds
+        RUNS_PER_PAGE runs against a 5-minute refresh, so losing one
+        needs that many runs across the whole repo between refreshes.
+        """
+        events = self._state["events"]
+        seen_repo = self._seen.setdefault(repo_name, {})
+        changed = False
+        for run in completed:
+            run_id = run.get("run_id")
+            if run_id is None:
+                continue
+            workflow = run["workflow"]
+            seen = seen_repo.setdefault(workflow, set())
+            if run_id in seen:
+                continue
+            seen.add(run_id)
+            if len(seen) > 200:  # newest 200 ids per workflow is plenty of memory
+                seen.difference_update(sorted(seen)[: len(seen) - 200])
+            wf_events = events.setdefault(repo_name, {})
+            counters = wf_events.setdefault(workflow, {})
+            conclusion = run["conclusion"]
+            counters[conclusion] = counters.get(conclusion, 0) + 1
+            changed = True
+        if changed:
+            self._save_state()
 
     def snapshot(self):
         with self._lock:
-            return dict(self._state, repos=dict(self._state["repos"]))
+            events = {
+                repo: {wf: dict(counters) for wf, counters in wfs.items()}
+                for repo, wfs in self._state["events"].items()
+            }
+            return dict(self._state, repos=dict(self._state["repos"]), events=events)
 
     def refresh(self):
         started = time.time()
@@ -289,6 +396,7 @@ class Collector:
                 logger.error("Collecting %s failed: %s", repo["full_name"], exc)
                 result = {
                     "workflows": {},
+                    "completed": [],
                     "conclusions": {},
                     "in_progress": 0,
                     "ok": False,
@@ -303,6 +411,9 @@ class Collector:
             # a fleet with no workflows.
             if repos:
                 self._state["repos"] = repos
+                for name, result in repos.items():
+                    if result["ok"]:
+                        self._count_events(name, result["completed"])
             self._state["last_refresh"] = started
             self._state["duration"] = duration
             self._state["errors"] += errors
@@ -371,6 +482,27 @@ def render(state, client):
                 + labels(repo=repo, workflow=workflow, conclusion=run["conclusion"])
                 + " 1"
             )
+
+    # A counter, not a gauge: the last-run gauges above only remember
+    # each workflow's newest outcome, so a failure replaced by a green
+    # run before the next scrape is invisible. This counts every
+    # completed default-branch run the exporter notices, keyed by
+    # conclusion, and is persisted (see --state-file) so deploys do not
+    # zero the history mid-week.
+    family(
+        "github_actions_workflow_conclusion_events_total",
+        "counter",
+        "Completed default-branch runs observed by the exporter, by conclusion",
+    )
+    events = state.get("events") or {}
+    for repo in sorted(events):
+        for workflow in sorted(events[repo]):
+            for conclusion, count in sorted(events[repo][workflow].items()):
+                out.append(
+                    "github_actions_workflow_conclusion_events_total"
+                    + labels(repo=repo, workflow=workflow, conclusion=conclusion)
+                    + f" {count}"
+                )
 
     family(
         "github_actions_workflow_last_run_timestamp_seconds",
@@ -594,6 +726,11 @@ SELFTEST_STATE = {
     "last_refresh": 1760001000,
     "duration": 4.25,
     "errors": 1,
+    "events": {
+        "sbates130272/batesste-homesetup": {
+            "batesste-homesetup": {"success": 5, "failure": 1},
+        },
+    },
 }
 
 
@@ -672,6 +809,11 @@ def parse_args(argv):
     )
     parser.add_argument(
         "--token-file", default=DEFAULT_TOKEN_FILE, help="File holding the API token"
+    )
+    parser.add_argument(
+        "--state-file",
+        default=DEFAULT_STATE_FILE,
+        help="Where to persist run-event counters (empty disables persistence)",
     )
     parser.add_argument(
         "--log-level", default="INFO", help="Python logging level name"
