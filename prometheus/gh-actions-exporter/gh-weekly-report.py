@@ -5,19 +5,26 @@ Prints a compact plain-text report of the last 7 days of tracked
 workflow activity. Deterministic data collection only — formatting and
 commentary are left to whoever (human or agent) consumes the output.
 
-Data sources, in order of preference:
-  1. github_actions_workflow_last_run_conclusion series "born" inside the
-     window (series-born detection: a run's conclusion creates a brand-new
-     series, so `unless timestamp(series offset <window>)` isolates runs
-     that finished in the window — the gauge itself would otherwise be
-     double-counted every scrape).
-  2. github_actions_repo_recent_runs / workflow_recent_runs counters
-     (exporter's own recent-window view; coarser, used as fallback).
-  3. github_actions_workflow_last_run_* for the current-state tail.
+Data sources:
+  1. increase(github_actions_workflow_conclusion_events_total[window]) for
+     the per-repo, per-conclusion counts. The exporter bumps that counter
+     once per previously-unseen completed run id, so each run is counted
+     exactly once no matter how the scrapes fall — unlike the
+     _last_run_ gauges, which only ever hold a workflow's newest outcome.
+  2. github_actions_workflow_last_run_success for the current-state tail
+     (which workflows are red right now).
 
-Pitfall: right after an exporter restart every conclusion series is new,
-so the first report following a deploy over-counts. The script flags the
-exporter restart time so the reader can judge.
+The counter is only as trustworthy as its continuity, so the report
+annotates the two ways it can mislead rather than hiding them:
+
+  - resets() > 0 means the counter was zeroed inside the window (an
+    exporter deploy that lost its state file), and increase() has
+    extrapolated across the gap.
+  - a counter younger than the window can only report the slice of the
+    window it was alive for; the report says how much that is.
+
+It also warns when up{job="gh-actions-exporter"} is 0, since every number
+above is then stale.
 """
 import json
 import sys
@@ -62,8 +69,14 @@ def main():
 
     # Honest warming-up note: a counter younger than the window can only
     # report the part of the window it has witnessed.
+    # timestamp() alone returns the *evaluation* time, not the series birth,
+    # so min(timestamp(m)) is always ~now and the counter looks 0h old. The
+    # subquery walks the window and takes the earliest step at which the
+    # series actually had a sample. A counter older than the window simply
+    # floors at the window start, which reads as "old enough" below.
     first_seen = query(
-        "min(timestamp(github_actions_workflow_conclusion_events_total))"
+        "min(min_over_time(timestamp("
+        "github_actions_workflow_conclusion_events_total)[" + window + ":1h]))"
     )
     counter_age_h = (now - float(first_seen[0]["value"][1])) / 3600.0 if first_seen else None
 
