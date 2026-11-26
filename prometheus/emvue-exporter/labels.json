@@ -30,12 +30,12 @@
     },
     "snoc_pinewood_plug_f": {
         "name": "Master Bedroom - Stevie",
-        "location": "Stephen's Bedroom",
+        "location": "Master Bedroom",
         "status": "active"
     },
     "snoc_pinewood_plug_g": {
         "name": "Master Bedroom - Ang",
-        "location": "Stephen's Bedroom",
+        "location": "Master Bedroom",
         "device": "White Homepod",
         "status": "active"
     },

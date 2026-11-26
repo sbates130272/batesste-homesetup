@@ -169,6 +169,25 @@ remembering as a shape, though — a dependency on a path only one
 human can read looks fine until it is the thing standing between you
 and every future upgrade.
 
+### Emporia plug names come from the exporter's labels
+
+[`emporia-names.sh`](./emporia-names.sh) sets each plug's Homebridge
+name to `<location> <name>` from
+[`labels.json`](../prometheus/emvue-exporter/labels.json), so a plug is
+named once and reads the same in Grafana and in the Home app.
+
+HomeKit has no way for a bridge to say which room an accessory is in;
+that is assigned by hand in the Home app. The room goes in front of the
+name instead, because Home hides a leading room name on the tile once
+the accessory is in that room. That only works if `location` is spelled
+exactly as the room is in Home.
+
+```console
+$ ./emporia-names.sh --dry-run
+$ ./emporia-names.sh
+$ ./sync-config.sh
+```
+
 ## systemd and logging
 
 Two things here are the same kind of bug — a correct fix written into
