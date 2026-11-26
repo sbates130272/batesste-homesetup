@@ -39,7 +39,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "One row per host running node-exporter, joined on instance: distro, kernel and release, CPU and memory utilisation, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Distro is node_exporter's os-release collector (node_os_info pretty_name) on Linux. macOS has no os-release file, so node_os_info arrives with an empty pretty_name and the name/version_id labels carrying the real answer -- the second branch label_joins those into 'macOS 15.6.1' rather than leaving the cell blank. A Windows host served by windows_exporter would still be blank; nothing on this LAN runs one. Memory % and RAM are likewise two branches: Darwin exports neither node_memory_MemAvailable_bytes nor node_memory_MemTotal_bytes, so macOS is computed from the Mach page classes instead -- see the repo README for why it is internal - purgeable + wired + compressed and not something simpler. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
+      "description": "One row per host running node-exporter, joined on instance: distro, kernel and release, CPU and memory utilisation, root filesystem fill, load per core, core count, total RAM, uptime, and wifi signal where the host is wireless. Disk % is the root filesystem alone (mountpoint=\"/\"), not the host's total storage: a node with a full / stops working in a way a full /var/lib/docker or a full data disk does not, and the Filesystem Capacity table further down is where every other mount is listed. It is computed from avail rather than the used counter, so the root-reserved blocks count as used -- the number matches what df reports to a non-root user, which is the space you actually have. On macOS the one apfs row at / reports the whole container's shared free pool, which is the figure Finder shows. Load/Core is node_load1 divided by the core count, so 100% means the run queue is exactly as long as the machine is wide -- raw load1 is not comparable between a 4-core and a 32-core host, which is why the panel below charts it and this column normalises it. Distro is node_exporter's os-release collector (node_os_info pretty_name) on Linux. macOS has no os-release file, so node_os_info arrives with an empty pretty_name and the name/version_id labels carrying the real answer -- the second branch label_joins those into 'macOS 15.6.1' rather than leaving the cell blank. A Windows host served by windows_exporter would still be blank; nothing on this LAN runs one. Memory % and RAM are likewise two branches: Darwin exports neither node_memory_MemAvailable_bytes nor node_memory_MemTotal_bytes, so macOS is computed from the Mach page classes instead -- see the repo README for why it is internal - purgeable + wired + compressed and not something simpler. Hosts that stop reporting drop out of the table -- the Service Health tiles below are what tells you a node is down.",
       "fieldConfig": {
         "defaults": {
           "custom": {
@@ -164,6 +164,61 @@
                     {
                       "color": "red",
                       "value": 95
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "custom.width",
+                "value": 140
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Disk %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              },
+              {
+                "id": "max",
+                "value": 100
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "mode": "basic",
+                  "type": "gauge"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "green",
+                      "value": 0
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 80
+                    },
+                    {
+                      "color": "red",
+                      "value": 90
                     }
                   ]
                 }
@@ -576,6 +631,20 @@
           "legendFormat": "",
           "range": false,
           "refId": "K"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "editorMode": "code",
+          "expr": "max by (instance) (\n    (\n        1 - node_filesystem_avail_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint=\"/\"}\n          / node_filesystem_size_bytes{fstype=~\"ext4|xfs|btrfs|apfs\", mountpoint=\"/\"}\n    ) * 100\n)",
+          "format": "table",
+          "hide": false,
+          "instant": true,
+          "legendFormat": "",
+          "range": false,
+          "refId": "L"
         }
       ],
       "title": "Node Fleet",
@@ -603,6 +672,7 @@
               "Time 9": true,
               "Time 10": true,
               "Time 11": true,
+              "Time 12": true,
               "Value #K": true
             },
             "renameByName": {
@@ -617,7 +687,8 @@
               "server_name": "Node",
               "Value #H": "Link",
               "Value #I": "OS",
-              "Value #J": "Load/Core"
+              "Value #J": "Load/Core",
+              "Value #L": "Disk %"
             },
             "indexByName": {
               "server_name": 0,
@@ -626,26 +697,28 @@
               "Value #D": 3,
               "Value #B": 4,
               "Value #C": 5,
-              "Value #J": 6,
-              "Value #H": 7,
-              "Value #G": 8,
-              "Value #F": 9,
-              "pretty_name": 10,
-              "release": 11,
-              "Time 1": 12,
-              "Time 2": 13,
-              "Time 3": 14,
-              "Time 4": 15,
-              "Time 5": 16,
-              "Time 6": 17,
-              "Time 7": 18,
-              "Time 8": 19,
-              "Time 9": 20,
-              "Time 10": 21,
-              "Time 11": 22,
-              "Value #A": 23,
-              "Value #K": 24,
-              "instance": 25
+              "Value #L": 6,
+              "Value #J": 7,
+              "Value #H": 8,
+              "Value #G": 9,
+              "Value #F": 10,
+              "pretty_name": 11,
+              "release": 12,
+              "Time 1": 13,
+              "Time 2": 14,
+              "Time 3": 15,
+              "Time 4": 16,
+              "Time 5": 17,
+              "Time 6": 18,
+              "Time 7": 19,
+              "Time 8": 20,
+              "Time 9": 21,
+              "Time 10": 22,
+              "Time 11": 23,
+              "Time 12": 24,
+              "Value #A": 25,
+              "Value #K": 26,
+              "instance": 27
             }
           }
         }
