@@ -553,12 +553,18 @@ docker login snoc-strix.fold-leaffish.ts.net:8080 -u ci
 docker tag alpine:latest snoc-strix.fold-leaffish.ts.net:8080/local/alpine:v1
 docker push snoc-strix.fold-leaffish.ts.net:8080/local/alpine:v1
 zli images list --config local
-journalctl -u zot -f
+sudo tail -f /var/log/zot/zot.log
 ```
 
 The web UI is at `http://snoc-strix.fold-leaffish.ts.net:8080/`, the
 registry API at
 `/v2/` on the same port.
+
+`journalctl -u zot` is still worth knowing, but it no longer carries
+the registry's own lines — only systemd's, and whatever zot writes to
+stderr before its logger opens. That makes it the right place to look
+for a unit that failed to start and the wrong place to look for
+anything else.
 
 ## Things that fail silently
 

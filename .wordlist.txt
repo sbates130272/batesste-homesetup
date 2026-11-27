@@ -316,6 +316,7 @@ Spining
 SSDP
 SSID
 SSL
+stderr
 stdout
 streamable
 strix

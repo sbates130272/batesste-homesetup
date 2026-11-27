@@ -658,7 +658,12 @@ done
 if [[ "${code}" != "200" && "${code}" != "401" ]]; then
     echo "Error: the registry API did not answer on" >&2
     echo "       http://${probe}:${ZOT_PORT}/v2/ (last status: ${code:-none})" >&2
+    # journalctl first and not ${ZOT_LOG}: a zot that failed to start
+    # never opened its log file, and the reason it did not -- a config
+    # it rejected, or a /var/log/zot missing from ReadWritePaths -- is
+    # on stderr, which is the one thing still going to journald.
     echo "       Check: journalctl -u zot -n 50" >&2
+    echo "       then:  sudo tail -n 50 ${ZOT_LOG}" >&2
     exit 1
 fi
 echo "    registry API on :${ZOT_PORT}: ${code}"
@@ -681,7 +686,7 @@ curl_as() {   # curl_as <account> <password> <url...>
 ci_code="$(curl_as ci "${ZOT_CI_PASSWORD}" "http://${probe}:${ZOT_PORT}/v2/")"
 if [[ "${ci_code}" != "200" ]]; then
     echo "Error: the 'ci' account did not authenticate (${ci_code})." >&2
-    echo "       Check: journalctl -u zot | grep htpasswd" >&2
+    echo "       Check: sudo grep htpasswd ${ZOT_LOG}" >&2
     exit 1
 fi
 echo "    ci authentication: ok"
@@ -725,7 +730,9 @@ echo
 echo "==> Done. zot ${ZOT_VERSION} on ${host}."
 echo "    UI:       http://${canonical}:${ZOT_PORT}/"
 echo "    Registry: ${canonical}:${ZOT_PORT}"
-echo "    Logs:     journalctl -u zot -f"
+echo "    Logs:     sudo tail -f ${ZOT_LOG}"
+echo "              (journalctl -u zot shows systemd and startup"
+echo "               failures only -- zot's own lines go to the file)"
 echo
 echo "    Still to do, on the CLIENTS -- this is plain HTTP, so"
 echo "    Docker refuses it until it is named explicitly:"
