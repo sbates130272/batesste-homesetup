@@ -35,6 +35,7 @@ zot's garbage collection.
 | `deploy.sh` | Installs the binary, user, config, credentials and unit. Idempotent. |
 | `config.json.in` | The zot config, as a valid JSON file. `deploy.sh` overlays the host-specific values with `jq`. |
 | `zot.service` | The systemd unit, installed to `/etc/systemd/system/`. |
+| `zot.logrotate` | Rotation for the log file, installed to `/etc/logrotate.d/zot`. |
 | `checksums.sha256` | Pinned SHA-256 digests for the release artefacts. |
 | `zot.secrets.example` | Template for the untracked `zot.secrets`. |
 
@@ -48,9 +49,44 @@ On the host:
 | `/etc/zot/htpasswd` | Credentials, `root:zot` 0640. Watched and hot-reloaded. |
 | `/etc/zot/session-keys.json` | Web UI cookie keys. Generated once, then never touched. |
 | `/var/lib/zot` | Blob store. Owned by the `zot` system user. |
+| `/var/log/zot/zot.log` | The log. `zot:adm` 0640, rotated daily and at 200 MB. |
+| `/etc/logrotate.d/zot` | The rotation stanza. |
 
-Logs go to stdout and therefore to journald, which `../loki/alloy`
-already ships to Loki. There is no log file to rotate.
+### Logs
+
+They go to a file, not to stdout and journald. zot at `log.level`
+`info` writes five lines for every manifest `HEAD`, and a build day is
+a great many manifest `HEAD`s: the last time that went somewhere
+unrotated it put 88 GB into `/var/log/syslog` and failed a push with
+`blob upload invalid`. `journald.conf.d/99-size-cap.conf` caps
+journald at 500 MB, but `rsyslog`'s copy of the same lines is outside
+that cap.
+
+So the config ships `level: warn` with `output:
+/var/log/zot/zot.log`, and `zot.logrotate` bounds the file at
+`maxsize 200M` / `rotate 7`. The rotation is the part that matters:
+it is what makes raising the level back to `info` or `debug` to chase
+a problem safe rather than a repeat of the incident.
+
+`../loki/alloy` still ships these lines to Loki — `loki.source.file
+"zot"` rather than the journal source, which is why the directory is
+group `adm` and the file is 0640. Alloy runs as `alloy` in `adm`.
+
+Two things will break this if they are changed carelessly:
+
+- `copytruncate` in the rotation stanza. zot opens the log once at
+  startup and never reopens it, so `create` would leave it writing
+  into a renamed-then-deleted inode and the registry would go silent
+  while looking perfectly healthy. `../homebridge` hit exactly this
+  in 2026-10 and said nothing for four days.
+- `/var/log/zot` in `ReadWritePaths`. `ProtectSystem=strict` makes
+  `/var/log` read-only, and zot cannot open a log file it cannot
+  write — that is a unit that fails to start, not one that falls back
+  to stdout. `deploy.sh` keeps the line in step with `ZOT_LOG_DIR`.
+
+`deploy.sh` also creates the file itself rather than letting zot do
+it: zot opens with `O_CREAT` and mode 0600, which would lock alloy
+out.
 
 ## Moving it
 
@@ -365,12 +401,14 @@ means anything on the LAN or the tailnet can cause this box to fetch
 and keep an arbitrary public image. Four images came to 617 MB in
 testing, one of them 616 MB on its own.
 
-So `storage.retention` carries two policies, and **order matters** —
+So `storage.retention` carries four policies, and **order matters** —
 zot takes the first whose repository glob matches:
 
 | Policy | Effect |
 | --- | --- |
 | `local/**` | Kept forever. Nothing here is evicted. |
+| `rocm-pytorch/*-cache`, `rocm-pytorch-coldrun/**` | BuildKit cache. Kept 336h (14 days) from last pull. |
+| `rocm-pytorch/**` | Release tags forever, the last 12 build snapshots, everything else on the 720h default. See below. |
 | `**` | Tags pulled within the last 720h (30 days) are kept; anything colder is deleted, along with untagged manifests. |
 
 This is why the repository you push to matters. **Push to `local/`.**
@@ -385,6 +423,81 @@ instance: the cached upstream image was deleted and the image under
 `local/` also keeps local pushes clear of the upstream namespaces now
 in use here — `library/*` is where cached Docker Hub official images
 land, and pushing your own `library/foo` would collide with that.
+
+### Why `rocm-pytorch/**` needs its own policy
+
+`rocm-bake` pushes here, and the `**` policy could not hold it. That
+policy leans on `deleteUntagged`, which only ever fires on the
+`*-cache` repositories, where BuildKit overwrites one fixed tag and
+orphans the previous manifest. The image repositories never produce an
+untagged manifest — every build pushes a *new* tag — so `pulledWithin`
+was the only gate, and nothing tripped it: a snapshot is pulled once or twice
+at build time, its own push refreshes its clock, and the earliest it
+could die was 30 days later while 4–8 new ones landed per build day.
+`/var/lib/zot` reached 322 GB on a filesystem with 220 GB free, 263 GB
+of it `rocm-pytorch/`, with October tags at 9.8 GB each still resident
+at day 31.
+
+The fix is to retain by *count* on the throwaway tags, because the
+naming already separates them: a release ends in `-gfx<N>`, a snapshot
+ends in `-g<sha>` optionally followed by `-dirty`.
+
+| `keepTags` entry | Effect |
+| --- | --- |
+| `^latest(-.*)?$`, `.*-gfx[0-9]+$` | Releases. Kept unconditionally. |
+| `.*-g[0-9a-f]{7,}(-dirty)?$` | Snapshots. The 12 most recently pushed in the repository. |
+| `.*` | Everything else, on the 720h-from-pull default. |
+
+Three things about this are easy to get wrong:
+
+- **`keepTags` entries are not combined, despite reading that way.**
+  [`getTagPolicy`][gettagpolicy] returns the *first* entry whose
+  patterns match and a tag is evaluated against that entry alone, so
+  the order inside `keepTags` matters exactly as much as the order of
+  the policies. Releases must come before snapshots.
+- **A tag matching no entry at all is deleted, with no rule applied.**
+  That is what the trailing `.*` catch-all is for, and it is not
+  decoration: without it, 18 live tags — `v0.5.7-cpu`,
+  `v0.33.0-emu`, `3.9.0-10.2.0-full`, `2.14.1-10.1.0-full` and the
+  rest of the CPU and emu releases, which carry no `-gfx` suffix
+  because they are not GPU builds — would have gone on the first
+  sweep.
+- **`.*-gfx[0-9]+$` is anchored on the end deliberately.**
+  `2.15.0-10.2.0-full-gfx1201` is a release and matches;
+  `2.15.0-10.2.0-full-gfx1201-g7b01aff` is a snapshot and does not.
+  Getting that anchor wrong in either direction is the one way this
+  destroys something that matters.
+
+The count is per *repository*, not per GPU target, which is the one
+thing about it that reads smaller than it is.
+`rocm-pytorch/pytorch` builds gfx950, gfx1151, gfx1201 and gfx1250, so
+12 is three snapshots each, and a single build day pushing all four
+targets consumes a third of the budget. Release tags are not counted
+against it, so what this bounds is how far back a snapshot can be
+rolled to, not how far back a release can.
+
+[gettagpolicy]: https://github.com/project-zot/zot/blob/v2.1.22/pkg/retention/retention.go#L361
+
+### `dryRun` is currently on
+
+`storage.retention.dryRun` is `true`. Retention logs every decision
+and deletes nothing, so the first cycle under the new policy can be
+read before it is trusted — these tags cannot be recreated without
+rebuilding them.
+
+```console
+sudo grep '"module":"retention"' /var/log/zot/zot.log |
+  jq -r '[.repository, .tag, .decision, .reason] | @tsv'
+```
+
+Check that every `-gfx` release says `keep`, that the `delete` lines
+are snapshots and nothing else, and then flip `dryRun` to `false` in
+`config.json.in` and redeploy. Expect 60–100 GB back once the blobs
+fall out of reference — less than the sum of the tag sizes, because
+`dedupe` is on.
+
+Note that `dryRun` is global: while it is on, the `*-cache`
+repositories are not being reclaimed either, so do not leave it there.
 
 ## Prometheus integration
 

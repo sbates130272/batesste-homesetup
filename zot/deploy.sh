@@ -36,6 +36,7 @@ ZOT_ADDRESS="${ZOT_ADDRESS:-0.0.0.0}"
 ZOT_PORT="${ZOT_PORT:-8080}"
 ZOT_DATA="${ZOT_DATA:-/var/lib/zot}"
 ZOT_ETC="${ZOT_ETC:-/etc/zot}"
+ZOT_LOG_DIR="${ZOT_LOG_DIR:-/var/log/zot}"
 ZOT_BIN="${ZOT_BIN:-/usr/local/bin/zot}"
 ZLI_BIN="${ZLI_BIN:-/usr/local/bin/zli}"
 ZOT_USER="${ZOT_USER:-zot}"
@@ -45,6 +46,8 @@ SECRETS="${SCRIPT_DIR}/zot.secrets"
 HTPASSWD="${ZOT_ETC}/htpasswd"
 SESSION_KEYS="${ZOT_ETC}/session-keys.json"
 CONFIG="${ZOT_ETC}/config.json"
+ZOT_LOG="${ZOT_LOG_DIR}/zot.log"
+LOGROTATE_PATH="/etc/logrotate.d/zot"
 RELEASE_URL="https://github.com/project-zot/zot/releases/download/${ZOT_VERSION}"
 
 # The accounts config.json.in names. Kept here as a list so the
@@ -346,7 +349,20 @@ run sudo install -d -m 0755 -o "${ZOT_USER}" -g "${ZOT_USER}" "${ZOT_DATA}"
 # the service reads them, and nothing it runs should be able to
 # rewrite its own access control.
 run sudo install -d -m 0750 -o root -g "${ZOT_USER}" "${ZOT_ETC}"
-echo "    ${ZOT_DATA}, ${ZOT_ETC}"
+
+# zot logs to a file rather than stdout -- see the log section of
+# config.json.in for why. Group adm so ../loki/alloy, which runs as
+# the alloy user in adm, can still ship these lines to Loki.
+#
+# The file is created here and not left to zot, which opens it
+# O_CREAT 0600 and would lock alloy out. The mode on an existing file
+# is zot's business to keep, not to set: O_CREAT does nothing when the
+# file is already there, and logrotate's copytruncate preserves it.
+run sudo install -d -m 0750 -o "${ZOT_USER}" -g adm "${ZOT_LOG_DIR}"
+if ! sudo test -e "${ZOT_LOG}"; then
+    run sudo install -m 0640 -o "${ZOT_USER}" -g adm /dev/null "${ZOT_LOG}"
+fi
+echo "    ${ZOT_DATA}, ${ZOT_ETC}, ${ZOT_LOG_DIR}"
 
 # ── Session keys ─────────────────────────────────────────────────
 #
@@ -399,6 +415,7 @@ config_jq='
 | .storage.rootDirectory = $root
 | .http.auth.htpasswd.path = $htpasswd
 | .http.auth.sessionKeysFile = $sessionkeys
+| .log.output = $logfile
 '
 if $WITH_CVE; then
     config_jq+='| .extensions.search.cve = { updateInterval: "24h" }'
@@ -412,6 +429,7 @@ rendered="$(jq -S \
     --arg root "${ZOT_DATA}" \
     --arg htpasswd "${HTPASSWD}" \
     --arg sessionkeys "${SESSION_KEYS}" \
+    --arg logfile "${ZOT_LOG}" \
     "${config_jq}" "${SCRIPT_DIR}/config.json.in")"
 
 if sudo test -r "${CONFIG}" &&
@@ -507,15 +525,43 @@ else
     fi
 fi
 
+# ── Log rotation ─────────────────────────────────────────────────
+#
+# Not optional and not cosmetic. zot at log.level info writes five
+# lines per manifest HEAD; the last time that went to an unrotated
+# destination it put 88 GB into /var/log/syslog and failed a push with
+# "blob upload invalid". The config ships at warn, but the stanza is
+# what makes raising it back to info to debug something safe.
+
+echo "==> Checking log rotation..."
+
+logrotate_rendered="$(sed "s|^/var/log/zot/zot\.log |${ZOT_LOG} |" \
+    "${SCRIPT_DIR}/zot.logrotate")"
+
+if [[ "$(sudo cat "${LOGROTATE_PATH}" 2>/dev/null || true)" \
+      == "${logrotate_rendered}" ]]; then
+    echo "    ${LOGROTATE_PATH} (unchanged)"
+elif $DRY_RUN; then
+    echo "[dry-run] would install ${LOGROTATE_PATH}"
+else
+    mktemp_tracked tmp_lr
+    printf '%s' "${logrotate_rendered}" >"${tmp_lr}"
+    sudo install -m 0644 -o root -g root "${tmp_lr}" "${LOGROTATE_PATH}"
+    rm -f "${tmp_lr}"
+    echo "    ${LOGROTATE_PATH}"
+fi
+
 # ── Unit ─────────────────────────────────────────────────────────
 
 echo "==> Checking the systemd unit..."
 
 # ReadWritePaths is the one line in zot.service that has to follow
-# ZOT_DATA: ProtectSystem=strict makes everything else read-only, so
-# a data directory the unit does not name is a registry that cannot
-# write a blob.
-unit_rendered="$(sed "s|^ReadWritePaths=.*|ReadWritePaths=${ZOT_DATA}|" \
+# ZOT_DATA and ZOT_LOG_DIR: ProtectSystem=strict makes everything else
+# read-only, so a data directory the unit does not name is a registry
+# that cannot write a blob, and a log directory it does not name is a
+# registry that will not start at all.
+unit_rendered="$(sed \
+    "s|^ReadWritePaths=.*|ReadWritePaths=${ZOT_DATA} ${ZOT_LOG_DIR}|" \
     "${SCRIPT_DIR}/zot.service")"
 
 if [[ "$(cat "${UNIT_PATH}" 2>/dev/null || true)" == "${unit_rendered}" ]]; then
