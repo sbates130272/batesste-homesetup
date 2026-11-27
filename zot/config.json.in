@@ -9,7 +9,7 @@
     "gcInterval": "24h",
 
     "retention": {
-      "dryRun": true,
+      "dryRun": false,
       "delay": "24h",
       "policies": [
         {
@@ -88,7 +88,7 @@
   },
 
   "log": {
-    "level": "info",
+    "level": "warn",
     "output": "/var/log/zot/zot.log"
   },
 

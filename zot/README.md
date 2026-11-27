@@ -67,13 +67,13 @@ it at `maxsize 200M` / `rotate 7`. The rotation is the part that
 matters: it is what makes running at `info` — or dropping to `debug`
 to chase a problem — safe rather than a repeat of the incident.
 
-The level is currently `info`, which is deliberate and temporary.
-zot logs its retention decisions through `log.Info()`, so at `warn`
-the dry run described below writes nothing at all and there is
-nothing to read before the deletions become real. The level goes to
-`warn` in the same change that sets `dryRun` to `false`. The audit
-log is no help here, incidentally: `NewAuditLogger` is constructed
-with the same `log.level`, so it filters identically.
+The level is `warn` in steady state. Raise it to `info` whenever you
+need to audit retention: zot logs every keep and delete decision
+through `log.Info()`, so at `warn` a dry run writes nothing at all
+and an empty grep is indistinguishable from a sweep that has not run
+yet. The audit log is no help there either — `NewAuditLogger` is
+constructed with the same `log.level` and filters identically — so
+the level is the only lever. Put it back to `warn` afterwards.
 
 `../loki/alloy` still ships these lines to Loki — `loki.source.file
 "zot"` rather than the journal source, which is why the directory is
@@ -502,31 +502,53 @@ rolled to, not how far back a release can.
 
 [gettagpolicy]: https://github.com/project-zot/zot/blob/v2.1.22/pkg/retention/retention.go#L361
 
-### `dryRun` is currently on
+### What the dry run said
 
-`storage.retention.dryRun` is `true`. Retention logs every decision
-and deletes nothing, so the first cycle under the new policy can be
-read before it is trusted — these tags cannot be recreated without
-rebuilding them.
+The policy was run with `storage.retention.dryRun` set to `true` and
+`log.level` at `info` before being trusted with anything, on
+2026-11-27. These are the decisions it produced over 995 tags:
+
+| Reason | Count | What it is |
+| --- | --- | --- |
+| `didn't meet any tag retention rule` | 520 | Deleted: snapshots past the 12 most recent. |
+| `retained by mostRecentlyPushedCount:12 policy` | 208 | The 12 kept in each repository. |
+| `retained by patterns policy` | 179 | Releases, kept unconditionally. |
+| `retained by pulledWithin:1209600000000000 policy` | 70 | The 336h cache policy. |
+| `retained by pulledWithin:2592000000000000 policy` | 18 | The 720h catch-all. |
+
+Two things in that table are the whole verification. Every deletion
+says `didn't meet any tag retention rule` — the tag matched a
+patterns entry and then failed its rule. The other delete reason,
+`didn't meet any tag 'patterns' rules`, is the one that means a tag
+matched nothing and was dropped without any rule being applied, and
+it does not appear once. And the 18 under the catch-all are exactly
+the CPU and emu releases; without that entry they would have been in
+the first column.
+
+All 520 deletions were in `rocm-pytorch/*`. No `local/`, no upstream
+mirror, no `-gfx` tag.
+
+To re-run this check after changing the policy, set `dryRun` back to
+`true` and `log.level` to `info` together, redeploy, and read:
 
 ```console
 sudo grep '"module":"retention"' /var/log/zot/zot.log |
-  jq -r '[.repository, .tag, .decision, .reason] | @tsv'
+  jq -r 'select(.decision=="delete") | .reason' | sort | uniq -c
 ```
 
-Check that every `-gfx` release says `keep`, that the `delete` lines
-are snapshots and nothing else, and then make one change in
-`config.json.in` — `dryRun` to `false` *and* `log.level` to `warn`,
-together — and redeploy. Expect 60–100 GB back once the blobs fall
-out of reference — less than the sum of the tag sizes, because
-`dedupe` is on.
+Two traps in reading that log. The collector's messages say `removed untagged
+manifest` and `removed manifest without reference` in the past tense
+even under `dryRun` — the index write and the blob sweep are both
+gated, so nothing is actually removed, and the `deleteReferrers` path
+does not even stamp a `dry-run` field on its lines. And `dryRun` is
+global: while it is on the `*-cache` repositories are not being
+reclaimed either, so it is not a state to leave the registry in.
 
-Nothing is written until the sweep runs, which is on the 24h
-`gcInterval` measured from service start, so there is nothing to read
-in the first minutes after a deploy.
-
-Note that `dryRun` is global: while it is on, the `*-cache`
-repositories are not being reclaimed either, so do not leave it there.
+The sweep itself starts within a minute of service start — the
+scheduler leaves `lastRun` at its zero value, so the generator is
+ready immediately — and then repeats on `gcInterval`. On a 322 GB store it
+takes some minutes to walk every repository, so a partial log is an
+unfinished sweep, not a verdict.
 
 ## Prometheus integration
 
