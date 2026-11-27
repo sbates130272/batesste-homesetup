@@ -88,7 +88,7 @@
   },
 
   "log": {
-    "level": "warn",
+    "level": "info",
     "output": "/var/log/zot/zot.log"
   },
 
