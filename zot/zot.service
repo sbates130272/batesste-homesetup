@@ -48,10 +48,16 @@ Group=zot
 # multi-arch push.
 LimitNOFILE=500000
 
-# snoc-strix has 30 GB and shares it with ROCm work that will take
-# every byte it can get. A registry that is only storing and serving
-# blobs does not need much -- the search extension's in-memory index
-# is the only thing that grows with the number of images. MemoryHigh
+# snoc-strix shares its memory with ROCm work that will take every
+# byte it can get -- 122 GB of system RAM and 512 MB of dedicated
+# VRAM, with the GPU allocating the rest through GTT. (It was a 30 GB
+# BIOS split when these ceilings were first set; the numbers moved,
+# the reason for capping a registry did not.) A registry that is only
+# storing and serving blobs does not need much -- the search
+# extension's in-memory index is the only thing that grows with the
+# number of images, and at a 322 GB blob store it has not come close.
+# Re-check that if the store grows again: the symptom of 2G being too
+# low is the OOM killer taking zot, not a slow search. MemoryHigh
 # throttles and reclaims; MemoryMax is the backstop that kills zot
 # alone rather than letting the box go into the swap-thrash livelock
 # ../oomd exists because of. Raise both if you turn CVE scanning on:
@@ -59,8 +65,8 @@ LimitNOFILE=500000
 MemoryHigh=2G
 MemoryMax=4G
 
-# Hardening. zot needs exactly one writable path -- its blob store --
-# and nothing else on this box.
+# Hardening. zot needs exactly two writable paths -- its blob store
+# and its log directory -- and nothing else on this box.
 NoNewPrivileges=true
 PrivateTmp=true
 PrivateDevices=true
@@ -76,10 +82,13 @@ RestrictRealtime=true
 LockPersonality=true
 SystemCallFilter=@system-service
 SystemCallErrorNumber=EPERM
-# Kept in step with ZOT_DATA in deploy.sh. ProtectSystem=strict makes
-# every other path read-only, including /var/lib, so this line is the
-# whole reason the registry can write at all.
-ReadWritePaths=/var/lib/zot
+# Kept in step with ZOT_DATA and ZOT_LOG_DIR in deploy.sh, which
+# rewrites this line. ProtectSystem=strict makes every other path
+# read-only, including /var/lib and /var/log, so this line is the
+# whole reason the registry can write at all -- and a log directory
+# missing from it is a zot that fails to start outright, because
+# log.output names a file it cannot open.
+ReadWritePaths=/var/lib/zot /var/log/zot
 
 [Install]
 WantedBy=multi-user.target

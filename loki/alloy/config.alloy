@@ -99,6 +99,27 @@ loki.source.file "nginx" {
   forward_to = [loki.write.beelink.receiver]
 }
 
+// Same for zot, which used to log to stdout and therefore to
+// journald. It writes to a file now -- see ../../zot/config.json.in
+// -- so without this block the registry's logs stop reaching Loki
+// entirely, which is a worse outcome than the log volume that moved
+// them off journald in the first place. /var/log/zot is 0750
+// zot:adm and alloy is in adm, so it can read these.
+local.file_match "zot" {
+  path_targets = [
+    {
+      __path__ = "/var/log/zot/*.log",
+      job      = "zot",
+      host     = sys.env("LOKI_HOST_LABEL"),
+    },
+  ]
+}
+
+loki.source.file "zot" {
+  targets    = local.file_match.zot.targets
+  forward_to = [loki.write.beelink.receiver]
+}
+
 loki.write "beelink" {
   endpoint {
     url = sys.env("LOKI_PUSH_URL")

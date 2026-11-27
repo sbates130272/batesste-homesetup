@@ -21,6 +21,24 @@
           ]
         },
         {
+          "repositories": ["rocm-pytorch/*-cache", "rocm-pytorch-coldrun/**"],
+          "deleteReferrers": true,
+          "deleteUntagged": true,
+          "keepTags": [
+            { "patterns": [".*"], "pulledWithin": "336h" }
+          ]
+        },
+        {
+          "repositories": ["rocm-pytorch/**"],
+          "deleteReferrers": true,
+          "deleteUntagged": true,
+          "keepTags": [
+            { "patterns": ["^latest(-.*)?$", ".*-gfx[0-9]+$"] },
+            { "patterns": [".*-g[0-9a-f]{7,}(-dirty)?$"], "mostRecentlyPushedCount": 12 },
+            { "patterns": [".*"], "pulledWithin": "720h" }
+          ]
+        },
+        {
           "repositories": ["**"],
           "deleteReferrers": true,
           "deleteUntagged": true,
@@ -70,7 +88,8 @@
   },
 
   "log": {
-    "level": "info"
+    "level": "warn",
+    "output": "/var/log/zot/zot.log"
   },
 
   "extensions": {

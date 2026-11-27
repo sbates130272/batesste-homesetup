@@ -36,6 +36,7 @@ ZOT_ADDRESS="${ZOT_ADDRESS:-0.0.0.0}"
 ZOT_PORT="${ZOT_PORT:-8080}"
 ZOT_DATA="${ZOT_DATA:-/var/lib/zot}"
 ZOT_ETC="${ZOT_ETC:-/etc/zot}"
+ZOT_LOG_DIR="${ZOT_LOG_DIR:-/var/log/zot}"
 ZOT_BIN="${ZOT_BIN:-/usr/local/bin/zot}"
 ZLI_BIN="${ZLI_BIN:-/usr/local/bin/zli}"
 ZOT_USER="${ZOT_USER:-zot}"
@@ -45,6 +46,8 @@ SECRETS="${SCRIPT_DIR}/zot.secrets"
 HTPASSWD="${ZOT_ETC}/htpasswd"
 SESSION_KEYS="${ZOT_ETC}/session-keys.json"
 CONFIG="${ZOT_ETC}/config.json"
+ZOT_LOG="${ZOT_LOG_DIR}/zot.log"
+LOGROTATE_PATH="/etc/logrotate.d/zot"
 RELEASE_URL="https://github.com/project-zot/zot/releases/download/${ZOT_VERSION}"
 
 # The accounts config.json.in names. Kept here as a list so the
@@ -54,7 +57,8 @@ ZOT_ACCOUNTS=(admin ci metrics)
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--dry-run] [--with-cve] [--no-start] [--force-download]
+Usage: $(basename "$0") [--dry-run] [--with-cve] [--no-start]
+                 [--force-download] [--rotate-credentials]
 
 Deploy zot ${ZOT_VERSION}: the binary, the system user, the config,
 the credentials and the systemd unit.
@@ -73,6 +77,11 @@ Options:
   --no-start        Install everything but leave systemd alone.
   --force-download  Re-fetch the binaries even if the installed ones
                     already match the pinned digests.
+  --rotate-credentials
+                    Allow new passwords to be generated on a host
+                    that is already serving. Without it, a missing
+                    zot.secrets next to an existing ${HTPASSWD}
+                    is an error -- see the message it prints.
   -h, --help        Show this help message.
 
 Environment (all optional):
@@ -88,6 +97,7 @@ DRY_RUN=false
 WITH_CVE=false
 START=true
 FORCE_DOWNLOAD=false
+ROTATE_CREDENTIALS=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -95,6 +105,8 @@ while [[ $# -gt 0 ]]; do
         --with-cve)       WITH_CVE=true;       shift ;;
         --no-start)       START=false;         shift ;;
         --force-download) FORCE_DOWNLOAD=true; shift ;;
+        --rotate-credentials)
+                          ROTATE_CREDENTIALS=true; shift ;;
         -h|--help)        usage ;;
         *) echo "Error: unknown option '$1'" >&2; usage ;;
     esac
@@ -198,6 +210,51 @@ fi
 echo "==> Checking credentials..."
 
 if [[ ! -f "${SECRETS}" ]]; then
+    # "No zot.secrets" is not the same question as "is this a first
+    # install", and this script used to treat them as one. The real
+    # signal is the htpasswd on the host: if that exists, the
+    # registry is already serving and already has credentials, and
+    # generating three fresh passwords here would rewrite it. zot
+    # watches that file and reloads it within the second, so there is
+    # no restart to notice and no window to catch it -- every push
+    # account in the fleet simply starts getting 401s while anonymous
+    # pulls carry on working and the registry looks healthy.
+    #
+    # It is also not recoverable by reading anything on this box: the
+    # file holds $6$ crypt hashes, and those do not reverse. The only
+    # copies of the plaintext are wherever zot.secrets went and
+    # whatever clients cached at `docker login` time.
+    #
+    # So this is refused by default and allowed explicitly. Checked
+    # in dry-run too: a dry run whose whole purpose is to tell you
+    # what a real run would do should not be the one path that stays
+    # quiet about it.
+    if sudo test -e "${HTPASSWD}" && ! $ROTATE_CREDENTIALS; then
+        cat >&2 <<EOF
+Error: the secrets file is missing, but the htpasswd is not --
+       this host is already serving.
+
+         missing:  ${SECRETS}
+         exists:   ${HTPASSWD}
+
+       Generating new passwords now would rewrite the htpasswd and
+       break every account, including the 'ci' one builds push with.
+       zot reloads that file in place, so it would take effect
+       immediately and without a restart.
+
+       Restore the secrets file first. The htpasswd holds \$6\$
+       hashes, which do not reverse, so the only copies of the
+       plaintext are wherever that file went -- plus, for 'ci', any
+       client that ran 'docker login' (~/.docker/config.json keeps
+       it base64, not hashed), and for 'metrics', the Prometheus
+       host at /etc/prometheus/secrets/zot-metrics-password.
+
+       To rotate all three deliberately, re-run with
+       --rotate-credentials and be ready to update every client.
+EOF
+        exit 1
+    fi
+
     if $DRY_RUN; then
         echo "[dry-run] would generate ${SECRETS} with three passwords"
     else
@@ -346,7 +403,20 @@ run sudo install -d -m 0755 -o "${ZOT_USER}" -g "${ZOT_USER}" "${ZOT_DATA}"
 # the service reads them, and nothing it runs should be able to
 # rewrite its own access control.
 run sudo install -d -m 0750 -o root -g "${ZOT_USER}" "${ZOT_ETC}"
-echo "    ${ZOT_DATA}, ${ZOT_ETC}"
+
+# zot logs to a file rather than stdout -- see the log section of
+# config.json.in for why. Group adm so ../loki/alloy, which runs as
+# the alloy user in adm, can still ship these lines to Loki.
+#
+# The file is created here and not left to zot, which opens it
+# O_CREAT 0600 and would lock alloy out. The mode on an existing file
+# is zot's business to keep, not to set: O_CREAT does nothing when the
+# file is already there, and logrotate's copytruncate preserves it.
+run sudo install -d -m 0750 -o "${ZOT_USER}" -g adm "${ZOT_LOG_DIR}"
+if ! sudo test -e "${ZOT_LOG}"; then
+    run sudo install -m 0640 -o "${ZOT_USER}" -g adm /dev/null "${ZOT_LOG}"
+fi
+echo "    ${ZOT_DATA}, ${ZOT_ETC}, ${ZOT_LOG_DIR}"
 
 # ── Session keys ─────────────────────────────────────────────────
 #
@@ -399,6 +469,7 @@ config_jq='
 | .storage.rootDirectory = $root
 | .http.auth.htpasswd.path = $htpasswd
 | .http.auth.sessionKeysFile = $sessionkeys
+| .log.output = $logfile
 '
 if $WITH_CVE; then
     config_jq+='| .extensions.search.cve = { updateInterval: "24h" }'
@@ -412,6 +483,7 @@ rendered="$(jq -S \
     --arg root "${ZOT_DATA}" \
     --arg htpasswd "${HTPASSWD}" \
     --arg sessionkeys "${SESSION_KEYS}" \
+    --arg logfile "${ZOT_LOG}" \
     "${config_jq}" "${SCRIPT_DIR}/config.json.in")"
 
 if sudo test -r "${CONFIG}" &&
@@ -507,15 +579,43 @@ else
     fi
 fi
 
+# ── Log rotation ─────────────────────────────────────────────────
+#
+# Not optional and not cosmetic. zot at log.level info writes five
+# lines per manifest HEAD; the last time that went to an unrotated
+# destination it put 88 GB into /var/log/syslog and failed a push with
+# "blob upload invalid". The config ships at warn, but the stanza is
+# what makes raising it back to info to debug something safe.
+
+echo "==> Checking log rotation..."
+
+logrotate_rendered="$(sed "s|^/var/log/zot/zot\.log |${ZOT_LOG} |" \
+    "${SCRIPT_DIR}/zot.logrotate")"
+
+if [[ "$(sudo cat "${LOGROTATE_PATH}" 2>/dev/null || true)" \
+      == "${logrotate_rendered}" ]]; then
+    echo "    ${LOGROTATE_PATH} (unchanged)"
+elif $DRY_RUN; then
+    echo "[dry-run] would install ${LOGROTATE_PATH}"
+else
+    mktemp_tracked tmp_lr
+    printf '%s' "${logrotate_rendered}" >"${tmp_lr}"
+    sudo install -m 0644 -o root -g root "${tmp_lr}" "${LOGROTATE_PATH}"
+    rm -f "${tmp_lr}"
+    echo "    ${LOGROTATE_PATH}"
+fi
+
 # ── Unit ─────────────────────────────────────────────────────────
 
 echo "==> Checking the systemd unit..."
 
 # ReadWritePaths is the one line in zot.service that has to follow
-# ZOT_DATA: ProtectSystem=strict makes everything else read-only, so
-# a data directory the unit does not name is a registry that cannot
-# write a blob.
-unit_rendered="$(sed "s|^ReadWritePaths=.*|ReadWritePaths=${ZOT_DATA}|" \
+# ZOT_DATA and ZOT_LOG_DIR: ProtectSystem=strict makes everything else
+# read-only, so a data directory the unit does not name is a registry
+# that cannot write a blob, and a log directory it does not name is a
+# registry that will not start at all.
+unit_rendered="$(sed \
+    "s|^ReadWritePaths=.*|ReadWritePaths=${ZOT_DATA} ${ZOT_LOG_DIR}|" \
     "${SCRIPT_DIR}/zot.service")"
 
 if [[ "$(cat "${UNIT_PATH}" 2>/dev/null || true)" == "${unit_rendered}" ]]; then
@@ -612,7 +712,12 @@ done
 if [[ "${code}" != "200" && "${code}" != "401" ]]; then
     echo "Error: the registry API did not answer on" >&2
     echo "       http://${probe}:${ZOT_PORT}/v2/ (last status: ${code:-none})" >&2
+    # journalctl first and not ${ZOT_LOG}: a zot that failed to start
+    # never opened its log file, and the reason it did not -- a config
+    # it rejected, or a /var/log/zot missing from ReadWritePaths -- is
+    # on stderr, which is the one thing still going to journald.
     echo "       Check: journalctl -u zot -n 50" >&2
+    echo "       then:  sudo tail -n 50 ${ZOT_LOG}" >&2
     exit 1
 fi
 echo "    registry API on :${ZOT_PORT}: ${code}"
@@ -635,7 +740,7 @@ curl_as() {   # curl_as <account> <password> <url...>
 ci_code="$(curl_as ci "${ZOT_CI_PASSWORD}" "http://${probe}:${ZOT_PORT}/v2/")"
 if [[ "${ci_code}" != "200" ]]; then
     echo "Error: the 'ci' account did not authenticate (${ci_code})." >&2
-    echo "       Check: journalctl -u zot | grep htpasswd" >&2
+    echo "       Check: sudo grep htpasswd ${ZOT_LOG}" >&2
     exit 1
 fi
 echo "    ci authentication: ok"
@@ -679,7 +784,9 @@ echo
 echo "==> Done. zot ${ZOT_VERSION} on ${host}."
 echo "    UI:       http://${canonical}:${ZOT_PORT}/"
 echo "    Registry: ${canonical}:${ZOT_PORT}"
-echo "    Logs:     journalctl -u zot -f"
+echo "    Logs:     sudo tail -f ${ZOT_LOG}"
+echo "              (journalctl -u zot shows systemd and startup"
+echo "               failures only -- zot's own lines go to the file)"
 echo
 echo "    Still to do, on the CLIENTS -- this is plain HTTP, so"
 echo "    Docker refuses it until it is named explicitly:"

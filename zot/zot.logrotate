@@ -1,0 +1,32 @@
+# Copyright (c) Advanced Micro Devices, Inc. All rights reserved.
+#
+# SPDX-License-Identifier: MIT
+#
+# Rotation for zot's log file. Installed to /etc/logrotate.d/zot by
+# deploy.sh, which rewrites the path to follow ZOT_LOG_DIR.
+#
+# This exists so that raising log.level back to info or debug to chase
+# a problem cannot repeat the incident that put 88 GB into
+# /var/log/syslog: at info, every manifest HEAD writes five lines, and
+# a build day is a lot of manifest HEADs. maxsize is the line that
+# matters -- daily rotation alone does not bound a log that can grow
+# by tens of gigabytes between midnights.
+
+/var/log/zot/zot.log {
+    daily
+    rotate 7
+    maxsize 200M
+    missingok
+    notifempty
+    compress
+    delaycompress
+    # zot opens the log once at startup and never reopens it. `create`
+    # would leave it writing into a renamed-then-deleted inode and the
+    # registry would go silent while looking perfectly healthy -- the
+    # same failure ../homebridge hit in 2026-10. copytruncate
+    # truncates in place and keeps the descriptor valid.
+    copytruncate
+    # zot writes it; alloy reads it for Loki. deploy.sh creates the
+    # file 0640 zot:adm, and the copy logrotate makes inherits that.
+    su zot adm
+}

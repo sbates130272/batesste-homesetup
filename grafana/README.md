@@ -768,6 +768,45 @@ collector also fails on every scrape — the SMC collector does
 not work on Apple Silicon — so it contributes no temperatures
 either.
 
+### Disk % is the root filesystem, not the host's storage
+
+**Node Fleet** carries a **Disk %** column next to **CPU %**
+and **Memory %**, and it reads one mount only:
+
+```
+max by (instance) (
+    (1 - node_filesystem_avail_bytes{fstype=~"ext4|xfs|btrfs|apfs", mountpoint="/"}
+       / node_filesystem_size_bytes{fstype=~"ext4|xfs|btrfs|apfs", mountpoint="/"}) * 100
+)
+```
+
+The point of the column is a per-host health number that sits
+alongside the other two, and only `/` qualifies. A full root
+filesystem stops a node from logging, updating or starting
+containers; a full `/boot`, `/var/lib/loki` or `/var/lib/docker`
+is a contained problem on a specific service. Those mounts are
+not hidden — **Filesystem Capacity** lists every one of them —
+they are just not the number that tells you whether the host
+itself is in trouble. Pinning `mountpoint="/"` also avoids the
+double-count the Filesystem Capacity description warns about:
+`amd-laptop` reports `/` and `/var/lib/docker` as two rows
+against the same `/dev/sdd`, so a `max` across a host's mounts
+would read one pool of space twice.
+
+Used is `1 - avail/size` rather than the `used` counter, which
+means the root-reserved blocks count as used and the cell
+matches what `df` shows a non-root user. The `max by (instance)`
+is defensive — nothing on this LAN mounts two devices at `/` —
+and the thresholds are 80% yellow, 90% red, five points tighter
+than **Memory %** because disk does not recover on its own.
+
+The `apfs` branch of the `fstype` filter costs nothing and
+keeps `snoc-shannon` in the column when it is awake. The
+`/System/Volumes/` exclusion Filesystem Capacity needs is
+unnecessary here: `mountpoint="/"` already picks the single row
+that reports the APFS container's shared free pool, which is
+the figure Finder shows.
+
 ### AMD LLM metrics are window gauges, not counters
 
 Every `amd_llm_*` series is a gauge holding a **total over the
