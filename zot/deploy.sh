@@ -57,7 +57,8 @@ ZOT_ACCOUNTS=(admin ci metrics)
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [--dry-run] [--with-cve] [--no-start] [--force-download]
+Usage: $(basename "$0") [--dry-run] [--with-cve] [--no-start]
+                 [--force-download] [--rotate-credentials]
 
 Deploy zot ${ZOT_VERSION}: the binary, the system user, the config,
 the credentials and the systemd unit.
@@ -76,6 +77,11 @@ Options:
   --no-start        Install everything but leave systemd alone.
   --force-download  Re-fetch the binaries even if the installed ones
                     already match the pinned digests.
+  --rotate-credentials
+                    Allow new passwords to be generated on a host
+                    that is already serving. Without it, a missing
+                    zot.secrets next to an existing ${HTPASSWD}
+                    is an error -- see the message it prints.
   -h, --help        Show this help message.
 
 Environment (all optional):
@@ -91,6 +97,7 @@ DRY_RUN=false
 WITH_CVE=false
 START=true
 FORCE_DOWNLOAD=false
+ROTATE_CREDENTIALS=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -98,6 +105,8 @@ while [[ $# -gt 0 ]]; do
         --with-cve)       WITH_CVE=true;       shift ;;
         --no-start)       START=false;         shift ;;
         --force-download) FORCE_DOWNLOAD=true; shift ;;
+        --rotate-credentials)
+                          ROTATE_CREDENTIALS=true; shift ;;
         -h|--help)        usage ;;
         *) echo "Error: unknown option '$1'" >&2; usage ;;
     esac
@@ -201,6 +210,51 @@ fi
 echo "==> Checking credentials..."
 
 if [[ ! -f "${SECRETS}" ]]; then
+    # "No zot.secrets" is not the same question as "is this a first
+    # install", and this script used to treat them as one. The real
+    # signal is the htpasswd on the host: if that exists, the
+    # registry is already serving and already has credentials, and
+    # generating three fresh passwords here would rewrite it. zot
+    # watches that file and reloads it within the second, so there is
+    # no restart to notice and no window to catch it -- every push
+    # account in the fleet simply starts getting 401s while anonymous
+    # pulls carry on working and the registry looks healthy.
+    #
+    # It is also not recoverable by reading anything on this box: the
+    # file holds $6$ crypt hashes, and those do not reverse. The only
+    # copies of the plaintext are wherever zot.secrets went and
+    # whatever clients cached at `docker login` time.
+    #
+    # So this is refused by default and allowed explicitly. Checked
+    # in dry-run too: a dry run whose whole purpose is to tell you
+    # what a real run would do should not be the one path that stays
+    # quiet about it.
+    if sudo test -e "${HTPASSWD}" && ! $ROTATE_CREDENTIALS; then
+        cat >&2 <<EOF
+Error: the secrets file is missing, but the htpasswd is not --
+       this host is already serving.
+
+         missing:  ${SECRETS}
+         exists:   ${HTPASSWD}
+
+       Generating new passwords now would rewrite the htpasswd and
+       break every account, including the 'ci' one builds push with.
+       zot reloads that file in place, so it would take effect
+       immediately and without a restart.
+
+       Restore the secrets file first. The htpasswd holds \$6\$
+       hashes, which do not reverse, so the only copies of the
+       plaintext are wherever that file went -- plus, for 'ci', any
+       client that ran 'docker login' (~/.docker/config.json keeps
+       it base64, not hashed), and for 'metrics', the Prometheus
+       host at /etc/prometheus/secrets/zot-metrics-password.
+
+       To rotate all three deliberately, re-run with
+       --rotate-credentials and be ready to update every client.
+EOF
+        exit 1
+    fi
+
     if $DRY_RUN; then
         echo "[dry-run] would generate ${SECRETS} with three passwords"
     else

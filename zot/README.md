@@ -62,11 +62,18 @@ unrotated it put 88 GB into `/var/log/syslog` and failed a push with
 journald at 500 MB, but `rsyslog`'s copy of the same lines is outside
 that cap.
 
-So the config ships `level: warn` with `output:
-/var/log/zot/zot.log`, and `zot.logrotate` bounds the file at
-`maxsize 200M` / `rotate 7`. The rotation is the part that matters:
-it is what makes raising the level back to `info` or `debug` to chase
-a problem safe rather than a repeat of the incident.
+So the log goes to `/var/log/zot/zot.log`, and `zot.logrotate` bounds
+it at `maxsize 200M` / `rotate 7`. The rotation is the part that
+matters: it is what makes running at `info` — or dropping to `debug`
+to chase a problem — safe rather than a repeat of the incident.
+
+The level is currently `info`, which is deliberate and temporary.
+zot logs its retention decisions through `log.Info()`, so at `warn`
+the dry run described below writes nothing at all and there is
+nothing to read before the deletions become real. The level goes to
+`warn` in the same change that sets `dryRun` to `false`. The audit
+log is no help here, incidentally: `NewAuditLogger` is constructed
+with the same `log.level`, so it filters identically.
 
 `../loki/alloy` still ships these lines to Loki — `loki.source.file
 "zot"` rather than the journal source, which is why the directory is
@@ -326,6 +333,23 @@ Changing a value there and re-running the script rewrites
 `/etc/zot/htpasswd`, which zot reloads by itself — no restart, no
 interrupted push.
 
+**Back `zot.secrets` up somewhere that is not this clone.** It is the
+only copy of the plaintext. `/etc/zot/htpasswd` holds `$6$` crypt
+hashes and they do not reverse, so a lost secrets file cannot be
+recovered from the registry host. The partial copies that do exist
+are `~/.docker/config.json` on any client that ran `docker login`,
+which stores `user:password` base64-encoded rather than hashed, and
+`/etc/prometheus/secrets/zot-metrics-password` on the Prometheus
+host, which `password_file` requires to be plaintext.
+
+`deploy.sh` refuses to run when `zot.secrets` is missing and
+`/etc/zot/htpasswd` exists, because that combination means the host
+is already serving and a generated password would silently invalidate
+every account — zot reloads the file within the second, anonymous
+pulls keep working, and the only symptom is that builds start getting
+401s. `--rotate-credentials` is the way to say you meant it; the
+dry run enforces the check too.
+
 Tightening this is a `config.json.in` edit: drop `anonymousPolicy` to
 require credentials for pulls, or narrow the `ci` policy from `**` to
 the repository prefixes that actually get pushed to.
@@ -491,10 +515,15 @@ sudo grep '"module":"retention"' /var/log/zot/zot.log |
 ```
 
 Check that every `-gfx` release says `keep`, that the `delete` lines
-are snapshots and nothing else, and then flip `dryRun` to `false` in
-`config.json.in` and redeploy. Expect 60–100 GB back once the blobs
-fall out of reference — less than the sum of the tag sizes, because
+are snapshots and nothing else, and then make one change in
+`config.json.in` — `dryRun` to `false` *and* `log.level` to `warn`,
+together — and redeploy. Expect 60–100 GB back once the blobs fall
+out of reference — less than the sum of the tag sizes, because
 `dedupe` is on.
+
+Nothing is written until the sweep runs, which is on the 24h
+`gcInterval` measured from service start, so there is nothing to read
+in the first minutes after a deploy.
 
 Note that `dryRun` is global: while it is on, the `*-cache`
 repositories are not being reclaimed either, so do not leave it there.
